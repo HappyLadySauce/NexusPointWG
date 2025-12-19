@@ -1,16 +1,16 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"context"
 
-	"k8s.io/klog/v2"
 	"github.com/spf13/cobra"
 	"k8s.io/component-base/cli/flag"
+	"k8s.io/klog/v2"
 
-	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
+	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
 )
 
 const (
@@ -24,12 +24,18 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 		Short: "NexusPointWG is a web server for WireGuard",
 		Long:  "NexusPointWG is a web server for WireGuard",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// validate options after flags & config are fully populated
+			if errs := opts.Validate(); len(errs) != 0 {
+				for _, err := range errs {
+					fmt.Fprintln(os.Stderr, "Error:", err)
+				}
+				os.Exit(1)
+			}
 			return run(ctx, opts)
 		},
 	}
 
 	nfs := opts.AddFlags(cmd.Flags())
-
 	flag.SetUsageAndHelpFunc(cmd, *nfs, 80)
 
 	return cmd

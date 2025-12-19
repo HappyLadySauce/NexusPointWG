@@ -16,14 +16,15 @@ func NewInsecureServingOptions() *InsecureServingOptions {
 }
 
 
-func (i *InsecureServingOptions) Validate() error {
+func (i *InsecureServingOptions) Validate() []error {
+	var errors []error
 	if i.BindAddress == nil {
-		return fmt.Errorf("bind-address is required")
+		errors = append(errors, fmt.Errorf("bind-address is required"))
 	}
 	if i.BindPort == 0 {
-		return fmt.Errorf("bind-port is required")
+		errors = append(errors, fmt.Errorf("bind-port is required"))
 	}
-	return nil
+	return errors
 }	
 
 func (i *InsecureServingOptions) AddFlags(fs *pflag.FlagSet) {

@@ -11,7 +11,6 @@ import (
 
 type Options struct {
 	InsecureServing *options.InsecureServingOptions
-
 }
 
 func NewOptions() *Options {
@@ -20,7 +19,7 @@ func NewOptions() *Options {
 	}
 }
 
-// AddFlags adds the flags to the specified FlagSet.
+// AddFlags adds the flags to the specified FlagSet and returns the grouped flag sets.
 func (o *Options) AddFlags(fs *pflag.FlagSet) *flag.NamedFlagSets {
 	nfs := &flag.NamedFlagSets{}
 
