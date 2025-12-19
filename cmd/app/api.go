@@ -28,13 +28,8 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	// 获取分组的 flags
-	nfs := opts.Flags()
+	nfs := opts.AddFlags(cmd.Flags())
 
-	// 将所有的 flags 添加到主 Command
-	opts.AddFlags(cmd.Flags())
-
-	// 设置 usage 和 help 函数以显示分组
 	flag.SetUsageAndHelpFunc(cmd, *nfs, 80)
 
 	return cmd
