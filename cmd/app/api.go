@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
@@ -26,7 +27,20 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 		Short: "NexusPointWG is a web server for WireGuard",
 		Long:  "NexusPointWG is a web server for WireGuard",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// initialize logs after flags are parsed
+			// bind command line flags to viper (command line args override config file)
+			if err := viper.BindPFlags(cmd.Flags()); err != nil {
+				return fmt.Errorf("failed to bind flags: %w", err)
+			}
+
+			// unmarshal configuration from viper to Options struct
+			if err := viper.UnmarshalKey("insecure", opts.InsecureServing); err != nil {
+				return fmt.Errorf("failed to unmarshal insecure config: %w", err)
+			}
+			if err := viper.UnmarshalKey("logs", opts.Log); err != nil {
+				return fmt.Errorf("failed to unmarshal logs config: %w", err)
+			}
+
+			// initialize logs after flags are parsed and config is loaded
 			logs.InitLogs()
 			defer logs.FlushLogs()
 
