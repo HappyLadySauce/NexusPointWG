@@ -36,7 +36,7 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-
+	serve(opts)
 	<-ctx.Done()
 	os.Exit(0)
 	return nil
