@@ -11,6 +11,7 @@ import (
 
 type Options struct {
 	InsecureServing *options.InsecureServingOptions
+
 }
 
 func NewOptions() *Options {
@@ -23,13 +24,12 @@ func NewOptions() *Options {
 func (o *Options) Flags() *flag.NamedFlagSets {
 	nfs := &flag.NamedFlagSets{}
 
-	// 创建 "Insecure Serving" 分组
-	insecureServingFS := nfs.FlagSet("Insecure Serving")
-	o.InsecureServing.AddFlags(insecureServingFS)
-
-	// 创建 "Config" 分组
+	// 创建标志分组并添加配置标志
 	configFS := nfs.FlagSet("Config")
 	options.AddConfigFlag(configFS)
+
+	insecureServingFS := nfs.FlagSet("Insecure Serving")
+	o.InsecureServing.AddFlags(insecureServingFS)
 
 	return nfs
 }

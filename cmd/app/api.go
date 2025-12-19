@@ -1,11 +1,15 @@
 package app
 
 import (
+	"fmt"
+	"os"
 	"context"
 
+	"k8s.io/klog/v2"
 	"github.com/spf13/cobra"
 	"k8s.io/component-base/cli/flag"
 
+	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
 )
 
@@ -37,5 +41,16 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+
+	<-ctx.Done()
+	os.Exit(0)
 	return nil
+}
+
+func serve(opts *options.Options) {
+	insecureAddress := fmt.Sprintf("%s:%d", opts.InsecureServing.BindAddress, opts.InsecureServing.BindPort)
+	klog.V(1).InfoS("Listening and serving on", "address", insecureAddress)
+	go func() {
+		klog.Fatal(router.Router().Run(insecureAddress))
+	}()
 }
