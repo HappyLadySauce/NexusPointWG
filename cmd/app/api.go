@@ -29,15 +29,11 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// bind command line flags to viper (command line args override config file)
 			if err := viper.BindPFlags(cmd.Flags()); err != nil {
-				return fmt.Errorf("failed to bind flags: %w", err)
+				return err
 			}
 
-			// unmarshal configuration from viper to Options struct
-			if err := viper.UnmarshalKey("insecure", opts.InsecureServing); err != nil {
-				return fmt.Errorf("failed to unmarshal insecure config: %w", err)
-			}
-			if err := viper.UnmarshalKey("logs", opts.Log); err != nil {
-				return fmt.Errorf("failed to unmarshal logs config: %w", err)
+			if err := viper.Unmarshal(opts); err != nil {
+				return err
 			}
 
 			// initialize logs after flags are parsed and config is loaded

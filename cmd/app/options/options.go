@@ -11,8 +11,8 @@ import (
 )
 
 type Options struct {
-	InsecureServing *options.InsecureServingOptions
-	Log             *options.LogOptions
+	InsecureServing *options.InsecureServingOptions `mapstructure:"insecure"`
+	Log             *options.LogOptions             `mapstructure:"logs"`
 }
 
 func NewOptions() *Options {
