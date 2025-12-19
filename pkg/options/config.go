@@ -2,18 +2,19 @@ package options
 
 import (
 	"fmt"
-	"strings"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/homedir"
 )
 
 const (
-	basename = "NexusPointWG"
+	basename       = "NexusPointWG"
 	configFlagName = "config"
 )
 

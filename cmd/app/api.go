@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
@@ -24,6 +26,23 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 		Short: "NexusPointWG is a web server for WireGuard",
 		Long:  "NexusPointWG is a web server for WireGuard",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// initialize logs after flags are parsed
+			logs.InitLogs()
+			defer logs.FlushLogs()
+
+			// setup log file rotation if log file is specified
+			// This must be called after InitLogs() to ensure the log file setting takes effect
+			if opts.Log.LogFile != "" {
+				logWriter := &lumberjack.Logger{
+					Filename:   opts.Log.LogFile,
+					MaxSize:    opts.Log.MaxSize, // megabytes
+					MaxBackups: opts.Log.MaxBackups,
+					MaxAge:     opts.Log.MaxAge, // days
+					Compress:   opts.Log.Compress,
+				}
+				klog.SetOutput(logWriter)
+			}
+
 			// validate options after flags & config are fully populated
 			if errs := opts.Validate(); len(errs) != 0 {
 				for _, err := range errs {

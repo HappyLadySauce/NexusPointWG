@@ -1,3 +1,9 @@
 insecure:
     bind-address: ${ORGANIZE_TOYS_SERVER_INSECURE_BIND_ADDRESS} # 绑定的不安全 IP 地址，设置为 0.0.0.0 表示使用全部网络接口，默认为 127.0.0.1
     bind-port: ${ORGANIZE_TOYS_SERVER_INSECURE_BIND_PORT} # 提供非安全认证的监听端口，默认为 8001
+logs:
+    log-file: ${NEXUS_POINT_WG_LOGS_LOG_FILE}
+    log-max-size: ${NEXUS_POINT_WG_LOGS_LOG_MAX_SIZE}
+    log-max-backups: ${NEXUS_POINT_WG_LOGS_LOG_MAX_BACKUPS}
+    log-max-age: ${NEXUS_POINT_WG_LOGS_LOG_MAX_AGE}
+    log-compress: ${NEXUS_POINT_WG_LOGS_LOG_COMPRESS}
