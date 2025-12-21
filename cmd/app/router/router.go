@@ -2,8 +2,12 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
+
+	_ "github.com/HappyLadySauce/NexusPointWG/api/swagger/docs"
 )
 
 var (
@@ -17,6 +21,11 @@ func init() {
 	}
 
 	router = gin.Default()
+
+	// setup middlewares
+	SetupMiddlewares(router)
+
+	// setup routes
 	_ = router.SetTrustedProxies(nil)
 	v1 = router.Group("/api/v1")
 
@@ -26,6 +35,9 @@ func init() {
 	router.GET("/readyz", func(c *gin.Context) {
 		c.String(200, "readyz")
 	})
+
+	// register swagger routes
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }
 
 // V1 returns the router group for /api/v1 which for resources in control plane endpoints.
