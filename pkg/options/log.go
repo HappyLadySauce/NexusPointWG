@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+
 	"github.com/spf13/pflag"
 )
 
@@ -33,6 +35,28 @@ func NewLogOptions() *LogOptions {
 		MaxAge:     28, // 28 days
 		Compress:   true,
 	}
+}
+
+
+func (l *LogOptions) Validate() []error {
+	var errors []error
+
+	if l.LogFile == "" {
+		errors = append(errors, fmt.Errorf("log-file is required"))
+	}
+	if l.MaxSize <= 0 {
+		errors = append(errors, fmt.Errorf("log-max-size must be greater than 0"))
+	}
+	if l.MaxBackups <= 0 {
+		errors = append(errors, fmt.Errorf("log-max-backups must be greater than 0"))
+	}
+	if l.MaxAge <= 0 {
+		errors = append(errors, fmt.Errorf("log-max-age must be greater than 0"))
+	}
+	if !l.Compress {
+		errors = append(errors, fmt.Errorf("log-compress must be true"))
+	}
+	return errors
 }
 
 func (l *LogOptions) AddFlags(fs *pflag.FlagSet) {
