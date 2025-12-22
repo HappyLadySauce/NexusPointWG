@@ -1,12 +1,24 @@
+
 # Makefile for NexusPointWG
 
+# Build all by default, even if it's not first
+.DEFAULT_GOAL := all
+
+.PHONY: all
+all: build
+
 # ==============================================================================
+# Build options
+
 ROOT_PACKAGE=github.com/HappyLadySauce/NexusPointWG
 
 # ==============================================================================
 # Includes
 
+include scripts/make-rules/common.mk
 include scripts/make-rules/golang.mk
+include scripts/make-rules/tools.mk
+include scripts/make-rules/swagger.mk
 
 # ==============================================================================
 # Usage
@@ -40,3 +52,11 @@ export USAGE_OPTIONS
 build:
 	@$(MAKE) go.build
 
+## swagger: Generate swagger document.
+.PHONY: swagger
+swagger:
+	@$(MAKE) swagger.run
+
+.PHONY: tidy
+tidy:
+	@go mod tidy
