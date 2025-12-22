@@ -8,7 +8,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/passwd"
 	"github.com/HappyLadySauce/errors"
@@ -67,7 +67,10 @@ func (u *UserController) CreateUser(c *gin.Context) {
 		core.WriteResponse(c, err, nil)
 		return
 	}
-	
+
+	// 清空密码字段，避免在响应中泄露明文密码
+	httpUser.Password = ""
+
 	klog.V(1).Info("user created successfully")
 	core.WriteResponse(c, nil, httpUser)
 }

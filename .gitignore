@@ -13,3 +13,5 @@
 .env.production
 
 *.yaml
+
+_output/

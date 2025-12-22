@@ -52,7 +52,7 @@ func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 }
 
 func (u *users) DeleteUser(ctx context.Context, id string) error {
-	err := u.db.Where("id = ?", id).Delete(&model.User{}).Error
+	err := u.db.WithContext(ctx).Where("id = ?", id).Delete(&model.User{}).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return errors.WithCode(code.ErrDatabase, err.Error())
 	}
