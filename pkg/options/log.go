@@ -37,24 +37,23 @@ func NewLogOptions() *LogOptions {
 	}
 }
 
-
 func (l *LogOptions) Validate() []error {
 	var errors []error
 
-	if l.LogFile == "" {
-		errors = append(errors, fmt.Errorf("log-file is required"))
-	}
-	if l.MaxSize <= 0 {
-		errors = append(errors, fmt.Errorf("log-max-size must be greater than 0"))
-	}
-	if l.MaxBackups <= 0 {
-		errors = append(errors, fmt.Errorf("log-max-backups must be greater than 0"))
-	}
-	if l.MaxAge <= 0 {
-		errors = append(errors, fmt.Errorf("log-max-age must be greater than 0"))
-	}
-	if !l.Compress {
-		errors = append(errors, fmt.Errorf("log-compress must be true"))
+	// LogFile can be empty - if empty, logs will be written to stderr (as documented)
+	// Only validate MaxSize, MaxBackups, MaxAge if LogFile is specified
+	if l.LogFile != "" {
+		if l.MaxSize <= 0 {
+			errors = append(errors, fmt.Errorf("log-max-size must be greater than 0"))
+		}
+		if l.MaxBackups <= 0 {
+			errors = append(errors, fmt.Errorf("log-max-backups must be greater than 0"))
+		}
+		if l.MaxAge <= 0 {
+			errors = append(errors, fmt.Errorf("log-max-age must be greater than 0"))
+		}
+		// Compress is a boolean, both true and false are valid values
+		// No validation needed for Compress
 	}
 	return errors
 }
