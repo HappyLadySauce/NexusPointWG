@@ -1,7 +1,5 @@
-# Use bash if available, otherwise use default shell
-ifeq ($(findstring Windows,$(OS)),)
+# Linux-only: always use bash
 SHELL := /bin/bash
-endif
 
 # Define COMMON_SELF_DIR if not already defined
 # This gets the directory of the current Makefile (common.mk)
@@ -12,27 +10,15 @@ endif
 # Define ROOT_DIR if not already defined
 # Go up two levels from scripts/make-rules/ to get project root
 ifeq ($(origin ROOT_DIR),undefined)
-# Use shell command to get absolute path of project root
-# COMMON_SELF_DIR is scripts/make-rules/, go up two levels to get project root
-ifeq ($(OS),Windows_NT)
-# On Windows, use PowerShell to get parent of parent directory
-ROOT_DIR := $(shell powershell -Command "(Get-Item '$(COMMON_SELF_DIR)').Parent.Parent.FullName")
-else
-# On Unix, use cd and pwd
+# Linux: use cd and pwd
 ROOT_DIR := $(shell cd $(COMMON_SELF_DIR)/../.. && pwd)
-endif
 endif
 
 # Define OUTPUT_DIR if not already defined
 ifeq ($(origin OUTPUT_DIR),undefined)
 OUTPUT_DIR := $(ROOT_DIR)/_output
-# Create output directory if it doesn't exist
-# Use if not exist for Windows, mkdir -p for Unix
-ifeq ($(OS),Windows_NT)
-$(shell if not exist "$(OUTPUT_DIR)" mkdir "$(OUTPUT_DIR)")
-else
+# Linux: ensure output dir exists
 $(shell mkdir -p "$(OUTPUT_DIR)")
-endif
 endif
 
 # Specify tools severity, include: BLOCKER_TOOLS, CRITICAL_TOOLS, TRIVIAL_TOOLS.

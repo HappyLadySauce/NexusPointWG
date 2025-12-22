@@ -59,4 +59,11 @@ swagger:
 
 .PHONY: tidy
 tidy:
-	@go mod tidy
+	@$(GO) mod tidy
+
+## help: Show this help info.
+.PHONY: help
+help: Makefile
+	@printf "\nUsage: make <TARGETS> <OPTIONS> ...\n\nTargets:\n"
+	@sed -n 's/^##//p' $< | column -t -s ':' | sed -e 's/^/ /'
+	@echo "$$USAGE_OPTIONS"
