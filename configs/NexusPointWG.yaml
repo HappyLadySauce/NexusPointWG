@@ -7,3 +7,5 @@ logs:
     log-max-backups: ${NEXUS_POINT_WG_LOGS_LOG_MAX_BACKUPS}
     log-max-age: ${NEXUS_POINT_WG_LOGS_LOG_MAX_AGE}
     log-compress: ${NEXUS_POINT_WG_LOGS_LOG_COMPRESS}
+sqlite:
+    data-source-name: ${NEXUS_POINT_WG_SQLITE_DATA_SOURCE_NAME}
