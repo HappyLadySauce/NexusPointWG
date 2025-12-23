@@ -7,5 +7,6 @@ import (
 
 func init() {
 	userController := user.NewUserController(router.StoreIns)
+	// 用户注册路由不需要认证
 	router.V1().POST("/users", userController.CreateUser)
 }

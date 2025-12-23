@@ -10,6 +10,7 @@ import (
 type UserSrv interface {
 	CreateUser(ctx context.Context, user *model.User) error
 	GetUser(ctx context.Context, id string) (*model.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	UpdateUser(ctx context.Context, user *model.User) error
 	DeleteUser(ctx context.Context, id string) error
 }
@@ -32,6 +33,10 @@ func (u *userSrv) CreateUser(ctx context.Context, user *model.User) error {
 
 func (u *userSrv) GetUser(ctx context.Context, id string) (*model.User, error) {
 	return u.store.Users().GetUser(ctx, id)
+}
+
+func (u *userSrv) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+	return u.store.Users().GetUserByUsername(ctx, username)
 }
 
 func (u *userSrv) UpdateUser(ctx context.Context, user *model.User) error {

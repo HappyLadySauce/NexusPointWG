@@ -7,6 +7,7 @@ require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/marmotedu/component-base v1.6.2
 	github.com/novalagung/gubrak v1.0.0
 	github.com/spf13/cobra v1.10.2

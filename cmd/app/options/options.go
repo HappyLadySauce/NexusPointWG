@@ -13,6 +13,7 @@ import (
 type Options struct {
 	InsecureServing *options.InsecureServingOptions `mapstructure:"insecure"`
 	Sqlite          *options.SqliteOptions          `mapstructure:"sqlite"`
+	JWT             *options.JWTOptions             `mapstructure:"jwt"`
 	Log             *options.LogOptions             `mapstructure:"logs"`
 }
 
@@ -20,6 +21,7 @@ func NewOptions() *Options {
 	return &Options{
 		InsecureServing: options.NewInsecureServingOptions(),
 		Sqlite:          options.NewSqliteOptions(),
+		JWT:             options.NewJWTOptions(),
 		Log:             options.NewLogOptions(),
 	}
 }
@@ -43,6 +45,10 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) *flag.NamedFlagSets {
 	// add the flags to the NamedFlagSets
 	sqliteFS := nfs.FlagSet("SQLite")
 	o.Sqlite.AddFlags(sqliteFS)
+
+	// add JWT flags
+	jwtFS := nfs.FlagSet("JWT")
+	o.JWT.AddFlags(jwtFS)
 
 	// add the flags to the main Command
 	for _, name := range nfs.Order {

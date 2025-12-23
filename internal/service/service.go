@@ -6,6 +6,7 @@ import (
 
 type Service interface {
 	Users() UserSrv
+	Auth() AuthSrv
 }
 
 type service struct {
@@ -18,4 +19,8 @@ func NewService(store store.Factory) Service {
 
 func (s *service) Users() UserSrv {
 	return newUsers(s)
+}
+
+func (s *service) Auth() AuthSrv {
+	return newAuth(s)
 }

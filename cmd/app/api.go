@@ -14,7 +14,9 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 
+	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
 )
 
@@ -73,6 +75,14 @@ func NewAPICommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+	// Init global config (must be done before any request hits middleware/controllers).
+	config.Init(&config.Config{
+		InsecureServing: opts.InsecureServing,
+		Sqlite:          opts.Sqlite,
+		Log:             opts.Log,
+		JWT:             opts.JWT,
+	})
+
 	serve(opts)
 	<-ctx.Done()
 	os.Exit(0)

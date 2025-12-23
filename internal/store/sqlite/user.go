@@ -31,6 +31,18 @@ func (u *users) GetUser(ctx context.Context, id string) (*model.User, error) {
 	return &user, nil
 }
 
+func (u *users) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+	var user model.User
+	err := u.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.WithCode(code.ErrDatabase, err.Error())
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (u *users) CreateUser(ctx context.Context, user *model.User) error {
 	err := u.db.WithContext(ctx).Create(user).Error
 	if err != nil {
