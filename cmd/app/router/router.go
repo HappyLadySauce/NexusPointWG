@@ -4,11 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store/sqlite"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
-	
+
 	_ "github.com/HappyLadySauce/NexusPointWG/api/swagger/docs"
 )
 
@@ -20,8 +21,15 @@ var (
 )
 
 func init() {
-	StoreIns, _ = sqlite.GetSqliteFactoryOr(nil)
-	
+	var err error
+	StoreIns, err = sqlite.GetSqliteFactoryOr(nil)
+	if err != nil {
+		// In init(), we can't return error, so we panic if store initialization fails
+		// This will prevent the application from starting with an invalid store
+		// Use %+v to show the full error chain including the original error
+		klog.Fatalf("Failed to initialize store in router init: %+v", err)
+	}
+
 	if !environment.IsDev() {
 		gin.SetMode(gin.ReleaseMode)
 	}

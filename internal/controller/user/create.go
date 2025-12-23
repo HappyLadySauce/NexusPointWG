@@ -14,6 +14,18 @@ import (
 	"github.com/HappyLadySauce/errors"
 )
 
+// CreateUser create a new user.
+// @Summary Create a new user
+// @Description Create a new user with username, email and password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body v1.User true "User information"
+// @Success 200 {object} v1.User "User created successfully"
+// @Failure 400 {object} core.ErrResponse "Bad request - invalid input or validation failed"
+// @Failure 401 {object} core.ErrResponse "Unauthorized - encryption error"
+// @Failure 500 {object} core.ErrResponse "Internal server error - database error"
+// @Router /api/v1/users [post]
 func (u *UserController) CreateUser(c *gin.Context) {
 	klog.V(1).Info("user create function called.")
 

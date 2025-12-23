@@ -2,6 +2,7 @@ package options
 
 import (
 	"fmt"
+
 	"github.com/spf13/pflag"
 )
 
@@ -24,5 +25,5 @@ func (o *SqliteOptions) Validate() []error {
 }
 
 func (o *SqliteOptions) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&o.DataSourceName, "data-source-name", "", "Data source name for SQLite")
+	fs.StringVar(&o.DataSourceName, "data-source-name", o.DataSourceName, "Data source name for SQLite")
 }

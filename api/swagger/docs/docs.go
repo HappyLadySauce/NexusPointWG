@@ -14,7 +14,106 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/api/v1/users": {
+            "post": {
+                "description": "Create a new user with username, email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Create a new user",
+                "parameters": [
+                    {
+                        "description": "User information",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.User"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/v1.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input or validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - encryption error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error - database error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "core.ErrResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code defines the business error code.",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Message contains the detail of this message.\nThis message is suitable to be exposed to external",
+                    "type": "string"
+                },
+                "reference": {
+                    "description": "Reference returns the reference document which maybe useful to solve this error.",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.User": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address (max 20 characters, must be valid email format)",
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "password": {
+                    "description": "Password is the user's password (8-32 characters, will be hashed and not returned in response)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 8
+                },
+                "username": {
+                    "description": "Username is the unique username for the user (3-32 characters)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
