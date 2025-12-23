@@ -5,17 +5,23 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/HappyLadySauce/NexusPointWG/internal/store"
+	"github.com/HappyLadySauce/NexusPointWG/internal/store/sqlite"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
-
+	
 	_ "github.com/HappyLadySauce/NexusPointWG/api/swagger/docs"
 )
 
 var (
 	router *gin.Engine
 	v1     *gin.RouterGroup
+
+	StoreIns store.Factory
 )
 
 func init() {
+	StoreIns, _ = sqlite.GetSqliteFactoryOr(nil)
+	
 	if !environment.IsDev() {
 		gin.SetMode(gin.ReleaseMode)
 	}

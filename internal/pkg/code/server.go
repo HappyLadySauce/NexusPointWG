@@ -1,5 +1,8 @@
 package code
 
+// Server: server-related errors.
+// Code must start with 1xxxxx.
 const (
-	ErrUserAlreadyExist int = iota + 100001
+	// ErrUserAlreadyExist - 400: User already exists.
+	ErrUserAlreadyExist int = iota + 110001
 )

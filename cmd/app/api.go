@@ -14,6 +14,8 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
+
+	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
 )
 
 const (

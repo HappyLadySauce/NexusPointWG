@@ -12,12 +12,14 @@ import (
 
 type Options struct {
 	InsecureServing *options.InsecureServingOptions `mapstructure:"insecure"`
+	Sqlite          *options.SqliteOptions          `mapstructure:"sqlite"`
 	Log             *options.LogOptions             `mapstructure:"logs"`
 }
 
 func NewOptions() *Options {
 	return &Options{
 		InsecureServing: options.NewInsecureServingOptions(),
+		Sqlite:          options.NewSqliteOptions(),
 		Log:             options.NewLogOptions(),
 	}
 }
@@ -37,6 +39,10 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) *flag.NamedFlagSets {
 	logsFlagSet := nfs.FlagSet("Logs")
 	logs.AddFlags(logsFlagSet)
 	o.Log.AddFlags(logsFlagSet)
+
+	// add the flags to the NamedFlagSets
+	sqliteFS := nfs.FlagSet("SQLite")
+	o.Sqlite.AddFlags(sqliteFS)
 
 	// add the flags to the main Command
 	for _, name := range nfs.Order {
