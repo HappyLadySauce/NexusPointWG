@@ -34,7 +34,9 @@ func (u *UserController) CreateUser(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&httpUser); err != nil {
 		klog.Errorf("invalid request body: %v", err)
-		core.WriteResponse(c, errors.WithCode(code.ErrBind, err.Error()), nil)
+		// Format validation errors for detailed response
+		details := core.FormatValidationError(err)
+		core.WriteResponseWithDetails(c, errors.WithCode(code.ErrBind, "Validation failed"), nil, details)
 		return
 	}
 

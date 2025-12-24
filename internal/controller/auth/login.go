@@ -33,7 +33,9 @@ func (a *AuthController) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
 		klog.Errorf("invalid request body: %v", err)
-		core.WriteResponse(c, errors.WithCode(code.ErrBind, "%s", err.Error()), nil)
+		// Format validation errors for detailed response
+		details := core.FormatValidationError(err)
+		core.WriteResponseWithDetails(c, errors.WithCode(code.ErrBind, "Validation failed"), nil, details)
 		return
 	}
 
