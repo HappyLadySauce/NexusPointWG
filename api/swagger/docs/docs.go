@@ -15,6 +15,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/login": {
+            "post": {
+                "description": "Authenticate user with username and password, returns JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "login",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "$ref": "#/definitions/v1.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - user account is not active",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users": {
             "post": {
                 "description": "Create a new user with username, email and password",
@@ -86,6 +138,40 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "description": "Password is the user's password",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is the user's username",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "description": "Token is the JWT token for authentication",
+                    "type": "string"
+                },
+                "user": {
+                    "description": "User contains the user information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.UserInfo"
+                        }
+                    ]
+                }
+            }
+        },
         "v1.User": {
             "type": "object",
             "required": [
@@ -110,6 +196,27 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
+                }
+            }
+        },
+        "v1.UserInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID is the unique identifier for the user",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is the user's status (active/inactive)",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is the user's username",
+                    "type": "string"
                 }
             }
         }
