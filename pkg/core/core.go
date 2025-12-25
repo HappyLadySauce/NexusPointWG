@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	customvalidator "github.com/HappyLadySauce/NexusPointWG/pkg/utils/validator"
 )
 
 // ErrResponse defines the return messages when an error occurred.
@@ -65,6 +66,12 @@ func FormatValidationError(err error) map[string]string {
 				message = fmt.Sprintf("%s must be exactly %s characters", jsonFieldName, fieldError.Param())
 			case "oneof":
 				message = fmt.Sprintf("%s must be one of: %s", jsonFieldName, fieldError.Param())
+			case "urlsafe":
+				message = fmt.Sprintf("%s must contain only letters, numbers, underscores, and hyphens", jsonFieldName)
+			case "nochinese":
+				message = fmt.Sprintf("%s must not contain Chinese characters", jsonFieldName)
+			case "emaildomain":
+				message = fmt.Sprintf("%s must use a common email provider domain (%s)", jsonFieldName, strings.Join(customvalidator.AllowedEmailDomains, ", "))
 			default:
 				message = fmt.Sprintf("%s failed validation on tag '%s'", jsonFieldName, fieldError.Tag())
 			}
@@ -78,7 +85,6 @@ func FormatValidationError(err error) map[string]string {
 
 	return details
 }
-
 
 // WriteResponseWithDetails write an error or the response data into http response body with details.
 // The details parameter can be used to provide additional error information, such as validation errors.

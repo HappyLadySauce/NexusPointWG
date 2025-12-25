@@ -17,7 +17,7 @@ import (
 
 // RegisterUser register a new user.
 // @Summary Register a new user
-// @Description Register a new user with username, email and password
+// @Description Register a new user with username, nickname, avatar, email and password
 // @Tags users
 // @Accept json
 // @Produce json
@@ -71,8 +71,20 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 	}
 	user.ID = userID
 
-	// 设置用户名和邮箱
+	// 设置用户名、昵称、头像和邮箱
 	user.Username = httpUser.Username
+	// 如果没有提供昵称，则使用用户名
+	if httpUser.Nickname == "" {
+		user.Nickname = httpUser.Username
+	} else {
+		user.Nickname = httpUser.Nickname
+	}
+	// 如果没有提供头像，则使用默认头像
+	if httpUser.Avatar == "" {
+		user.Avatar = model.DefaultAvatarURL
+	} else {
+		user.Avatar = httpUser.Avatar
+	}
 	user.Email = httpUser.Email
 	user.Status = model.UserStatusActive
 	// 注册只能创建普通用户，role 永远为 user

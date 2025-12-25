@@ -3,10 +3,14 @@ package v1
 // RegisterRequest represents a user registration request.
 // swagger:model
 type RegisterRequest struct {
-	// Username is the unique username for the user (3-32 characters)
-	Username string `json:"username" binding:"required,min=3,max=32"`
-	// Email is the user's email address (max 20 characters, must be valid email format)
-	Email string `json:"email" binding:"required,email,max=20"`
+	// Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)
+	Username string `json:"username" binding:"required,min=3,max=32,urlsafe,nochinese"`
+	// Nickname is the user's display name (3-32 characters). If not provided, will use username.
+	Nickname string `json:"nickname" binding:"omitempty,min=3,max=32"`
+	// Avatar is the user's avatar URL (must be a valid URL, max 255 characters)
+	Avatar string `json:"avatar" binding:"omitempty,url,max=255"`
+	// Email is the user's email address (must be valid email format and use common email provider, max 255 characters)
+	Email string `json:"email" binding:"required,email,emaildomain,max=255"`
 	// Password is the user's password (8-32 characters, will be hashed and not returned in response)
 	Password string `json:"password" binding:"required,min=8,max=32"`
 }
@@ -14,14 +18,18 @@ type RegisterRequest struct {
 // UpdateUserRequest represents a user update request.
 //
 // Notes:
-// - For normal users, only `username` and `email` will be applied.
+// - For normal users, only `username`, `nickname`, `avatar`, and `email` will be applied.
 // - For admins, `password`, `status`, and `role` can also be updated.
 // swagger:model
 type UpdateUserRequest struct {
-	// Username is the unique username for the user (3-32 characters)
-	Username *string `json:"username,omitempty" binding:"omitempty,min=3,max=32"`
-	// Email is the user's email address
-	Email *string `json:"email,omitempty" binding:"omitempty,email,max=255"`
+	// Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)
+	Username *string `json:"username,omitempty" binding:"omitempty,min=3,max=32,urlsafe,nochinese"`
+	// Nickname is the user's display name (3-32 characters)
+	Nickname *string `json:"nickname,omitempty" binding:"omitempty,min=3,max=32"`
+	// Avatar is the user's avatar URL (must be a valid URL, max 255 characters)
+	Avatar *string `json:"avatar,omitempty" binding:"omitempty,url,max=255"`
+	// Email is the user's email address (must use common email provider domain, max 255 characters)
+	Email *string `json:"email,omitempty" binding:"omitempty,email,emaildomain,max=255"`
 	// Password is the user's password (8-32 characters, will be hashed)
 	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=32"`
 	// Status is the user status (active/inactive/deleted)
@@ -34,5 +42,6 @@ type UpdateUserRequest struct {
 // swagger:model
 type UserResponse struct {
 	Username string `json:"username"`
+	Nickname string `json:"nickname"`
 	Email    string `json:"email"`
 }

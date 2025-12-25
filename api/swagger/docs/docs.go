@@ -69,7 +69,7 @@ const docTemplate = `{
         },
         "/api/v1/users": {
             "post": {
-                "description": "Register a new user with username, email and password",
+                "description": "Register a new user with username, nickname, avatar, email and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -157,7 +157,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update a user by username (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
+                "description": "Update a user by username (partial update supported). Non-admin can only update self and only username/nickname/avatar/email; admin can update username/nickname/avatar/email/password/status/role.",
                 "consumes": [
                     "application/json"
                 ],
@@ -324,14 +324,26 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
+                "nickname",
                 "password",
                 "username"
             ],
             "properties": {
-                "email": {
-                    "description": "Email is the user's email address (max 20 characters, must be valid email format)",
+                "avatar": {
+                    "description": "Avatar is the user's avatar URL (must be a valid URL, max 255 characters)",
                     "type": "string",
-                    "maxLength": 20
+                    "maxLength": 255
+                },
+                "email": {
+                    "description": "Email is the user's email address (must be valid email format and use common email provider, max 255 characters)",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "nickname": {
+                    "description": "Nickname is the user's display name (3-32 characters)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
                 },
                 "password": {
                     "description": "Password is the user's password (8-32 characters, will be hashed and not returned in response)",
@@ -340,7 +352,7 @@ const docTemplate = `{
                     "minLength": 8
                 },
                 "username": {
-                    "description": "Username is the unique username for the user (3-32 characters)",
+                    "description": "Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)",
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
@@ -350,10 +362,21 @@ const docTemplate = `{
         "v1.UpdateUserRequest": {
             "type": "object",
             "properties": {
-                "email": {
-                    "description": "Email is the user's email address",
+                "avatar": {
+                    "description": "Avatar is the user's avatar URL (must be a valid URL, max 255 characters)",
                     "type": "string",
                     "maxLength": 255
+                },
+                "email": {
+                    "description": "Email is the user's email address (must use common email provider domain, max 255 characters)",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "nickname": {
+                    "description": "Nickname is the user's display name (3-32 characters)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
                 },
                 "password": {
                     "description": "Password is the user's password (8-32 characters, will be hashed)",
@@ -379,7 +402,7 @@ const docTemplate = `{
                     ]
                 },
                 "username": {
-                    "description": "Username is the unique username for the user (3-32 characters)",
+                    "description": "Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)",
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
@@ -390,6 +413,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "nickname": {
                     "type": "string"
                 },
                 "username": {

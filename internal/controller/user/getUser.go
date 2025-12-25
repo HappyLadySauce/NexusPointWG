@@ -40,6 +40,7 @@ func (u *UserController) GetUserInfo(c *gin.Context) {
 
 	resp := v1.UserResponse{
 		Username: user.Username,
+		Nickname: user.Nickname,
 		Email:    user.Email,
 	}
 

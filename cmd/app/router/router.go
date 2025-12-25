@@ -12,6 +12,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
 
 	_ "github.com/HappyLadySauce/NexusPointWG/api/swagger/docs"
+	_ "github.com/HappyLadySauce/NexusPointWG/pkg/utils/validator"
 )
 
 var (

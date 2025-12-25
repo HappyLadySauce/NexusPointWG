@@ -17,7 +17,7 @@ import (
 
 // UpdateUser updates a user by username.
 // @Summary Update user
-// @Description Update a user by username (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.
+// @Description Update a user by username (partial update supported). Non-admin can only update self and only username/nickname/avatar/email; admin can update username/nickname/avatar/email/password/status/role.
 // @Tags users
 // @Accept json
 // @Produce json
@@ -77,6 +77,12 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 		if req.Username != nil {
 			user.Username = *req.Username
 		}
+		if req.Nickname != nil {
+			user.Nickname = *req.Nickname
+		}
+		if req.Avatar != nil {
+			user.Avatar = *req.Avatar
+		}
 		if req.Email != nil {
 			user.Email = *req.Email
 		}
@@ -115,6 +121,12 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 		if req.Username != nil {
 			user.Username = *req.Username
 		}
+		if req.Nickname != nil {
+			user.Nickname = *req.Nickname
+		}
+		if req.Avatar != nil {
+			user.Avatar = *req.Avatar
+		}
 		if req.Email != nil {
 			user.Email = *req.Email
 		}
@@ -134,6 +146,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 
 	resp := v1.UserResponse{
 		Username: user.Username,
+		Nickname: user.Nickname,
 		Email:    user.Email,
 	}
 
