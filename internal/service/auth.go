@@ -29,9 +29,14 @@ func (a *authSrv) Login(ctx context.Context, username, password string) (*model.
 	// 根据用户名获取用户
 	user, err := a.store.Users().GetUserByUsername(ctx, username)
 	if err != nil {
-		// 直接透传底层错误码：用户不存在(ErrUserNotFound) / 数据库错误(ErrDatabase)
-		// 由 core.WriteResponse 的 errors.ParseCoder 负责渲染用户可读信息。
-		return nil, err
+		// SECURITY: prevent user enumeration.
+		// If the user does not exist, return the same error as an incorrect password.
+		if errors.ParseCoder(err).Code() == code.ErrUserNotFound {
+			return nil, errors.WithCode(code.ErrPasswordIncorrect, "%s", code.Message(code.ErrPasswordIncorrect))
+		}
+
+		// Other errors are treated as internal server/database errors.
+		return nil, errors.WithCode(code.ErrDatabase, "%s", code.Message(code.ErrDatabase))
 	}
 
 	// 检查用户状态
