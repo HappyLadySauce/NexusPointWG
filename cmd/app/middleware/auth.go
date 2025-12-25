@@ -16,8 +16,6 @@ import (
 const (
 	// UserIDKey is the key for user ID in context
 	UserIDKey = "user_id"
-	// UsernameKey is the key for username in context
-	UsernameKey = "username"
 )
 
 // JWTAuth creates a JWT authentication middleware.
