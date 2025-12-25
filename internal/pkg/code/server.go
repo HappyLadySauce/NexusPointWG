@@ -5,4 +5,10 @@ package code
 const (
 	// ErrUserAlreadyExist - 400: User already exists.
 	ErrUserAlreadyExist int = iota + 110001
+	
+	// ErrUserNotFound - 404: User not found.
+	ErrUserNotFound
+
+	// ErrUserNotActive - 403: User account is not active.
+	ErrUserNotActive
 )

@@ -2,11 +2,18 @@ package code
 
 import (
 	"net/http"
-	
+
 	"github.com/HappyLadySauce/errors"
 	"github.com/novalagung/gubrak"
 )
 
+var codeMessage = map[int]string{}
+
+// Message returns the registered external message for a given error code.
+// If the code is unknown, it returns an empty string.
+func Message(c int) string {
+	return codeMessage[c]
+}
 
 // ErrCode implements `github.com/marmotedu/errors`.Coder interface.
 type ErrCode struct {
@@ -70,5 +77,7 @@ func register(code int, httpStatus int, message string, refs ...string) {
 		Ref:  reference,
 	}
 
+	// Cache message for reuse across layers (avoid duplicating strings).
+	codeMessage[code] = message
 	errors.MustRegister(coder)
 }

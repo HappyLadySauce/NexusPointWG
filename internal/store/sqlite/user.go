@@ -24,9 +24,9 @@ func (u *users) GetUser(ctx context.Context, id string) (*model.User, error) {
 	err := u.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithCode(code.ErrDatabase, err.Error())
+			return nil, errors.WithCode(code.ErrUserNotFound, err.Error())
 		}
-		return nil, err
+		return nil, errors.WithCode(code.ErrDatabase, err.Error())
 	}
 	return &user, nil
 }
@@ -36,9 +36,9 @@ func (u *users) GetUserByUsername(ctx context.Context, username string) (*model.
 	err := u.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithCode(code.ErrDatabase, err.Error())
+			return nil, errors.WithCode(code.ErrUserNotFound, err.Error())
 		}
-		return nil, err
+		return nil, errors.WithCode(code.ErrDatabase, err.Error())
 	}
 	return &user, nil
 }

@@ -50,7 +50,7 @@ func (a *AuthController) Login(c *gin.Context) {
 	token, err := jwt.GenerateToken(user.ID, user.Username, user.Role, cfg.JWT.Secret, cfg.JWT.Expiration)
 	if err != nil {
 		klog.Errorf("failed to generate token: %v", err)
-		core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
+		core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
 		return
 	}
 

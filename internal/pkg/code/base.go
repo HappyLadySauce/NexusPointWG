@@ -47,7 +47,7 @@ const (
 
 	// ErrPasswordIncorrect - 401: Password was incorrect.
 	ErrPasswordIncorrect
-
+	
 	// PermissionDenied - 403: Permission denied.
 	ErrPermissionDenied
 )

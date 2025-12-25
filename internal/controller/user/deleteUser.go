@@ -48,7 +48,7 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	// Admin can hard-delete any user.
 	if requesterRole == model.UserRoleAdmin {
 		if err := u.srv.Users().DeleteUser(context.Background(), id); err != nil {
-			klog.Errorf("failed to hard delete user: %v", err)
+			klog.Errorf("failed to hard delete user: %s", err)
 			core.WriteResponse(c, err, nil)
 			return
 		}
@@ -58,20 +58,20 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 
 	// Non-admin can only soft-delete (logout) themselves.
 	if requesterID == "" || id != requesterID {
-		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "permission denied"), nil)
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
 		return
 	}
 
 	user, err := u.srv.Users().GetUser(context.Background(), id)
 	if err != nil {
-		klog.Errorf("failed to get user: %v", err)
+		klog.Errorf("failed to get user: %s", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
 	user.Status = model.UserStatusDeleted
 
 	if err := u.srv.Users().UpdateUser(context.Background(), user); err != nil {
-		klog.Errorf("failed to soft delete user: %v", err)
+		klog.Errorf("failed to soft delete user: %s", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}

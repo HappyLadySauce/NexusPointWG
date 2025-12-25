@@ -51,7 +51,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 
 	// Non-admin can only update themselves (consistent with logout behavior).
 	if requesterRole != model.UserRoleAdmin && (requesterID == "" || id != requesterID) {
-		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "permission denied"), nil)
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
 		return
 	}
 
@@ -90,14 +90,14 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 			salt, err := passwd.GenerateSalt()
 			if err != nil {
 				klog.Errorf("failed to generate salt: %v", err)
-				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
 				return
 			}
 
 			passwordHash, err := passwd.HashPassword(*req.Password, salt)
 			if err != nil {
 				klog.Errorf("failed to hash password: %v", err)
-				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
 				return
 			}
 

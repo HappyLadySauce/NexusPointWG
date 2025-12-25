@@ -44,7 +44,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 		salt, err := passwd.GenerateSalt()
 		if err != nil {
 			klog.Errorf("failed to generate salt: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
 			return
 		}
 
@@ -52,7 +52,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 		passwordHash, err := passwd.HashPassword(httpUser.Password, salt)
 		if err != nil {
 			klog.Errorf("failed to hash password: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
 			return
 		}
 

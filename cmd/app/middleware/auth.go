@@ -32,7 +32,7 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			klog.V(1).Infof("missing authorization header: %s", authHeader)
-			core.WriteResponse(c, errors.WithCode(code.ErrMissingHeader, "%s", "missing authorization header"), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrMissingHeader, "%s", code.Message(code.ErrMissingHeader)), nil)
 			c.Abort()
 			return
 		}
@@ -41,7 +41,7 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			klog.V(1).Infof("invalid authorization header format: %s", authHeader)
-			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", "invalid authorization header format"), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", code.Message(code.ErrInvalidAuthHeader)), nil)
 			c.Abort()
 			return
 		}
@@ -54,9 +54,9 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 			klog.V(1).Infof("invalid token: %v", err)
 			// 检查是否是过期错误
 			if strings.Contains(err.Error(), "expired") {
-				core.WriteResponse(c, errors.WithCode(code.ErrExpired, "%s", "token expired"), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrExpired, "%s", code.Message(code.ErrExpired)), nil)
 			} else {
-				core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", "invalid token"), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", code.Message(code.ErrTokenInvalid)), nil)
 			}
 			c.Abort()
 			return
@@ -64,7 +64,7 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 
 		if s == nil {
 			klog.V(1).Infof("auth store is not initialized: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "%s", "auth store is not initialized"), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "%s", code.Message(code.ErrUnknown)), nil)
 			c.Abort()
 			return
 		}
@@ -73,12 +73,12 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 		user, err := s.Users().GetUser(context.Background(), claims.UserID)
 		if err != nil {
 			klog.V(1).Infof("failed to load user from store: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", err.Error()), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", code.Message(code.ErrTokenInvalid)), nil)
 			c.Abort()
 			return
 		}
 		if user.Status != model.UserStatusActive {
-			core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", "user account is not active"), nil)
+			core.WriteResponse(c, errors.WithCode(code.ErrUserNotActive, "%s", code.Message(code.ErrUserNotActive)), nil)
 			c.Abort()
 			return
 		}

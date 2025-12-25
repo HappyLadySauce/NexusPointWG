@@ -50,13 +50,13 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 		dbIns, err = db.New(dbOpts)
 		if err != nil {
 			// Preserve the original error with full context
-			err = errors.Wrapf(err, "failed to create sqlite db with data source: %s", opts.DataSourceName)
+			err = errors.Wrap(err, "failed to create sqlite db with data source")
 			return
 		}
 
 		// Auto migrate database schema
 		if err = dbIns.AutoMigrate(&model.User{}); err != nil {
-			err = errors.Wrapf(err, "failed to auto migrate database schema")
+			err = errors.Wrap(err, "failed to auto migrate database schema")
 			return
 		}
 
@@ -67,7 +67,7 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 	if sqliteFactory == nil {
 		if err != nil {
 			// Return the wrapped error directly to preserve the full error chain
-			return nil, errors.Wrapf(err, "failed to get sqlite factory, sqliteFactory: %v", sqliteFactory)
+			return nil, errors.Wrap(err, "failed to get sqlite factory")
 		}
 		// If err is nil but sqliteFactory is nil, create a new error
 		return nil, errors.New("failed to get sqlite factory: sqliteFactory is nil but no error was returned")
