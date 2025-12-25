@@ -58,7 +58,7 @@
         },
         "/api/v1/users": {
             "post": {
-                "description": "Create a new user with username, email and password",
+                "description": "Register a new user with username, email and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -68,7 +68,7 @@
                 "tags": [
                     "users"
                 ],
-                "summary": "Create a new user",
+                "summary": "Register a new user",
                 "parameters": [
                     {
                         "description": "User information",
@@ -82,10 +82,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "User created successfully (password field will be empty in response)",
-                        "schema": {
-                            "$ref": "#/definitions/v1.RegisterResponse"
-                        }
+                        "description": "User registered successfully"
                     },
                     "400": {
                         "description": "Bad request - invalid input or validation failed",
@@ -95,6 +92,158 @@
                     },
                     "401": {
                         "description": "Unauthorized - encryption error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error - database error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{id}": {
+            "get": {
+                "description": "Get a user by id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/v1.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing id",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error - database error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update a user by id (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User update payload",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/v1.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error - database error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a user by id. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully"
+                    },
+                    "400": {
+                        "description": "Bad request - missing id",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -187,7 +336,46 @@
                 }
             }
         },
-        "v1.RegisterResponse": {
+        "v1.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "password": {
+                    "description": "Password is the user's password (8-32 characters, will be hashed)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 8
+                },
+                "role": {
+                    "description": "Role is the user role (user/admin)",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "admin"
+                    ]
+                },
+                "status": {
+                    "description": "Status is the user status (active/inactive/deleted)",
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "inactive",
+                        "deleted"
+                    ]
+                },
+                "username": {
+                    "description": "Username is the unique username for the user (3-32 characters)",
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3
+                }
+            }
+        },
+        "v1.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {

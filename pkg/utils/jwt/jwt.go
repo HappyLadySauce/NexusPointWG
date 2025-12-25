@@ -9,15 +9,17 @@ import (
 
 // Claims 定义 JWT claims 结构
 type Claims struct {
-	UserID   string `json:"user_id"`
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成 JWT token
-func GenerateToken(userID, username, secret string, expiration time.Duration) (string, error) {
+func GenerateToken(userID, username, role, secret string, expiration time.Duration) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:   userID,
+		UserID: userID,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
 			IssuedAt:  jwt.NewNumericDate(now),

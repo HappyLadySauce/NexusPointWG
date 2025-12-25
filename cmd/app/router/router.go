@@ -6,6 +6,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"k8s.io/klog/v2"
 
+	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store/sqlite"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
@@ -16,6 +17,7 @@ import (
 var (
 	router *gin.Engine
 	v1     *gin.RouterGroup
+	authed *gin.RouterGroup
 
 	StoreIns store.Factory
 )
@@ -43,6 +45,9 @@ func init() {
 	_ = router.SetTrustedProxies(nil)
 	v1 = router.Group("/api/v1")
 
+	authed = v1.Group("/")
+	authed.Use(middleware.JWTAuth(StoreIns))
+
 	router.GET("/livez", func(c *gin.Context) {
 		c.String(200, "livez")
 	})
@@ -57,6 +62,10 @@ func init() {
 // V1 returns the router group for /api/v1 which for resources in control plane endpoints.
 func V1() *gin.RouterGroup {
 	return v1
+}
+
+func Authed() *gin.RouterGroup {
+	return authed
 }
 
 // Router returns the main Gin engine instance.

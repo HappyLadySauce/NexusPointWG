@@ -26,8 +26,23 @@ func newUsers(s *service) *userSrv {
 	return &userSrv{store: s.store}
 }
 
+func ensureUserDefaults(user *model.User) {
+	if user == nil {
+		return
+	}
+	// If role is still empty (e.g. legacy records), default to normal user.
+	if user.Role == "" {
+		user.Role = model.UserRoleUser
+	}
+	// Keep behavior consistent with existing admin update logic.
+	if user.Status == "" {
+		user.Status = model.UserStatusActive
+	}
+}
+
 func (u *userSrv) CreateUser(ctx context.Context, user *model.User) error {
 	// Database layer already handles unique constraint errors and returns appropriate error codes
+	ensureUserDefaults(user)
 	return u.store.Users().CreateUser(ctx, user)
 }
 
@@ -41,6 +56,7 @@ func (u *userSrv) GetUserByUsername(ctx context.Context, username string) (*mode
 
 func (u *userSrv) UpdateUser(ctx context.Context, user *model.User) error {
 	// Database layer already handles errors and returns appropriate error codes
+	ensureUserDefaults(user)
 	return u.store.Users().UpdateUser(ctx, user)
 }
 

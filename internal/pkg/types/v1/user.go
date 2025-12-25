@@ -11,9 +11,35 @@ type RegisterRequest struct {
 	Password string `json:"password" binding:"required,min=8,max=32"`
 }
 
-// RegisterResponse represents a user registration response.
+// UpdateUserRequest represents a user update request.
+//
+// Notes:
+// - For normal users, only `username` and `email` will be applied.
+// - For admins, `password`, `status`, and `role` can also be updated.
 // swagger:model
-type RegisterResponse struct {
+type UpdateUserRequest struct {
+	// Username is the unique username for the user (3-32 characters)
+	Username *string `json:"username,omitempty" binding:"omitempty,min=3,max=32"`
+	// Email is the user's email address
+	Email *string `json:"email,omitempty" binding:"omitempty,email,max=255"`
+	// Password is the user's password (8-32 characters, will be hashed)
+	Password *string `json:"password,omitempty" binding:"omitempty,min=8,max=32"`
+	// Status is the user status (active/inactive/deleted)
+	Status *string `json:"status,omitempty" binding:"omitempty,oneof=active inactive deleted"`
+	// Role is the user role (user/admin)
+	Role *string `json:"role,omitempty" binding:"omitempty,oneof=user admin"`
+}
+
+// UserInfoRequest represents a simple user info payload.
+// swagger:model
+type UserInfoRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+// UserResponse represents a user response.
+// swagger:model
+type UserResponse struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
