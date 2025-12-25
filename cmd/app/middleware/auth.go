@@ -37,10 +37,39 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 			return
 		}
 
-		// 检查 Bearer 前缀
+		// 规范化 Authorization header：去除多余空格，处理重复的 Bearer 前缀
+		authHeader = strings.TrimSpace(authHeader)
+		klog.V(2).Infof("received authorization header: [%s]", authHeader)
+
+		// 移除所有可能的 Bearer 前缀（大小写不敏感），直到只剩下 token
+		authHeaderLower := strings.ToLower(authHeader)
+		for strings.HasPrefix(authHeaderLower, "bearer ") {
+			// 找到第一个 "bearer " 的位置（不区分大小写）
+			idx := strings.Index(authHeaderLower, "bearer ")
+			if idx == 0 {
+				// 从开头移除 "bearer "（保持原大小写）
+				authHeader = strings.TrimSpace(authHeader[7:])
+				authHeaderLower = strings.ToLower(authHeader)
+			} else {
+				break
+			}
+		}
+
+		// 如果去除所有 Bearer 前缀后为空，说明格式错误
+		if authHeader == "" {
+			klog.Errorf("authorization header is empty after removing Bearer prefix")
+			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", code.Message(code.ErrInvalidAuthHeader)), nil)
+			c.Abort()
+			return
+		}
+
+		// 现在 authHeader 应该只包含 token，重新添加标准的 Bearer 前缀
+		authHeader = "Bearer " + strings.TrimSpace(authHeader)
+		klog.V(2).Infof("normalized authorization header: [%s]", authHeader)
+
 		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			klog.V(1).Infof("invalid authorization header format: %s", authHeader)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			klog.Errorf("invalid authorization header format after normalization: [%s], length: %d, parts: %v", authHeader, len(authHeader), parts)
 			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", code.Message(code.ErrInvalidAuthHeader)), nil)
 			c.Abort()
 			return
