@@ -20,8 +20,8 @@ import (
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param user body v1.User true "User information"
-// @Success 200 {object} v1.User "User created successfully (password field will be empty in response)"
+// @Param user body v1.RegisterRequest true "User information"
+// @Success 200 {object} v1.RegisterResponse "User created successfully (password field will be empty in response)"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input or validation failed"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - encryption error"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"
@@ -29,7 +29,7 @@ import (
 func (u *UserController) CreateUser(c *gin.Context) {
 	klog.V(1).Info("user create function called.")
 
-	var httpUser v1.User
+	var httpUser v1.RegisterRequest
 	var user model.User
 
 	if err := c.ShouldBindJSON(&httpUser); err != nil {
@@ -80,9 +80,11 @@ func (u *UserController) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 清空密码字段，避免在响应中泄露明文密码
-	httpUser.Password = ""
+	response := v1.RegisterResponse{
+		Username: user.Username,
+		Email:    user.Email,
+	}
 
 	klog.V(1).Info("user created successfully")
-	core.WriteResponse(c, nil, httpUser)
+	core.WriteResponse(c, nil, response)
 }

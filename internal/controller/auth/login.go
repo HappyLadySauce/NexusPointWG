@@ -21,7 +21,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param login body v1.LoginRequest true "Login credentials"
-// @Success 200 {string} string "JWT token"
+// @Success 200 {object} v1.LoginResponse "Login successful"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - invalid credentials"
 // @Failure 403 {object} core.ErrResponse "Forbidden - user account is not active"
@@ -54,6 +54,10 @@ func (a *AuthController) Login(c *gin.Context) {
 		return
 	}
 
+	response := v1.LoginResponse{
+		Token: token,
+	}
+
 	klog.V(1).Info("login successful")
-	core.WriteResponse(c, nil, token)
+	core.WriteResponse(c, nil, response)
 }

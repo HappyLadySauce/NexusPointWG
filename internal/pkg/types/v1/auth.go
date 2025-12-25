@@ -14,19 +14,5 @@ type LoginRequest struct {
 type LoginResponse struct {
 	// Token is the JWT token for authentication
 	Token string `json:"token"`
-	// User contains the user information
-	User UserInfo `json:"user"`
 }
 
-// UserInfo contains basic user information.
-// swagger:model
-type UserInfo struct {
-	// ID is the unique identifier for the user
-	ID string `json:"id"`
-	// Username is the user's username
-	Username string `json:"username"`
-	// Email is the user's email address
-	Email string `json:"email"`
-	// Status is the user's status (active/inactive)
-	Status string `json:"status"`
-}

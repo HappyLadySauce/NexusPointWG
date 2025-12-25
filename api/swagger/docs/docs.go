@@ -41,9 +41,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "JWT token",
+                        "description": "Login successful",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/v1.LoginResponse"
                         }
                     },
                     "400": {
@@ -87,7 +87,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.User"
+                            "$ref": "#/definitions/v1.RegisterRequest"
                         }
                     }
                 ],
@@ -95,7 +95,7 @@ const docTemplate = `{
                     "200": {
                         "description": "User created successfully (password field will be empty in response)",
                         "schema": {
-                            "$ref": "#/definitions/v1.User"
+                            "$ref": "#/definitions/v1.RegisterResponse"
                         }
                     },
                     "400": {
@@ -162,7 +162,16 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.User": {
+        "v1.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "description": "Token is the JWT token for authentication",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -186,6 +195,17 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
+                }
+            }
+        },
+        "v1.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         }
