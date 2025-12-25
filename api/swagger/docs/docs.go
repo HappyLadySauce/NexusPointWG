@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/api/v1/login": {
             "post": {
-                "description": "Authenticate user with username and password, returns JWT token",
+                "description": "Authenticate user with username and password, returns JWT token string",
                 "consumes": [
                     "application/json"
                 ],
@@ -41,9 +41,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Login successful",
+                        "description": "JWT token",
                         "schema": {
-                            "$ref": "#/definitions/v1.LoginResponse"
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -93,7 +93,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "User created successfully",
+                        "description": "User created successfully (password field will be empty in response)",
                         "schema": {
                             "$ref": "#/definitions/v1.User"
                         }
@@ -128,6 +128,13 @@ const docTemplate = `{
                     "description": "Code defines the business error code.",
                     "type": "integer"
                 },
+                "details": {
+                    "description": "Details contains detailed validation error information.\nThis field is only present when validation errors occur.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "message": {
                     "description": "Message contains the detail of this message.\nThis message is suitable to be exposed to external",
                     "type": "string"
@@ -155,23 +162,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "description": "Token is the JWT token for authentication",
-                    "type": "string"
-                },
-                "user": {
-                    "description": "User contains the user information",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.UserInfo"
-                        }
-                    ]
-                }
-            }
-        },
         "v1.User": {
             "type": "object",
             "required": [
@@ -196,27 +186,6 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
-                }
-            }
-        },
-        "v1.UserInfo": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "description": "Email is the user's email address",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "ID is the unique identifier for the user",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status is the user's status (active/inactive)",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "Username is the user's username",
-                    "type": "string"
                 }
             }
         }

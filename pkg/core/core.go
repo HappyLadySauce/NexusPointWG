@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"k8s.io/klog/v2"
+
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 )
 
 // ErrResponse defines the return messages when an error occurred.
@@ -77,12 +79,6 @@ func FormatValidationError(err error) map[string]string {
 	return details
 }
 
-// WriteResponse write an error or the response data into http response body.
-// It use errors.ParseCoder to parse any error into errors.Coder
-// errors.Coder contains error code, user-safe error message and http status code.
-func WriteResponse(c *gin.Context, err error, data interface{}) {
-	WriteResponseWithDetails(c, err, data, nil)
-}
 
 // WriteResponseWithDetails write an error or the response data into http response body with details.
 // The details parameter can be used to provide additional error information, such as validation errors.
@@ -90,11 +86,6 @@ func WriteResponseWithDetails(c *gin.Context, err error, data interface{}, detai
 	if err != nil {
 		klog.Errorf("%#+v", err)
 		coder := errors.ParseCoder(err)
-
-		// If details is nil, try to extract validation errors from the error
-		if details == nil {
-			details = FormatValidationError(err)
-		}
 
 		response := ErrResponse{
 			Code:      coder.Code(),
@@ -112,4 +103,19 @@ func WriteResponseWithDetails(c *gin.Context, err error, data interface{}, detai
 	}
 
 	c.JSON(http.StatusOK, data)
+}
+
+// WriteResponse write an error or the response data into http response body.
+// It use errors.ParseCoder to parse any error into errors.Coder
+// errors.Coder contains error code, user-safe error message and http status code.
+func WriteResponse(c *gin.Context, err error, data interface{}) {
+	WriteResponseWithDetails(c, err, data, nil)
+}
+
+// WriteResponseBindErr writes a validation error response with details.
+// It use FormatValidationError to format the validation errors into a map.
+// Then it use WriteResponseWithDetails to write the response with the details.
+func WriteResponseBindErr(c *gin.Context, err error, data interface{}) {
+	details := FormatValidationError(err)
+	WriteResponseWithDetails(c, errors.WithCode(code.ErrBind, "Validation failed"), data, details)
 }

@@ -16,12 +16,12 @@ import (
 
 // Login handles user login request.
 // @Summary User login
-// @Description Authenticate user with username and password, returns JWT token
+// @Description Authenticate user with username and password, returns JWT token string
 // @Tags auth
 // @Accept json
 // @Produce json
 // @Param login body v1.LoginRequest true "Login credentials"
-// @Success 200 {object} v1.LoginResponse "Login successful"
+// @Success 200 {string} string "JWT token"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - invalid credentials"
 // @Failure 403 {object} core.ErrResponse "Forbidden - user account is not active"
@@ -33,9 +33,7 @@ func (a *AuthController) Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
 		klog.Errorf("invalid request body: %v", err)
-		// Format validation errors for detailed response
-		details := core.FormatValidationError(err)
-		core.WriteResponseWithDetails(c, errors.WithCode(code.ErrBind, "Validation failed"), nil, details)
+		core.WriteResponseBindErr(c, err, nil)
 		return
 	}
 
@@ -56,17 +54,6 @@ func (a *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// 构建响应
-	response := v1.LoginResponse{
-		Token: token,
-		User: v1.UserInfo{
-			ID:       user.ID,
-			Username: user.Username,
-			Email:    user.Email,
-			Status:   user.Status,
-		},
-	}
-
 	klog.V(1).Info("login successful")
-	core.WriteResponse(c, nil, response)
+	core.WriteResponse(c, nil, token)
 }

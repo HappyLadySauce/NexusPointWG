@@ -21,7 +21,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param user body v1.User true "User information"
-// @Success 200 {object} v1.User "User created successfully"
+// @Success 200 {object} v1.User "User created successfully (password field will be empty in response)"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input or validation failed"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - encryption error"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"
@@ -34,9 +34,7 @@ func (u *UserController) CreateUser(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&httpUser); err != nil {
 		klog.Errorf("invalid request body: %v", err)
-		// Format validation errors for detailed response
-		details := core.FormatValidationError(err)
-		core.WriteResponseWithDetails(c, errors.WithCode(code.ErrBind, "Validation failed"), nil, details)
+		core.WriteResponseBindErr(c, err, nil)
 		return
 	}
 
