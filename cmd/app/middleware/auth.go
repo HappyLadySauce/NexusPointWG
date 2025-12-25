@@ -61,7 +61,6 @@ func JWTAuth() gin.HandlerFunc {
 
 		// 将用户信息存储到 context 中
 		c.Set(UserIDKey, claims.UserID)
-		c.Set(UsernameKey, claims.Username)
 
 		c.Next()
 	}

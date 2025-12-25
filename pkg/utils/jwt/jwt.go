@@ -10,7 +10,6 @@ import (
 // Claims 定义 JWT claims 结构
 type Claims struct {
 	UserID   string `json:"user_id"`
-	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
@@ -19,7 +18,6 @@ func GenerateToken(userID, username, secret string, expiration time.Duration) (s
 	now := time.Now()
 	claims := Claims{
 		UserID:   userID,
-		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
 			IssuedAt:  jwt.NewNumericDate(now),
