@@ -21,6 +21,10 @@ func (ds *datastore) Users() store.UserStore {
 	return newUsers(ds)
 }
 
+func (ds *datastore) WGPeers() store.WGPeerStore {
+	return newWGPeers(ds)
+}
+
 func (ds *datastore) Close() error {
 	sqlDB, err := ds.db.DB()
 	if err != nil {
@@ -55,7 +59,7 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 		}
 
 		// Auto migrate database schema
-		if err = dbIns.AutoMigrate(&model.User{}); err != nil {
+		if err = dbIns.AutoMigrate(&model.User{}, &model.WGPeer{}); err != nil {
 			err = errors.Wrap(err, "failed to auto migrate database schema")
 			return
 		}

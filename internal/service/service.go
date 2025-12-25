@@ -7,6 +7,7 @@ import (
 type Service interface {
 	Users() UserSrv
 	Auth() AuthSrv
+	WGPeers() WGPeerSrv
 }
 
 type service struct {
@@ -23,4 +24,8 @@ func (s *service) Users() UserSrv {
 
 func (s *service) Auth() AuthSrv {
 	return newAuth(s)
+}
+
+func (s *service) WGPeers() WGPeerSrv {
+	return newWGPeers(s)
 }

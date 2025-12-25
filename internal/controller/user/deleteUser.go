@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/authz"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
@@ -14,6 +15,10 @@ import (
 )
 
 // DeleteUser deletes a user by username.
+// Permission rules:
+//   - Admin: can hard delete any user (permanent removal from database)
+//   - Regular user: can only soft delete themselves (set status=deleted)
+//
 // @Summary Delete user
 // @Description Delete a user by username. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.
 // @Tags users
@@ -28,53 +33,72 @@ import (
 func (u *UserController) DeleteUser(c *gin.Context) {
 	klog.V(1).Info("user delete function called.")
 
+	// Validate username parameter
 	username := c.Param("username")
 	if username == "" {
 		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing username"), nil)
 		return
 	}
 
-	// Get requester info from JWTAuth middleware.
+	// Get requester info from JWTAuth middleware
 	requesterIDAny, ok := c.Get(middleware.UserIDKey)
 	if !ok {
 		core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "missing auth context"), nil)
 		return
 	}
 	requesterRoleAny, _ := c.Get(middleware.UserRoleKey)
-
 	requesterID, _ := requesterIDAny.(string)
 	requesterRole, _ := requesterRoleAny.(string)
 
-	// Get user by username first
-	user, err := u.srv.Users().GetUserByUsername(context.Background(), username)
+	// Get target user by username
+	targetUser, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
 		klog.Errorf("failed to get user: %s", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
 
-	// Admin can hard-delete any user.
+	// --- Authorization (Casbin) ---
+	scope := authz.ScopeAny
+	if requesterID != "" && requesterID == targetUser.ID {
+		scope = authz.ScopeSelf
+	}
+	obj := authz.Obj(authz.ResourceUser, scope)
+
+	// Admin: hard delete any. Regular: soft delete self.
+	act := authz.ActionUserSoftDelete
 	if requesterRole == model.UserRoleAdmin {
-		if err := u.srv.Users().DeleteUser(context.Background(), user.ID); err != nil {
+		act = authz.ActionUserHardDelete
+	}
+	allowed, err := authz.Enforce(requesterRole, obj, act)
+	if err != nil {
+		klog.Errorf("authz enforce failed: %v", err)
+		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
+		return
+	}
+	if !allowed {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+		return
+	}
+
+	// Execute delete operation based on role
+	if requesterRole == model.UserRoleAdmin {
+		// Admin: hard delete (permanent removal from database)
+		if err := u.srv.Users().DeleteUser(context.Background(), targetUser.ID); err != nil {
 			klog.Errorf("failed to hard delete user: %s", err)
 			core.WriteResponse(c, err, nil)
 			return
 		}
-		core.WriteResponse(c, nil, nil)
-		return
-	}
-
-	// Non-admin can only soft-delete (logout) themselves.
-	if requesterID == "" || user.ID != requesterID {
-		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
-		return
-	}
-	user.Status = model.UserStatusDeleted
-
-	if err := u.srv.Users().UpdateUser(context.Background(), user); err != nil {
-		klog.Errorf("failed to soft delete user: %s", err)
-		core.WriteResponse(c, err, nil)
-		return
+		klog.V(1).Infof("admin hard deleted user: %s", username)
+	} else {
+		// Regular user: soft delete (set status=deleted)
+		targetUser.Status = model.UserStatusDeleted
+		if err := u.srv.Users().UpdateUser(context.Background(), targetUser); err != nil {
+			klog.Errorf("failed to soft delete user: %s", err)
+			core.WriteResponse(c, err, nil)
+			return
+		}
+		klog.V(1).Infof("user soft deleted themselves: %s", username)
 	}
 
 	core.WriteResponse(c, nil, nil)

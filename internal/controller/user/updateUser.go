@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/authz"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
@@ -15,7 +16,11 @@ import (
 	"github.com/HappyLadySauce/errors"
 )
 
-// UpdateUser updates a user by username.
+// UpdateUserInfo updates a user by username.
+// Permission rules:
+//   - Admin: can update any user's all fields (username, nickname, avatar, email, password, status, role)
+//   - Regular user: can only update their own basic fields (username, nickname, avatar, email)
+//
 // @Summary Update user
 // @Description Update a user by username (partial update supported). Non-admin can only update self and only username/nickname/avatar/email; admin can update username/nickname/avatar/email/password/status/role.
 // @Tags users
@@ -32,24 +37,24 @@ import (
 func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	klog.V(1).Info("user update function called.")
 
+	// Validate username parameter
 	username := c.Param("username")
 	if username == "" {
 		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing username"), nil)
 		return
 	}
 
-	// Get requester info from JWTAuth middleware.
+	// Get requester info from JWTAuth middleware
 	requesterIDAny, ok := c.Get(middleware.UserIDKey)
 	if !ok {
 		core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "missing auth context"), nil)
 		return
 	}
 	requesterRoleAny, _ := c.Get(middleware.UserRoleKey)
-
 	requesterID, _ := requesterIDAny.(string)
 	requesterRole, _ := requesterRoleAny.(string)
 
-	// Load existing user first, so partial update won't wipe required fields.
+	// Load existing user first, so partial update won't wipe required fields
 	existing, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
 		klog.Errorf("failed to get user: %v", err)
@@ -57,23 +62,57 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 		return
 	}
 
-	// Non-admin can only update themselves (consistent with logout behavior).
-	if requesterRole != model.UserRoleAdmin && (requesterID == "" || existing.ID != requesterID) {
+	// Parse request body
+	var req v1.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		klog.Errorf("invalid request body: %v", err)
+		core.WriteResponseBindErr(c, err, nil)
+		return
+	}
+
+	// Start with existing user data
+	user := *existing
+
+	// --- Authorization (Casbin) ---
+	// Determine scope (self/any) based on ownership.
+	scope := authz.ScopeAny
+	if requesterID != "" && requesterID == existing.ID {
+		scope = authz.ScopeSelf
+	}
+	obj := authz.Obj(authz.ResourceUser, scope)
+
+	// Decide whether this request includes sensitive updates.
+	hasSensitive := (req.Password != nil && *req.Password != "") || req.Status != nil || req.Role != nil
+
+	// 1) Basic updates require user:update_basic
+	allowed, err := authz.Enforce(requesterRole, obj, authz.ActionUserUpdateBasic)
+	if err != nil {
+		klog.Errorf("authz enforce failed: %v", err)
+		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
+		return
+	}
+	if !allowed {
 		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
 		return
 	}
 
-	user := *existing
-
-	// Admin can update more fields; user can only update username/email.
-	if requesterRole == model.UserRoleAdmin {
-		var req v1.UpdateUserRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			klog.Errorf("invalid request body: %v", err)
-			core.WriteResponseBindErr(c, err, nil)
+	// 2) Sensitive updates additionally require user:update_sensitive
+	if hasSensitive {
+		allowed, err := authz.Enforce(requesterRole, obj, authz.ActionUserUpdateSensitive)
+		if err != nil {
+			klog.Errorf("authz enforce failed: %v", err)
+			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
 			return
 		}
+		if !allowed {
+			core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+			return
+		}
+	}
 
+	// Apply updates based on role permissions
+	if requesterRole == model.UserRoleAdmin {
+		// Admin can update all fields
 		if req.Username != nil {
 			user.Username = *req.Username
 		}
@@ -111,13 +150,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 			user.PasswordHash = passwordHash
 		}
 	} else {
-		var req v1.UpdateUserRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			klog.Errorf("invalid request body: %v", err)
-			core.WriteResponseBindErr(c, err, nil)
-			return
-		}
-
+		// Regular user can only update basic fields (username, nickname, avatar, email)
 		if req.Username != nil {
 			user.Username = *req.Username
 		}
@@ -130,20 +163,24 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 		if req.Email != nil {
 			user.Email = *req.Email
 		}
+		// Sensitive fields are already blocked by authz.ActionUserUpdateSensitive.
 	}
 
+	// Validate updated user data
 	if errs := user.Validate(); len(errs) != 0 {
 		klog.Errorf("validation failed: %v", errs)
 		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "%s", errs.ToAggregate().Error()), nil)
 		return
 	}
 
+	// Save updated user
 	if err := u.srv.Users().UpdateUser(context.Background(), &user); err != nil {
 		klog.Errorf("failed to update user: %v", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
 
+	// Return updated user info
 	resp := v1.UserResponse{
 		Username: user.Username,
 		Nickname: user.Nickname,
