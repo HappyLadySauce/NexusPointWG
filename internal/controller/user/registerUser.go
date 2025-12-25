@@ -11,6 +11,7 @@ import (
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/passwd"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
 )
 
@@ -60,6 +61,15 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 		user.Salt = salt
 		user.PasswordHash = passwordHash
 	}
+
+	// 生成用户 ID (雪花算法)
+	userID, err := snowflake.GenerateID()
+	if err != nil {
+		klog.Errorf("failed to generate user ID: %v", err)
+		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "failed to generate user ID"), nil)
+		return
+	}
+	user.ID = userID
 
 	// 设置用户名和邮箱
 	user.Username = httpUser.Username

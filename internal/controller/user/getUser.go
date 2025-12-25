@@ -12,26 +12,26 @@ import (
 	"github.com/HappyLadySauce/errors"
 )
 
-// GetUserInfo get a user by id.
+// GetUserInfo get a user by username.
 // @Summary Get user
-// @Description Get a user by id
+// @Description Get a user by username
 // @Tags users
 // @Produce json
-// @Param id path string true "User ID"
+// @Param username path string true "Username"
 // @Success 200 {object} v1.UserResponse "User retrieved successfully"
-// @Failure 400 {object} core.ErrResponse "Bad request - missing id"
+// @Failure 400 {object} core.ErrResponse "Bad request - missing username"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"
-// @Router /api/v1/users/{id} [get]
+// @Router /api/v1/users/{username} [get]
 func (u *UserController) GetUserInfo(c *gin.Context) {
 	klog.V(1).Info("user get function called.")
 
-	id := c.Param("id")
-	if id == "" {
-		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing user id"), nil)
+	username := c.Param("username")
+	if username == "" {
+		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing username"), nil)
 		return
 	}
 
-	user, err := u.srv.Users().GetUser(context.Background(), id)
+	user, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
 		klog.Errorf("failed to get user: %s", err)
 		core.WriteResponse(c, err, nil)

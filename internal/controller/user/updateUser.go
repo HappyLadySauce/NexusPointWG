@@ -15,26 +15,26 @@ import (
 	"github.com/HappyLadySauce/errors"
 )
 
-// UpdateUser updates a user by id.
+// UpdateUser updates a user by username.
 // @Summary Update user
-// @Description Update a user by id (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.
+// @Description Update a user by username (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param id path string true "User ID"
+// @Param username path string true "Username"
 // @Param user body v1.UpdateUserRequest true "User update payload"
 // @Success 200 {object} v1.UserResponse "User updated successfully"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - invalid or expired token"
 // @Failure 403 {object} core.ErrResponse "Forbidden - permission denied"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"
-// @Router /api/v1/users/{id} [put]
+// @Router /api/v1/users/{username} [put]
 func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	klog.V(1).Info("user update function called.")
 
-	id := c.Param("id")
-	if id == "" {
-		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing user id"), nil)
+	username := c.Param("username")
+	if username == "" {
+		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "missing username"), nil)
 		return
 	}
 
@@ -49,17 +49,17 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	requesterID, _ := requesterIDAny.(string)
 	requesterRole, _ := requesterRoleAny.(string)
 
-	// Non-admin can only update themselves (consistent with logout behavior).
-	if requesterRole != model.UserRoleAdmin && (requesterID == "" || id != requesterID) {
-		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
-		return
-	}
-
 	// Load existing user first, so partial update won't wipe required fields.
-	existing, err := u.srv.Users().GetUser(context.Background(), id)
+	existing, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
 		klog.Errorf("failed to get user: %v", err)
 		core.WriteResponse(c, err, nil)
+		return
+	}
+
+	// Non-admin can only update themselves (consistent with logout behavior).
+	if requesterRole != model.UserRoleAdmin && (requesterID == "" || existing.ID != requesterID) {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
 		return
 	}
 

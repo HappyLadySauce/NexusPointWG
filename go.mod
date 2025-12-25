@@ -4,6 +4,7 @@ go 1.25.3
 
 require (
 	github.com/HappyLadySauce/errors v0.0.0-20251208053748-926a88042146
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0

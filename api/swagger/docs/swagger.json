@@ -105,9 +105,9 @@
                 }
             }
         },
-        "/api/v1/users/{id}": {
+        "/api/v1/users/{username}": {
             "get": {
-                "description": "Get a user by id",
+                "description": "Get a user by username",
                 "produces": [
                     "application/json"
                 ],
@@ -118,8 +118,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     }
@@ -132,7 +132,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad request - missing id",
+                        "description": "Bad request - missing username",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -146,7 +146,7 @@
                 }
             },
             "put": {
-                "description": "Update a user by id (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
+                "description": "Update a user by username (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
                 "consumes": [
                     "application/json"
                 ],
@@ -160,8 +160,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     },
@@ -209,7 +209,7 @@
                 }
             },
             "delete": {
-                "description": "Delete a user by id. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.",
+                "description": "Delete a user by username. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.",
                 "produces": [
                     "application/json"
                 ],
@@ -220,8 +220,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     }
@@ -231,7 +231,7 @@
                         "description": "User deleted successfully"
                     },
                     "400": {
-                        "description": "Bad request - missing id",
+                        "description": "Bad request - missing username",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }

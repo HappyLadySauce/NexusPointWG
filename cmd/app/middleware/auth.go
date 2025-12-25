@@ -19,6 +19,8 @@ import (
 const (
 	// UserIDKey is the key for user ID in context
 	UserIDKey = "user_id"
+	// UsernameKey is the key for username in context
+	UsernameKey = "username"
 	// UserRoleKey is the key for user role in context
 	UserRoleKey = "user_role"
 )
@@ -114,6 +116,7 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 
 		// 将用户信息存储到 context 中
 		c.Set(UserIDKey, user.ID)
+		c.Set(UsernameKey, claims.Username)
 		c.Set(UserRoleKey, user.Role)
 
 		c.Next()

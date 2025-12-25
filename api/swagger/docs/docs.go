@@ -116,9 +116,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/{id}": {
+        "/api/v1/users/{username}": {
             "get": {
-                "description": "Get a user by id",
+                "description": "Get a user by username",
                 "produces": [
                     "application/json"
                 ],
@@ -129,8 +129,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     }
@@ -143,7 +143,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad request - missing id",
+                        "description": "Bad request - missing username",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -157,7 +157,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update a user by id (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
+                "description": "Update a user by username (partial update supported). Non-admin can only update self and only username/email; admin can update username/email/password/status/role.",
                 "consumes": [
                     "application/json"
                 ],
@@ -171,8 +171,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     },
@@ -220,7 +220,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete a user by id. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.",
+                "description": "Delete a user by username. Non-admin can only logout (soft delete) self by setting status=deleted; admin can hard delete any user.",
                 "produces": [
                     "application/json"
                 ],
@@ -231,8 +231,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
-                        "name": "id",
+                        "description": "Username",
+                        "name": "username",
                         "in": "path",
                         "required": true
                     }
@@ -242,7 +242,7 @@ const docTemplate = `{
                         "description": "User deleted successfully"
                     },
                     "400": {
-                        "description": "Bad request - missing id",
+                        "description": "Bad request - missing username",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
