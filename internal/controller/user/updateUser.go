@@ -96,14 +96,14 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 			salt, err := passwd.GenerateSalt()
 			if err != nil {
 				klog.Errorf("failed to generate salt: %v", err)
-				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 				return
 			}
 
 			passwordHash, err := passwd.HashPassword(*req.Password, salt)
 			if err != nil {
 				klog.Errorf("failed to hash password: %v", err)
-				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, err.Error()), nil)
+				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 				return
 			}
 

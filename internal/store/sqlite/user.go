@@ -24,9 +24,9 @@ func (u *users) GetUser(ctx context.Context, id string) (*model.User, error) {
 	err := u.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithCode(code.ErrUserNotFound, err.Error())
+			return nil, errors.WithCode(code.ErrUserNotFound, "%s", err.Error())
 		}
-		return nil, errors.WithCode(code.ErrDatabase, err.Error())
+		return nil, errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return &user, nil
 }
@@ -36,9 +36,9 @@ func (u *users) GetUserByUsername(ctx context.Context, username string) (*model.
 	err := u.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithCode(code.ErrUserNotFound, err.Error())
+			return nil, errors.WithCode(code.ErrUserNotFound, "%s", err.Error())
 		}
-		return nil, errors.WithCode(code.ErrDatabase, err.Error())
+		return nil, errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return &user, nil
 }
@@ -48,9 +48,9 @@ func (u *users) CreateUser(ctx context.Context, user *model.User) error {
 	if err != nil {
 		// Check if it's a unique constraint violation (e.g., duplicate username)
 		if isUniqueConstraintError(err) {
-			return errors.WithCode(code.ErrUserAlreadyExist, err.Error())
+			return errors.WithCode(code.ErrUserAlreadyExist, "%s", err.Error())
 		}
-		return errors.WithCode(code.ErrDatabase, err.Error())
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return nil
 }
@@ -58,7 +58,7 @@ func (u *users) CreateUser(ctx context.Context, user *model.User) error {
 func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 	err := u.db.WithContext(ctx).Save(user).Error
 	if err != nil {
-		return errors.WithCode(code.ErrDatabase, err.Error())
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 func (u *users) DeleteUser(ctx context.Context, id string) error {
 	err := u.db.WithContext(ctx).Where("id = ?", id).Delete(&model.User{}).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return errors.WithCode(code.ErrDatabase, err.Error())
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return nil
 }
