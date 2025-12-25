@@ -4,6 +4,9 @@
 # Build all by default, even if it's not first
 .DEFAULT_GOAL := all
 
+# Silence "Entering/Leaving directory ..." output from recursive make invocations.
+MAKEFLAGS += --no-print-directory
+
 .PHONY: all
 all: build
 
@@ -16,6 +19,7 @@ ROOT_PACKAGE=github.com/HappyLadySauce/NexusPointWG
 # Includes
 
 include scripts/make-rules/common.mk
+include scripts/make-rules/config.mk
 include scripts/make-rules/golang.mk
 include scripts/make-rules/tools.mk
 include scripts/make-rules/swagger.mk
@@ -56,6 +60,11 @@ build:
 .PHONY: swagger
 swagger:
 	@$(MAKE) swagger.run
+
+## run: Run NexusPointWG with config from configs/NexusPointWG.yaml (values can be provided via scripts/make-rules/config.mk).
+.PHONY: run
+run:
+	@$(MAKE) go.run
 
 .PHONY: tidy
 tidy:

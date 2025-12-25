@@ -36,7 +36,24 @@ func AddConfigFlag(fs *pflag.FlagSet) {
 
 	cobra.OnInitialize(func() {
 		if cfgFile != "" {
-			viper.SetConfigFile(cfgFile)
+			// Support ${ENV_VAR} expansion inside config files.
+			// This enables passing config values via environment variables (e.g. from make).
+			b, err := os.ReadFile(cfgFile)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error: failed to read configuration file(%s): %v\n", cfgFile, err)
+				os.Exit(1)
+			}
+
+			expanded := os.ExpandEnv(string(b))
+			ext := strings.TrimPrefix(filepath.Ext(cfgFile), ".")
+			if ext != "" {
+				viper.SetConfigType(ext)
+			}
+			if err := viper.ReadConfig(strings.NewReader(expanded)); err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error: failed to read configuration file(%s): %v\n", cfgFile, err)
+				os.Exit(1)
+			}
+			return
 		} else {
 			viper.AddConfigPath(".")
 
