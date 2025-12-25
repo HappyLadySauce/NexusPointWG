@@ -105,15 +105,19 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 			user.PasswordHash = passwordHash
 		}
 	} else {
-		var req v1.UserInfoRequest
+		var req v1.UpdateUserRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			klog.Errorf("invalid request body: %v", err)
 			core.WriteResponseBindErr(c, err, nil)
 			return
 		}
 
-		user.Username = req.Username
-		user.Email = req.Email
+		if req.Username != nil {
+			user.Username = *req.Username
+		}
+		if req.Email != nil {
+			user.Email = *req.Email
+		}
 	}
 
 	if errs := user.Validate(); len(errs) != 0 {

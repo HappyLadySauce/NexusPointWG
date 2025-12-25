@@ -30,13 +30,6 @@ type UpdateUserRequest struct {
 	Role *string `json:"role,omitempty" binding:"omitempty,oneof=user admin"`
 }
 
-// UserInfoRequest represents a simple user info payload.
-// swagger:model
-type UserInfoRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
 // UserResponse represents a user response.
 // swagger:model
 type UserResponse struct {
