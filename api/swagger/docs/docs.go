@@ -93,7 +93,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "User registered successfully"
+                        "description": "User registered successfully",
+                        "schema": {
+                            "$ref": "#/definitions/core.SuccessResponse"
+                        }
                     },
                     "400": {
                         "description": "Bad request - invalid input or validation failed",
@@ -239,7 +242,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "User deleted successfully"
+                        "description": "User deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/core.SuccessResponse"
+                        }
                     },
                     "400": {
                         "description": "Bad request - missing username",
@@ -290,6 +296,19 @@ const docTemplate = `{
                 },
                 "reference": {
                     "description": "Reference returns the reference document which maybe useful to solve this error.",
+                    "type": "string"
+                }
+            }
+        },
+        "core.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code defines the business success code.",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Message contains the success message.",
                     "type": "string"
                 }
             }
