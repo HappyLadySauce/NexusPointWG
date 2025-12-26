@@ -38,6 +38,15 @@ type UpdateUserRequest struct {
 	Role *string `json:"role,omitempty" binding:"omitempty,oneof=user admin"`
 }
 
+// ChangePwdRequest represents a change password request.
+// swagger:model
+type ChangePwdRequest struct {
+	// OldPassword is the user's old password (8-32 characters, will be hashed)
+	OldPassword string `json:"old_password" binding:"required,min=8,max=32"`
+	// NewPassword is the user's new password (8-32 characters, will be hashed)
+	NewPassword string `json:"new_password" binding:"required,min=8,max=32"`
+}
+
 // UserResponse represents a user response.
 // swagger:model
 type UserResponse struct {

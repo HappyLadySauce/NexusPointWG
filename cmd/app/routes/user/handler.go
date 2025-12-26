@@ -15,4 +15,5 @@ func init() {
 	authed.GET("/users/:username", userController.GetUserInfo)
 	authed.PUT("/users/:username", userController.UpdateUserInfo)
 	authed.DELETE("/users/:username", userController.DeleteUser)
+	authed.POST("/users/:username/password", userController.ChangePassword)
 }

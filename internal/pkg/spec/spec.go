@@ -40,6 +40,8 @@ const (
 	ActionUserSoftDelete Action = "user:soft_delete"
 	// HardDelete: permanent removal (admin-only)
 	ActionUserHardDelete Action = "user:hard_delete"
+	// ChangePassword: change own password (self-only, requires old password verification)
+	ActionUserChangePassword Action = "user:change_password"
 
 	// ---- wg_peer ----
 	ActionWGPeerList   Action = "wg_peer:list"
