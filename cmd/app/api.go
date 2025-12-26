@@ -91,7 +91,7 @@ func run(ctx context.Context, opts *options.Options) error {
 
 func serve(opts *options.Options) {
 	insecureAddress := fmt.Sprintf("%s:%d", opts.InsecureServing.BindAddress, opts.InsecureServing.BindPort)
-	klog.V(1).InfoS("Listening and serving on", "address", insecureAddress)
+	klog.V(2).InfoS("Listening and serving on", "address", insecureAddress)
 	go func() {
 		klog.Fatal(router.Router().Run(insecureAddress))
 	}()

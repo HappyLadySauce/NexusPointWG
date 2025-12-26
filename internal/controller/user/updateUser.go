@@ -7,9 +7,9 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/passwd"
@@ -57,7 +57,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	// Load existing user first, so partial update won't wipe required fields
 	existing, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
-		klog.Errorf("failed to get user: %v", err)
+		klog.V(1).InfoS("failed to get user", "username", username, "requesterID", requesterID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
@@ -65,7 +65,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	// Parse request body
 	var req v1.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		klog.Errorf("invalid request body: %v", err)
+		klog.V(1).InfoS("invalid request body", "username", username, "requesterID", requesterID, "error", err)
 		core.WriteResponseBindErr(c, err, nil)
 		return
 	}
@@ -87,7 +87,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	// 1) Basic updates require user:update_basic
 	allowed, err := spec.Enforce(requesterRole, obj, spec.ActionUserUpdateBasic)
 	if err != nil {
-		klog.Errorf("authz enforce failed: %v", err)
+		klog.V(1).InfoS("authz enforce failed", "username", username, "requesterID", requesterID, "requesterRole", requesterRole, "error", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
 		return
 	}
@@ -100,7 +100,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 	if hasSensitive {
 		allowed, err := spec.Enforce(requesterRole, obj, spec.ActionUserUpdateSensitive)
 		if err != nil {
-			klog.Errorf("authz enforce failed: %v", err)
+			klog.V(1).InfoS("authz enforce failed", "username", username, "requesterID", requesterID, "requesterRole", requesterRole, "error", err)
 			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
 			return
 		}
@@ -134,14 +134,14 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 		if req.Password != nil && *req.Password != "" {
 			salt, err := passwd.GenerateSalt()
 			if err != nil {
-				klog.Errorf("failed to generate salt: %v", err)
+				klog.V(1).InfoS("failed to generate salt", "username", username, "requesterID", requesterID, "error", err)
 				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 				return
 			}
 
 			passwordHash, err := passwd.HashPassword(*req.Password, salt)
 			if err != nil {
-				klog.Errorf("failed to hash password: %v", err)
+				klog.V(1).InfoS("failed to hash password", "username", username, "requesterID", requesterID, "error", err)
 				core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 				return
 			}
@@ -168,14 +168,14 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 
 	// Validate updated user data
 	if errs := user.Validate(); len(errs) != 0 {
-		klog.Errorf("validation failed: %v", errs)
+		klog.V(1).InfoS("validation failed", "username", username, "requesterID", requesterID, "errors", errs.ToAggregate().Error())
 		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "%s", errs.ToAggregate().Error()), nil)
 		return
 	}
 
 	// Save updated user
 	if err := u.srv.Users().UpdateUser(context.Background(), &user); err != nil {
-		klog.Errorf("failed to update user: %v", err)
+		klog.V(1).InfoS("failed to update user", "username", username, "userID", user.ID, "requesterID", requesterID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}

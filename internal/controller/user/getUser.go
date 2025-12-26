@@ -33,7 +33,7 @@ func (u *UserController) GetUserInfo(c *gin.Context) {
 
 	user, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
-		klog.Errorf("failed to get user: %s", err)
+		klog.V(1).InfoS("failed to get user", "username", username, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}

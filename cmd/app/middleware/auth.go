@@ -28,61 +28,48 @@ const (
 // JWTAuth creates a JWT authentication middleware.
 func JWTAuth(s store.Factory) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if s == nil {
+			klog.V(1).Info("authorization store is not initialized")
+			core.WriteResponse(c, errors.WithCode(code.ErrStoreNotInitialized, "%s", code.Message(code.ErrStoreNotInitialized)), nil)
+			c.Abort()
+			return
+		}
+
 		cfg := config.Get()
 
 		// 从 Authorization header 获取 token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			klog.V(1).Infof("missing authorization header: %s", authHeader)
+			klog.V(1).Info("missing authorization header")
 			core.WriteResponse(c, errors.WithCode(code.ErrMissingHeader, "%s", code.Message(code.ErrMissingHeader)), nil)
 			c.Abort()
 			return
 		}
 
-		// 规范化 Authorization header：去除多余空格，处理重复的 Bearer 前缀
+		// 去除前后空格
 		authHeader = strings.TrimSpace(authHeader)
-		klog.V(2).Infof("received authorization header: [%s]", authHeader)
 
-		// 移除所有可能的 Bearer 前缀（大小写不敏感），直到只剩下 token
+		// 去掉 Bearer 前缀（不区分大小写），只保留 token
 		authHeaderLower := strings.ToLower(authHeader)
-		for strings.HasPrefix(authHeaderLower, "bearer ") {
-			// 找到第一个 "bearer " 的位置（不区分大小写）
-			idx := strings.Index(authHeaderLower, "bearer ")
-			if idx == 0 {
-				// 从开头移除 "bearer "（保持原大小写）
-				authHeader = strings.TrimSpace(authHeader[7:])
-				authHeaderLower = strings.ToLower(authHeader)
-			} else {
-				break
-			}
+		if strings.HasPrefix(authHeaderLower, "bearer ") {
+			// 去掉 "Bearer " 前缀（7 个字符），保留原大小写的 token
+			authHeader = strings.TrimSpace(authHeader[7:])
 		}
 
-		// 如果去除所有 Bearer 前缀后为空，说明格式错误
+		// 如果 token 为空，说明格式错误
 		if authHeader == "" {
-			klog.Errorf("authorization header is empty after removing Bearer prefix")
+			klog.V(1).Info("invalid authorization header format")
 			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", code.Message(code.ErrInvalidAuthHeader)), nil)
 			c.Abort()
 			return
 		}
 
-		// 现在 authHeader 应该只包含 token，重新添加标准的 Bearer 前缀
-		authHeader = "Bearer " + strings.TrimSpace(authHeader)
-		klog.V(2).Infof("normalized authorization header: [%s]", authHeader)
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			klog.Errorf("invalid authorization header format after normalization: [%s], length: %d, parts: %v", authHeader, len(authHeader), parts)
-			core.WriteResponse(c, errors.WithCode(code.ErrInvalidAuthHeader, "%s", code.Message(code.ErrInvalidAuthHeader)), nil)
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
+		tokenString := authHeader
 
 		// 解析和验证 token
 		claims, err := jwt.ParseToken(tokenString, cfg.JWT.Secret)
 		if err != nil {
-			klog.V(1).Infof("invalid token: %v", err)
+			klog.V(1).InfoS("failed to parse token", "error", err)
 			// 检查是否是过期错误
 			if strings.Contains(err.Error(), "expired") {
 				core.WriteResponse(c, errors.WithCode(code.ErrExpired, "%s", code.Message(code.ErrExpired)), nil)
@@ -93,22 +80,16 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 			return
 		}
 
-		if s == nil {
-			klog.V(1).Infof("auth store is not initialized: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "%s", code.Message(code.ErrUnknown)), nil)
-			c.Abort()
-			return
-		}
-
 		// 查库校验用户状态/角色，确保注销/改角色立即生效
 		user, err := s.Users().GetUser(context.Background(), claims.UserID)
 		if err != nil {
-			klog.V(1).Infof("failed to load user from store: %v", err)
-			core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", code.Message(code.ErrTokenInvalid)), nil)
+			klog.V(1).InfoS("failed to get user from store:", "error", err)
+			core.WriteResponse(c, err, nil)
 			c.Abort()
 			return
 		}
 		if user.Status != model.UserStatusActive {
+			klog.V(1).InfoS("user is not active", "username", user.Username)
 			core.WriteResponse(c, errors.WithCode(code.ErrUserNotActive, "%s", code.Message(code.ErrUserNotActive)), nil)
 			c.Abort()
 			return

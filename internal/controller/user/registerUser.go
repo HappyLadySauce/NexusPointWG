@@ -34,7 +34,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 	var user model.User
 
 	if err := c.ShouldBindJSON(&httpUser); err != nil {
-		klog.Errorf("invalid request body: %v", err)
+		klog.V(1).InfoS("invalid request body", "error", err)
 		core.WriteResponseBindErr(c, err, nil)
 		return
 	}
@@ -44,7 +44,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 		// 生成盐值
 		salt, err := passwd.GenerateSalt()
 		if err != nil {
-			klog.Errorf("failed to generate salt: %v", err)
+			klog.V(1).InfoS("failed to generate salt", "username", httpUser.Username, "error", err)
 			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 			return
 		}
@@ -52,7 +52,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 		// 生成密码哈希
 		passwordHash, err := passwd.HashPassword(httpUser.Password, salt)
 		if err != nil {
-			klog.Errorf("failed to hash password: %v", err)
+			klog.V(1).InfoS("failed to hash password", "username", httpUser.Username, "error", err)
 			core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 			return
 		}
@@ -65,7 +65,7 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 	// 生成用户 ID (雪花算法)
 	userID, err := snowflake.GenerateID()
 	if err != nil {
-		klog.Errorf("failed to generate user ID: %v", err)
+		klog.V(1).InfoS("failed to generate user ID", "username", httpUser.Username, "error", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "failed to generate user ID"), nil)
 		return
 	}
@@ -92,14 +92,14 @@ func (u *UserController) RegisterUser(c *gin.Context) {
 
 	// 执行其他字段的验证
 	if errs := user.Validate(); len(errs) != 0 {
-		klog.Errorf("validation failed: %v", errs)
+		klog.V(1).InfoS("validation failed", "username", httpUser.Username, "errors", errs.ToAggregate().Error())
 		core.WriteResponse(c, errors.WithCode(code.ErrValidation, "%s", errs.ToAggregate().Error()), nil)
 		return
 	}
 
 	// 调用 service 创建用户
 	if err := u.srv.Users().CreateUser(context.Background(), &user); err != nil {
-		klog.Errorf("failed to register user: %v", err)
+		klog.V(1).InfoS("failed to register user", "username", httpUser.Username, "email", httpUser.Email, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}

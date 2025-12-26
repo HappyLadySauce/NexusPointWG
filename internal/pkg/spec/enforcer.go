@@ -25,11 +25,12 @@ func getEnforcer() (*casbin.Enforcer, error) {
 
 		e, err := casbin.NewEnforcer(modelPath, policyPath)
 		if err != nil {
+			klog.V(1).InfoS("failed to initialize casbin enforcer", "model", modelPath, "policy", policyPath, "error", err)
 			initErr = err
 			return
 		}
 		enforcer = e
-		klog.V(1).Infof("authz: casbin enforcer initialized (model=%s policy=%s)", modelPath, policyPath)
+		klog.V(1).InfoS("casbin enforcer initialized", "model", modelPath, "policy", policyPath)
 	})
 	return enforcer, initErr
 }

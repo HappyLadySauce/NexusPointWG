@@ -32,7 +32,7 @@ func (a *AuthController) Login(c *gin.Context) {
 	var loginReq v1.LoginRequest
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
-		klog.Errorf("invalid request body: %v", err)
+		klog.V(1).InfoS("invalid request body", "error", err)
 		core.WriteResponseBindErr(c, err, nil)
 		return
 	}
@@ -40,7 +40,7 @@ func (a *AuthController) Login(c *gin.Context) {
 	// 验证用户名和密码
 	user, err := a.srv.Auth().Login(context.Background(), loginReq.Username, loginReq.Password)
 	if err != nil {
-		klog.Errorf("login failed: %v", err)
+		klog.V(1).InfoS("login failed", "username", loginReq.Username, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
@@ -49,7 +49,7 @@ func (a *AuthController) Login(c *gin.Context) {
 	cfg := config.Get()
 	token, err := jwt.GenerateToken(user.ID, user.Username, user.Role, cfg.JWT.Secret, cfg.JWT.Expiration)
 	if err != nil {
-		klog.Errorf("failed to generate token: %v", err)
+		klog.V(1).InfoS("failed to generate token", "username", loginReq.Username, "userID", user.ID, "error", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrEncrypt, "%s", err.Error()), nil)
 		return
 	}

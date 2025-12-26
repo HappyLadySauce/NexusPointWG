@@ -78,3 +78,9 @@ const (
 	// ErrDecodingYaml - 500: Yaml data could not be decoded.
 	ErrDecodingYaml
 )
+
+// common: store errors.
+const (
+	// ErrStoreNotInitialized - 500: Store not initialized.
+	ErrStoreNotInitialized int = iota + 100401
+)

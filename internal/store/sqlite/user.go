@@ -58,6 +58,10 @@ func (u *users) CreateUser(ctx context.Context, user *model.User) error {
 func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 	err := u.db.WithContext(ctx).Save(user).Error
 	if err != nil {
+		// Check if it's a unique constraint violation (e.g., duplicate username or email)
+		if isUniqueConstraintError(err) {
+			return errors.WithCode(code.ErrUserAlreadyExist, "%s", err.Error())
+		}
 		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return nil
@@ -65,17 +69,25 @@ func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 
 func (u *users) DeleteUser(ctx context.Context, id string) error {
 	err := u.db.WithContext(ctx).Where("id = ?", id).Delete(&model.User{}).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Return nil to allow idempotent delete operations
+			return nil
+		}
 		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
 	return nil
 }
 
 // isUniqueConstraintError checks if the error is a unique constraint violation.
-// SQLite returns various error messages for unique constraint violations:
-// - "UNIQUE constraint failed: ..."
-// - "Duplicate entry '...' for key '...'"
-// - Error code 2067 (SQLITE_CONSTRAINT_UNIQUE)
+// SQLite (via GORM) returns various error messages for unique constraint violations:
+// - "UNIQUE constraint failed: users.username" (SQLite native format)
+// - "UNIQUE constraint failed: users.email" (SQLite native format)
+// - "constraint failed: UNIQUE constraint failed: users.username" (wrapped format)
+// - "sqlite: UNIQUE constraint failed: users.username" (with driver prefix)
+//
+// Note: The error code 2067 (SQLITE_CONSTRAINT_UNIQUE) is typically not exposed
+// directly by GORM, so we rely on error message pattern matching.
 func isUniqueConstraintError(err error) bool {
 	if err == nil {
 		return false
@@ -83,16 +95,21 @@ func isUniqueConstraintError(err error) bool {
 
 	errMsg := strings.ToLower(err.Error())
 
-	// Check for common unique constraint error patterns
+	// Check for SQLite unique constraint error patterns
+	// Order matters: more specific patterns first
 	uniquePatterns := []string{
-		"unique constraint failed",
-		"duplicate entry",
-		"constraint failed",
-		"sqlite_constraint_unique",
+		"unique constraint failed", // Most common SQLite format
+		"sqlite_constraint_unique", // SQLite error code name
+		"constraint failed",        // Generic constraint failure (may match other constraints, but unique is most common)
 	}
 
 	for _, pattern := range uniquePatterns {
 		if strings.Contains(errMsg, pattern) {
+			// Additional check: ensure it's not a different constraint type
+			// If the error mentions "NOT NULL" or "FOREIGN KEY", it's not a unique constraint
+			if strings.Contains(errMsg, "not null") || strings.Contains(errMsg, "foreign key") {
+				continue
+			}
 			return true
 		}
 	}

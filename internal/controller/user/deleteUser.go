@@ -7,9 +7,9 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 	"github.com/HappyLadySauce/errors"
 )
@@ -53,7 +53,7 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	// Get target user by username
 	targetUser, err := u.srv.Users().GetUserByUsername(context.Background(), username)
 	if err != nil {
-		klog.Errorf("failed to get user: %s", err)
+		klog.V(1).InfoS("failed to get user", "username", username, "requesterID", requesterID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
@@ -72,7 +72,7 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	}
 	allowed, err := spec.Enforce(requesterRole, obj, act)
 	if err != nil {
-		klog.Errorf("authz enforce failed: %v", err)
+		klog.V(1).InfoS("authz enforce failed", "username", username, "requesterID", requesterID, "requesterRole", requesterRole, "action", act, "error", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
 		return
 	}
@@ -85,20 +85,20 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	if requesterRole == model.UserRoleAdmin {
 		// Admin: hard delete (permanent removal from database)
 		if err := u.srv.Users().DeleteUser(context.Background(), targetUser.ID); err != nil {
-			klog.Errorf("failed to hard delete user: %s", err)
+			klog.V(1).InfoS("failed to hard delete user", "username", username, "userID", targetUser.ID, "requesterID", requesterID, "error", err)
 			core.WriteResponse(c, err, nil)
 			return
 		}
-		klog.V(1).Infof("admin hard deleted user: %s", username)
+		klog.V(1).InfoS("admin hard deleted user", "username", username, "userID", targetUser.ID, "requesterID", requesterID)
 	} else {
 		// Regular user: soft delete (set status=deleted)
 		targetUser.Status = model.UserStatusDeleted
 		if err := u.srv.Users().UpdateUser(context.Background(), targetUser); err != nil {
-			klog.Errorf("failed to soft delete user: %s", err)
+			klog.V(1).InfoS("failed to soft delete user", "username", username, "userID", targetUser.ID, "requesterID", requesterID, "error", err)
 			core.WriteResponse(c, err, nil)
 			return
 		}
-		klog.V(1).Infof("user soft deleted themselves: %s", username)
+		klog.V(1).InfoS("user soft deleted themselves", "username", username, "userID", targetUser.ID)
 	}
 
 	core.WriteResponse(c, nil, nil)

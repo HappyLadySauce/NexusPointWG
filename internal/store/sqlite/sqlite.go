@@ -50,26 +50,30 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 		dbIns, err = db.New(dbOpts)
 		if err != nil {
 			// Preserve the original error with full context
+			klog.V(1).InfoS("failed to create sqlite database", "dataSource", opts.DataSourceName, "error", err)
 			err = errors.Wrap(err, "failed to create sqlite db with data source")
 			return
 		}
 
 		// Auto migrate database schema
 		if err = dbIns.AutoMigrate(&model.User{}); err != nil {
+			klog.V(1).InfoS("failed to auto migrate database schema", "dataSource", opts.DataSourceName, "error", err)
 			err = errors.Wrap(err, "failed to auto migrate database schema")
 			return
 		}
 
-		klog.V(1).InfoS("Database schema migrated successfully")
+		klog.V(1).InfoS("database schema migrated successfully", "dataSource", opts.DataSourceName)
 		sqliteFactory = &datastore{dbIns}
 	})
 
 	if sqliteFactory == nil {
 		if err != nil {
 			// Return the wrapped error directly to preserve the full error chain
+			klog.V(1).InfoS("failed to get sqlite factory", "dataSource", opts.DataSourceName, "error", err)
 			return nil, errors.Wrap(err, "failed to get sqlite factory")
 		}
 		// If err is nil but sqliteFactory is nil, create a new error
+		klog.V(1).InfoS("sqlite factory is nil but no error was returned", "dataSource", opts.DataSourceName)
 		return nil, errors.New("failed to get sqlite factory: sqliteFactory is nil but no error was returned")
 	}
 
