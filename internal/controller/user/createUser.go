@@ -15,22 +15,22 @@ import (
 	"github.com/HappyLadySauce/errors"
 )
 
-// RegisterUser register a new user.
-// @Summary Register a new user
-// @Description Register a new user with username, nickname, avatar, email and password
+// CreateUser create a user.
+// @Summary Create user
+// @Description Create a user with username, nickname, avatar, email and password
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param user body v1.RegisterRequest true "User information"
-// @Success 200 {object} core.SuccessResponse "User registered successfully"
+// @Param user body v1.CreateUserRequest true "User information"
+// @Success 200 {object} core.SuccessResponse "User created successfully"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input or validation failed"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - encryption error"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"
 // @Router /api/v1/users [post]
-func (u *UserController) RegisterUser(c *gin.Context) {
-	klog.V(1).Info("user register function called.")
+func (u *UserController) CreateUser(c *gin.Context) {
+	klog.V(1).Info("user create function called.")
 
-	var httpUser v1.RegisterRequest
+	var httpUser v1.CreateUserRequest
 	var user model.User
 
 	if err := c.ShouldBindJSON(&httpUser); err != nil {

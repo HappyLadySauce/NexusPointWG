@@ -1,8 +1,8 @@
 package v1
 
-// RegisterRequest represents a user registration request.
+// CreateUserRequest represents a user creation request.
 // swagger:model
-type RegisterRequest struct {
+type CreateUserRequest struct {
 	// Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)
 	Username string `json:"username" binding:"required,min=3,max=32,urlsafe,nochinese"`
 	// Nickname is the user's display name (3-32 characters). If not provided, will use username.

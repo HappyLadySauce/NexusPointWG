@@ -69,7 +69,7 @@ const docTemplate = `{
         },
         "/api/v1/users": {
             "post": {
-                "description": "Register a new user with username, nickname, avatar, email and password",
+                "description": "Create a user with username, nickname, avatar, email and password",
                 "consumes": [
                     "application/json"
                 ],
@@ -79,7 +79,7 @@ const docTemplate = `{
                 "tags": [
                     "users"
                 ],
-                "summary": "Register a new user",
+                "summary": "Create user",
                 "parameters": [
                     {
                         "description": "User information",
@@ -87,13 +87,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.RegisterRequest"
+                            "$ref": "#/definitions/v1.CreateUserRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "User registered successfully",
+                        "description": "User created successfully",
                         "schema": {
                             "$ref": "#/definitions/core.SuccessResponse"
                         }
@@ -313,33 +313,7 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.LoginRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "username"
-            ],
-            "properties": {
-                "password": {
-                    "description": "Password is the user's password",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "Username is the user's username",
-                    "type": "string"
-                }
-            }
-        },
-        "v1.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "description": "Token is the JWT token for authentication",
-                    "type": "string"
-                }
-            }
-        },
-        "v1.RegisterRequest": {
+        "v1.CreateUserRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -374,6 +348,32 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
+                }
+            }
+        },
+        "v1.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "description": "Password is the user's password",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is the user's username",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "description": "Token is the JWT token for authentication",
+                    "type": "string"
                 }
             }
         },
