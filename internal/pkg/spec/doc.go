@@ -1,4 +1,4 @@
-// Package authz defines authorization vocabulary and helpers used across controllers/services.
+// Package spec defines specification vocabulary and helpers used across controllers/services.
 //
 // Design goals:
 // - Make authorization intent explicit: (subject, object, action)
@@ -16,4 +16,4 @@
 //	wg_config:self, wg_config:any
 //
 // Actions are intentionally stringly-typed to keep Casbin policy readable.
-package authz
+package spec

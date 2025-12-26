@@ -18,7 +18,6 @@ import (
 
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
-	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/wireguard"
 )
 
 const (

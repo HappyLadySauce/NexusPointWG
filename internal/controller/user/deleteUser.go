@@ -7,7 +7,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/authz"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
@@ -59,18 +59,18 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	}
 
 	// --- Authorization (Casbin) ---
-	scope := authz.ScopeAny
+	scope := spec.ScopeAny
 	if requesterID != "" && requesterID == targetUser.ID {
-		scope = authz.ScopeSelf
+		scope = spec.ScopeSelf
 	}
-	obj := authz.Obj(authz.ResourceUser, scope)
+	obj := spec.Obj(spec.ResourceUser, scope)
 
 	// Admin: hard delete any. Regular: soft delete self.
-	act := authz.ActionUserSoftDelete
+	act := spec.ActionUserSoftDelete
 	if requesterRole == model.UserRoleAdmin {
-		act = authz.ActionUserHardDelete
+		act = spec.ActionUserHardDelete
 	}
-	allowed, err := authz.Enforce(requesterRole, obj, act)
+	allowed, err := spec.Enforce(requesterRole, obj, act)
 	if err != nil {
 		klog.Errorf("authz enforce failed: %v", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)

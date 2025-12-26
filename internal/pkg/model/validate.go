@@ -38,18 +38,3 @@ func (u *User) Validate() field.ErrorList {
 	return allErrs
 }
 
-func (p *WGPeer) Validate() field.ErrorList {
-	var allErrs field.ErrorList
-	if err := modelValidator.Struct(p); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			for _, validationError := range validationErrors {
-				allErrs = append(allErrs, field.Invalid(
-					field.NewPath(validationError.Field()),
-					validationError.Value(),
-					validationError.Tag(),
-				))
-			}
-		}
-	}
-	return allErrs
-}

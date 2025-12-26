@@ -7,7 +7,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/authz"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
@@ -75,17 +75,17 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 
 	// --- Authorization (Casbin) ---
 	// Determine scope (self/any) based on ownership.
-	scope := authz.ScopeAny
+	scope := spec.ScopeAny
 	if requesterID != "" && requesterID == existing.ID {
-		scope = authz.ScopeSelf
+		scope = spec.ScopeSelf
 	}
-	obj := authz.Obj(authz.ResourceUser, scope)
+	obj := spec.Obj(spec.ResourceUser, scope)
 
 	// Decide whether this request includes sensitive updates.
 	hasSensitive := (req.Password != nil && *req.Password != "") || req.Status != nil || req.Role != nil
 
 	// 1) Basic updates require user:update_basic
-	allowed, err := authz.Enforce(requesterRole, obj, authz.ActionUserUpdateBasic)
+	allowed, err := spec.Enforce(requesterRole, obj, spec.ActionUserUpdateBasic)
 	if err != nil {
 		klog.Errorf("authz enforce failed: %v", err)
 		core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
@@ -98,7 +98,7 @@ func (u *UserController) UpdateUserInfo(c *gin.Context) {
 
 	// 2) Sensitive updates additionally require user:update_sensitive
 	if hasSensitive {
-		allowed, err := authz.Enforce(requesterRole, obj, authz.ActionUserUpdateSensitive)
+		allowed, err := spec.Enforce(requesterRole, obj, spec.ActionUserUpdateSensitive)
 		if err != nil {
 			klog.Errorf("authz enforce failed: %v", err)
 			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)

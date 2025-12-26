@@ -1,4 +1,4 @@
-package authz
+package spec
 
 import (
 	"path/filepath"
@@ -20,8 +20,8 @@ var (
 // paths, move these into options/config and plumb through here.
 func getEnforcer() (*casbin.Enforcer, error) {
 	once.Do(func() {
-		modelPath := filepath.FromSlash("configs/casbin/model.conf")
-		policyPath := filepath.FromSlash("configs/casbin/policy.csv")
+		modelPath := filepath.FromSlash("model.conf")
+		policyPath := filepath.FromSlash("policy.csv")
 
 		e, err := casbin.NewEnforcer(modelPath, policyPath)
 		if err != nil {
