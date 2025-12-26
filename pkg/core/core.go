@@ -33,6 +33,16 @@ type ErrResponse struct {
 	Details map[string]string `json:"details,omitempty"`
 }
 
+// SuccessResponse defines the return messages when an operation succeeds.
+// swagger:model
+type SuccessResponse struct {
+	// Code defines the business success code.
+	Code int `json:"code"`
+
+	// Message contains the success message.
+	Message string `json:"message"`
+}
+
 // FormatValidationError formats validator.ValidationErrors into a user-friendly map.
 // Returns a map where keys are field names (JSON field names) and values are error messages.
 func FormatValidationError(err error) map[string]string {
@@ -105,6 +115,16 @@ func WriteResponseWithDetails(c *gin.Context, err error, data interface{}, detai
 		}
 
 		c.JSON(coder.HTTPStatus(), response)
+		return
+	}
+
+	// If data is nil, return a default success response
+	if data == nil {
+		response := SuccessResponse{
+			Code:    code.ErrSuccess,
+			Message: code.Message(code.ErrSuccess),
+		}
+		c.JSON(http.StatusOK, response)
 		return
 	}
 

@@ -22,7 +22,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param user body v1.RegisterRequest true "User information"
-// @Success 200 {object} nil "User registered successfully"
+// @Success 200 {object} core.SuccessResponse "User registered successfully"
 // @Failure 400 {object} core.ErrResponse "Bad request - invalid input or validation failed"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - encryption error"
 // @Failure 500 {object} core.ErrResponse "Internal server error - database error"

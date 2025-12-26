@@ -24,7 +24,7 @@ import (
 // @Tags users
 // @Produce json
 // @Param username path string true "Username"
-// @Success 200 {object} nil "User deleted successfully"
+// @Success 200 {object} core.SuccessResponse "User deleted successfully"
 // @Failure 400 {object} core.ErrResponse "Bad request - missing username"
 // @Failure 401 {object} core.ErrResponse "Unauthorized - invalid or expired token"
 // @Failure 403 {object} core.ErrResponse "Forbidden - permission denied"
