@@ -324,7 +324,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "nickname",
                 "password",
                 "username"
             ],
@@ -340,7 +339,7 @@ const docTemplate = `{
                     "maxLength": 255
                 },
                 "nickname": {
-                    "description": "Nickname is the user's display name (3-32 characters)",
+                    "description": "Nickname is the user's display name (3-32 characters). If not provided, will use username.",
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3

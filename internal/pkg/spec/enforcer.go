@@ -20,8 +20,8 @@ var (
 // paths, move these into options/config and plumb through here.
 func getEnforcer() (*casbin.Enforcer, error) {
 	once.Do(func() {
-		modelPath := filepath.FromSlash("model.conf")
-		policyPath := filepath.FromSlash("policy.csv")
+		modelPath := filepath.FromSlash("internal/pkg/spec/model.conf")
+		policyPath := filepath.FromSlash("internal/pkg/spec/policy.csv")
 
 		e, err := casbin.NewEnforcer(modelPath, policyPath)
 		if err != nil {
@@ -43,5 +43,3 @@ func Enforce(sub, obj string, act Action) (bool, error) {
 	}
 	return e.Enforce(sub, obj, string(act))
 }
-
-
