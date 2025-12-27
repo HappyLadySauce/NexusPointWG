@@ -37,10 +37,17 @@ request.interceptors.response.use(
                 case 401:
                     // Unauthorized - clear token and redirect to login
                     localStorage.removeItem('token');
-                    // Only redirect if not already on login page to avoid loops
-                    if (!window.location.pathname.includes('/login')) {
+                    // Only redirect if not already on login/register/console page to avoid loops
+                    const isAuthPage = window.location.pathname.includes('/login') || 
+                                      window.location.pathname.includes('/register') || 
+                                      window.location.pathname.includes('/console');
+                    if (!isAuthPage) {
                         window.location.href = '/login';
                         message.error('登录已过期，请重新登录');
+                    } else {
+                        // On auth pages, show the error message from server
+                        const errorMsg = data?.message || '用户名或密码错误';
+                        message.error(errorMsg);
                     }
                     break;
                 case 403:

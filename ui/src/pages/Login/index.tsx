@@ -46,9 +46,10 @@ const Login: React.FC = () => {
             } else {
                 message.error('登录失败：未获取到 Token');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Login error:', error);
-            // Error message is handled by interceptor globally, but we can add specific handling here if needed
+            // Error message is already shown by the request interceptor for auth pages
+            // Additional error handling can be added here if needed
         } finally {
             setLoading(false);
         }

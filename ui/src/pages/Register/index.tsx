@@ -21,9 +21,27 @@ const Register: React.FC = () => {
             });
             message.success('注册成功！请等待管理员审核激活账号');
             navigate('/login');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Register error:', error);
-            // Error message is handled by interceptor
+            
+            // Handle validation errors with field-level messages
+            if (error?.response?.data?.details) {
+                const details = error.response.data.details;
+                // Show field-specific errors
+                Object.keys(details).forEach((field) => {
+                    const fieldName = field === 'username' ? '用户名' : 
+                                    field === 'email' ? '邮箱' : 
+                                    field === 'password' ? '密码' : field;
+                    message.error(`${fieldName}: ${details[field]}`);
+                });
+            } else {
+                // Show general error message
+                const errorMessage = error?.response?.data?.message || error?.message || '注册失败，请检查输入信息';
+                // Interceptor will show the error message, but we can add specific handling here
+                if (!window.location.pathname.includes('/register')) {
+                    message.error(errorMessage);
+                }
+            }
         } finally {
             setLoading(false);
         }
