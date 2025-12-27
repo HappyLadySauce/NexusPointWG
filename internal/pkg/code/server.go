@@ -5,6 +5,9 @@ package code
 const (
 	// ErrUserAlreadyExist - 400: User already exists.
 	ErrUserAlreadyExist int = iota + 110001
+
+	// ErrEmailAlreadyExist - 400: Email already exists.
+	ErrEmailAlreadyExist
 	
 	// ErrUserNotFound - 404: User not found.
 	ErrUserNotFound

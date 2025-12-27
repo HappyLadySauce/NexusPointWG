@@ -45,7 +45,8 @@
                 "placeholder": "用户名 / 邮箱",
                 "required": "请输入用户名!",
                 "min": "用户名至少3个字符!",
-                "max": "用户名最多32个字符!"
+                "max": "用户名最多32个字符!",
+                "alreadyExists": "用户名已存在"
             },
             "password": {
                 "label": "密码",
@@ -64,7 +65,8 @@
                 "label": "邮箱",
                 "placeholder": "邮箱地址",
                 "required": "请输入邮箱!",
-                "invalid": "请输入有效的邮箱地址!"
+                "invalid": "请输入有效的邮箱地址!",
+                "alreadyExists": "邮箱已存在"
             },
             "nickname": {
                 "label": "昵称",

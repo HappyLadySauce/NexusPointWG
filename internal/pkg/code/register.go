@@ -2,6 +2,7 @@ package code
 
 func init() {
 	register(ErrUserAlreadyExist, 400, "User already exists")
+	register(ErrEmailAlreadyExist, 400, "Email already exists")
 	register(ErrUserNotFound, 404, "User not found")
 	register(ErrUserNotActive, 403, "User account is not active")
 	register(ErrSuccess, 200, "OK")

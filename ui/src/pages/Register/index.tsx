@@ -13,6 +13,10 @@ const Register: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
+    // backend error codes (internal/pkg/code/server.go)
+    const ERR_USER_ALREADY_EXIST = 110001;
+    const ERR_EMAIL_ALREADY_EXIST = 110002;
+
     const onFinish = async (values: any) => {
         setLoading(true);
         try {
@@ -27,21 +31,39 @@ const Register: React.FC = () => {
         } catch (error: any) {
             console.error('Register error:', error);
 
+            const respCode: number | undefined = error?.response?.data?.code;
+            if (respCode === ERR_USER_ALREADY_EXIST) {
+                message.error(t('auth.fields.username.alreadyExists'));
+                return;
+            }
+            if (respCode === ERR_EMAIL_ALREADY_EXIST) {
+                message.error(t('auth.fields.email.alreadyExists'));
+                return;
+            }
+
             // Handle validation errors with field-level messages
             if (error?.response?.data?.details) {
                 const details = error.response.data.details;
-                // Show field-specific errors
-                Object.keys(details).forEach((field) => {
-                    const fieldName = field === 'username' ? t('auth.fields.username.label') :
-                        field === 'email' ? t('auth.fields.email.label') :
-                            field === 'password' ? t('auth.fields.password.label') : field;
-                    message.error(`${fieldName}: ${details[field]}`);
-                });
+                // Check for username or email already exists errors
+                if (details.username) {
+                    // Use translated message for username already exists
+                    message.error(t('auth.fields.username.alreadyExists'));
+                } else if (details.email) {
+                    // Use translated message for email already exists
+                    message.error(t('auth.fields.email.alreadyExists'));
+                } else {
+                    // Show other field-specific errors
+                    Object.keys(details).forEach((field) => {
+                        const fieldName = field === 'username' ? t('auth.fields.username.label') :
+                            field === 'email' ? t('auth.fields.email.label') :
+                                field === 'password' ? t('auth.fields.password.label') : field;
+                        message.error(`${fieldName}: ${details[field]}`);
+                    });
+                }
             } else {
-                // For general errors, the interceptor will show the error message
-                // If server didn't provide a message, interceptor shows generic "发生未知错误"
-                // We can add registration-specific handling here if needed, but avoid duplicate messages
-                // The interceptor's default case handles the fallback, so we don't need to show again
+                // For other errors, show server message if present, otherwise fallback.
+                const serverMsg: string | undefined = error?.response?.data?.message;
+                message.error(serverMsg || t('auth.register.failed'));
             }
         } finally {
             setLoading(false);

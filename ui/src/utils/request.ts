@@ -61,8 +61,13 @@ request.interceptors.response.use(
                     message.error(i18n.t('common.serverError'));
                     break;
                 default:
-                    // Provide context-specific error messages based on the page
+                    // For registration page, let the component handle 400 errors (field conflicts, validation, etc.)
                     const isRegisterPage = window.location.pathname.includes('/register');
+                    if (isRegisterPage && status === 400) {
+                        // Don't show error message here, let Register component handle it
+                        break;
+                    }
+                    // Provide context-specific error messages based on the page
                     const defaultMessage = isRegisterPage
                         ? i18n.t('auth.register.failed')
                         : i18n.t('common.unknownError');

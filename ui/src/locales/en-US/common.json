@@ -45,7 +45,8 @@
                 "placeholder": "Username / Email",
                 "required": "Please enter username!",
                 "min": "Username must be at least 3 characters!",
-                "max": "Username cannot exceed 32 characters!"
+                "max": "Username cannot exceed 32 characters!",
+                "alreadyExists": "Username already exists"
             },
             "password": {
                 "label": "Password",
@@ -64,7 +65,8 @@
                 "label": "Email",
                 "placeholder": "Email Address",
                 "required": "Please enter email!",
-                "invalid": "Please enter a valid email address!"
+                "invalid": "Please enter a valid email address!",
+                "alreadyExists": "Email already exists"
             },
             "nickname": {
                 "label": "Nickname",

@@ -46,9 +46,18 @@ func (u *users) GetUserByUsername(ctx context.Context, username string) (*model.
 func (u *users) CreateUser(ctx context.Context, user *model.User) error {
 	err := u.db.WithContext(ctx).Create(user).Error
 	if err != nil {
-		// Check if it's a unique constraint violation (e.g., duplicate username)
+		// Check if it's a unique constraint violation (e.g., duplicate username or email)
 		if isUniqueConstraintError(err) {
-			return errors.WithCode(code.ErrUserAlreadyExist, "%s", err.Error())
+			// Parse the error message to determine which field caused the constraint violation
+			field := parseUniqueConstraintField(err)
+			// Decide which coded error to return based on the duplicated field.
+			// - username duplicate -> ErrUserAlreadyExist
+			// - email duplicate -> ErrEmailAlreadyExist
+			if field == "email" {
+				return errors.WithCode(code.ErrEmailAlreadyExist, "%s", code.Message(code.ErrEmailAlreadyExist))
+			}
+			// Default to username duplicate / generic already-exists
+			return errors.WithCode(code.ErrUserAlreadyExist, "%s", code.Message(code.ErrUserAlreadyExist))
 		}
 		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
@@ -60,7 +69,11 @@ func (u *users) UpdateUser(ctx context.Context, user *model.User) error {
 	if err != nil {
 		// Check if it's a unique constraint violation (e.g., duplicate username or email)
 		if isUniqueConstraintError(err) {
-			return errors.WithCode(code.ErrUserAlreadyExist, "%s", err.Error())
+			field := parseUniqueConstraintField(err)
+			if field == "email" {
+				return errors.WithCode(code.ErrEmailAlreadyExist, "%s", code.Message(code.ErrEmailAlreadyExist))
+			}
+			return errors.WithCode(code.ErrUserAlreadyExist, "%s", code.Message(code.ErrUserAlreadyExist))
 		}
 		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
 	}
@@ -115,4 +128,31 @@ func isUniqueConstraintError(err error) bool {
 	}
 
 	return false
+}
+
+// parseUniqueConstraintField extracts the field name from a unique constraint error.
+// Returns "username", "email", or empty string if the field cannot be determined.
+func parseUniqueConstraintField(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	errMsg := err.Error()
+	errMsgLower := strings.ToLower(errMsg)
+
+	// Check for username constraint
+	if strings.Contains(errMsgLower, "users.username") ||
+		strings.Contains(errMsgLower, ".username") ||
+		strings.Contains(errMsgLower, ": username") {
+		return "username"
+	}
+
+	// Check for email constraint
+	if strings.Contains(errMsgLower, "users.email") ||
+		strings.Contains(errMsgLower, ".email") ||
+		strings.Contains(errMsgLower, ": email") {
+		return "email"
+	}
+
+	return ""
 }

@@ -100,6 +100,7 @@ func (u *UserController) CreateUser(c *gin.Context) {
 	// 调用 service 创建用户
 	if err := u.srv.Users().CreateUser(context.Background(), &user); err != nil {
 		klog.V(1).InfoS("failed to register user", "username", httpUser.Username, "email", httpUser.Email, "error", err)
+		// Store layer now decides the exact error code (e.g. ErrEmailAlreadyExist vs ErrUserAlreadyExist).
 		core.WriteResponse(c, err, nil)
 		return
 	}
