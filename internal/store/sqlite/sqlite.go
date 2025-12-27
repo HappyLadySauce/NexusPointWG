@@ -165,8 +165,11 @@ func initializeDefaultAdmin(db *gorm.DB) error {
 	pwdFile := "pwd.txt"
 	if err := savePasswordToFile(pwdFile, adminUsername, password); err != nil {
 		// 即使保存文件失败，也不影响用户创建，只记录警告
+		// SECURITY: Never log passwords, even in error scenarios. Log files may be stored long-term
+		// and have broader access than expected.
 		klog.V(1).InfoS("failed to save password to file", "file", pwdFile, "error", err)
-		klog.Warningf("Admin user created but password file save failed. Username: %s, Password: %s", adminUsername, password)
+		klog.Warningf("Admin user created but password file save failed. Username: %s. Please check the file manually or reset the password.", adminUsername)
+		// Note: The password is lost if file save fails. Admin will need to reset password or check file system.
 	} else {
 		klog.V(1).InfoS("admin user initialized successfully", "username", adminUsername, "passwordFile", pwdFile)
 		klog.Infof("Default admin user created. Username: %s, Password saved to: %s", adminUsername, pwdFile)

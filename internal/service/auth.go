@@ -29,9 +29,12 @@ func (a *authSrv) Login(ctx context.Context, username, password string) (*model.
 	// 根据用户名获取用户
 	user, err := a.store.Users().GetUserByUsername(ctx, username)
 	if err != nil {
-		// 如果用户不存在，直接返回用户不存在错误
+		// SECURITY: prevent user enumeration attacks.
+		// If the user does not exist, return the same error as an incorrect password.
+		// This prevents attackers from distinguishing between "user doesn't exist" and "wrong password"
+		// responses, which would allow them to enumerate valid usernames in the system.
 		if errors.ParseCoder(err).Code() == code.ErrUserNotFound {
-			return nil, errors.WithCode(code.ErrUserNotFound, "%s", code.Message(code.ErrUserNotFound))
+			return nil, errors.WithCode(code.ErrPasswordIncorrect, "%s", code.Message(code.ErrPasswordIncorrect))
 		}
 
 		// Other errors are treated as internal server/database errors.
