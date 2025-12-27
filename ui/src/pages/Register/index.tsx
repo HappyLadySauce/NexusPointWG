@@ -35,12 +35,10 @@ const Register: React.FC = () => {
                     message.error(`${fieldName}: ${details[field]}`);
                 });
             } else {
-                // Show general error message
-                const errorMessage = error?.response?.data?.message || error?.message || '注册失败，请检查输入信息';
-                // Interceptor will show the error message, but we can add specific handling here
-                if (!window.location.pathname.includes('/register')) {
-                    message.error(errorMessage);
-                }
+                // For general errors, the interceptor will show the error message
+                // If server didn't provide a message, interceptor shows generic "发生未知错误"
+                // We can add registration-specific handling here if needed, but avoid duplicate messages
+                // The interceptor's default case handles the fallback, so we don't need to show again
             }
         } finally {
             setLoading(false);

@@ -60,7 +60,12 @@ request.interceptors.response.use(
                     message.error('服务器错误，请稍后重试');
                     break;
                 default:
-                    message.error(data?.message || '发生未知错误');
+                    // Provide context-specific error messages based on the page
+                    const isRegisterPage = window.location.pathname.includes('/register');
+                    const defaultMessage = isRegisterPage 
+                        ? '注册失败，请检查输入信息' 
+                        : '发生未知错误';
+                    message.error(data?.message || defaultMessage);
             }
         } else if (error.request) {
             message.error('网络连接失败，请检查您的网络');
