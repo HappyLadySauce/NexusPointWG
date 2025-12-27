@@ -19,3 +19,7 @@ _output/
 *.db
 
 pwd.txt
+
+
+node_modules/
+ui/node_modules

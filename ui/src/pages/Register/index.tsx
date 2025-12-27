@@ -1,12 +1,15 @@
 import { userApi } from '@/api';
+import LanguageSelect from '@/components/LanguageSelect';
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, Typography, message } from 'antd';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
 const Register: React.FC = () => {
+    const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -19,19 +22,19 @@ const Register: React.FC = () => {
                 email: values.email,
                 password: values.password,
             });
-            message.success('注册成功！请等待管理员审核激活账号');
+            message.success(t('auth.register.success'));
             navigate('/login');
         } catch (error: any) {
             console.error('Register error:', error);
-            
+
             // Handle validation errors with field-level messages
             if (error?.response?.data?.details) {
                 const details = error.response.data.details;
                 // Show field-specific errors
                 Object.keys(details).forEach((field) => {
-                    const fieldName = field === 'username' ? '用户名' : 
-                                    field === 'email' ? '邮箱' : 
-                                    field === 'password' ? '密码' : field;
+                    const fieldName = field === 'username' ? t('auth.fields.username.label') :
+                        field === 'email' ? t('auth.fields.email.label') :
+                            field === 'password' ? t('auth.fields.password.label') : field;
                     message.error(`${fieldName}: ${details[field]}`);
                 });
             } else {
@@ -57,14 +60,17 @@ const Register: React.FC = () => {
             backgroundPosition: 'center 110px',
             backgroundSize: '100%',
         }}>
+            <div style={{ position: 'absolute', top: 20, right: 20 }}>
+                <LanguageSelect />
+            </div>
             <Card
                 style={{ width: 450, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                 bodyStyle={{ padding: '40px 32px' }}
             >
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
                     <img src="/vite.svg" alt="logo" style={{ height: 44, marginBottom: 16 }} />
-                    <Title level={3} style={{ margin: 0 }}>NexusPoint WG</Title>
-                    <Text type="secondary">用户注册</Text>
+                    <Title level={3} style={{ margin: 0 }}>{t('auth.register.title')}</Title>
+                    <Text type="secondary">{t('auth.register.subtitle')}</Text>
                 </div>
 
                 <Form
@@ -77,44 +83,44 @@ const Register: React.FC = () => {
                     <Form.Item
                         name="username"
                         rules={[
-                            { required: true, message: '请输入用户名!' },
-                            { min: 3, message: '用户名至少3个字符!' },
-                            { max: 32, message: '用户名最多32个字符!' },
+                            { required: true, message: t('auth.fields.username.required') },
+                            { min: 3, message: t('auth.fields.username.min') },
+                            { max: 32, message: t('auth.fields.username.max') },
                         ]}
                     >
-                        <Input prefix={<UserOutlined />} placeholder="用户名 (3-32字符)" />
+                        <Input prefix={<UserOutlined />} placeholder={`${t('auth.fields.username.placeholder')} (3-32${t('auth.fields.username.label').slice(-2)})`} />
                     </Form.Item>
 
                     <Form.Item
                         name="nickname"
                         rules={[
-                            { max: 32, message: '昵称最多32个字符!' },
+                            { max: 32, message: t('auth.fields.nickname.max') },
                         ]}
                     >
-                        <Input prefix={<UserOutlined />} placeholder="昵称 (可选，默认使用用户名)" />
+                        <Input prefix={<UserOutlined />} placeholder={t('auth.fields.nickname.placeholder')} />
                     </Form.Item>
 
                     <Form.Item
                         name="email"
                         rules={[
-                            { required: true, message: '请输入邮箱!' },
-                            { type: 'email', message: '请输入有效的邮箱地址!' },
+                            { required: true, message: t('auth.fields.email.required') },
+                            { type: 'email', message: t('auth.fields.email.invalid') },
                         ]}
                     >
-                        <Input prefix={<MailOutlined />} placeholder="邮箱地址" />
+                        <Input prefix={<MailOutlined />} placeholder={t('auth.fields.email.placeholder')} />
                     </Form.Item>
 
                     <Form.Item
                         name="password"
                         rules={[
-                            { required: true, message: '请输入密码!' },
-                            { min: 8, message: '密码至少8个字符!' },
-                            { max: 32, message: '密码最多32个字符!' },
+                            { required: true, message: t('auth.fields.password.required') },
+                            { min: 8, message: t('auth.fields.password.min') },
+                            { max: 32, message: t('auth.fields.password.max') },
                         ]}
                     >
                         <Input.Password
                             prefix={<LockOutlined />}
-                            placeholder="密码 (8-32字符)"
+                            placeholder={`${t('auth.fields.password.placeholder')} (8-32${t('auth.fields.username.label').slice(-2)})`}
                         />
                     </Form.Item>
 
@@ -122,30 +128,30 @@ const Register: React.FC = () => {
                         name="confirmPassword"
                         dependencies={['password']}
                         rules={[
-                            { required: true, message: '请确认密码!' },
+                            { required: true, message: t('auth.fields.confirmPassword.required') },
                             ({ getFieldValue }) => ({
                                 validator(_, value) {
                                     if (!value || getFieldValue('password') === value) {
                                         return Promise.resolve();
                                     }
-                                    return Promise.reject(new Error('两次输入的密码不一致!'));
+                                    return Promise.reject(new Error(t('auth.fields.confirmPassword.mismatch')));
                                 },
                             }),
                         ]}
                     >
                         <Input.Password
                             prefix={<LockOutlined />}
-                            placeholder="确认密码"
+                            placeholder={t('auth.fields.confirmPassword.placeholder')}
                         />
                     </Form.Item>
 
                     <Form.Item>
                         <Button type="primary" htmlType="submit" className="register-form-button" block loading={loading}>
-                            注册
+                            {t('auth.register.submit')}
                         </Button>
                         <div style={{ marginTop: 16, textAlign: 'center' }}>
-                            <Text>已有账号? </Text>
-                            <Link to="/login">立即登录</Link>
+                            <Text>{t('auth.register.hasAccount')} </Text>
+                            <Link to="/login">{t('auth.register.loginNow')}</Link>
                         </div>
                     </Form.Item>
                 </Form>

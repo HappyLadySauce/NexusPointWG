@@ -1,13 +1,16 @@
 import { authApi } from '@/api';
+import LanguageSelect from '@/components/LanguageSelect';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, Typography, message } from 'antd';
 import { jwtDecode } from "jwt-decode";
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
 const Login: React.FC = () => {
+    const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -21,7 +24,7 @@ const Login: React.FC = () => {
 
             if (token) {
                 localStorage.setItem('token', token);
-                message.success('登录成功');
+                message.success(t('auth.login.success'));
 
                 // Decode token to get role
                 try {
@@ -44,7 +47,7 @@ const Login: React.FC = () => {
                     }
                 }
             } else {
-                message.error('登录失败：未获取到 Token');
+                message.error(t('auth.login.failed') + '：' + t('common.unknownError'));
             }
         } catch (error: any) {
             console.error('Login error:', error);
@@ -67,14 +70,17 @@ const Login: React.FC = () => {
             backgroundPosition: 'center 110px',
             backgroundSize: '100%',
         }}>
+            <div style={{ position: 'absolute', top: 20, right: 20 }}>
+                <LanguageSelect />
+            </div>
             <Card
                 style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                 bodyStyle={{ padding: '40px 32px' }}
             >
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
                     <img src="/vite.svg" alt="logo" style={{ height: 44, marginBottom: 16 }} />
-                    <Title level={3} style={{ margin: 0 }}>NexusPoint WG</Title>
-                    <Text type="secondary">WireGuard 管理平台</Text>
+                    <Title level={3} style={{ margin: 0 }}>{t('auth.login.title')}</Title>
+                    <Text type="secondary">{t('auth.login.subtitle')}</Text>
                 </div>
 
                 <Form
@@ -86,36 +92,36 @@ const Login: React.FC = () => {
                 >
                     <Form.Item
                         name="username"
-                        rules={[{ required: true, message: '请输入用户名!' }]}
+                        rules={[{ required: true, message: t('auth.fields.username.required') }]}
                     >
-                        <Input prefix={<UserOutlined className="site-form-item-icon" />} placeholder="用户名 / 邮箱" />
+                        <Input prefix={<UserOutlined className="site-form-item-icon" />} placeholder={t('auth.fields.username.placeholder')} />
                     </Form.Item>
                     <Form.Item
                         name="password"
-                        rules={[{ required: true, message: '请输入密码!' }]}
+                        rules={[{ required: true, message: t('auth.fields.password.required') }]}
                     >
                         <Input
                             prefix={<LockOutlined className="site-form-item-icon" />}
                             type="password"
-                            placeholder="密码"
+                            placeholder={t('auth.fields.password.placeholder')}
                         />
                     </Form.Item>
                     <Form.Item>
                         <Form.Item name="remember" valuePropName="checked" noStyle>
-                            <Checkbox>记住我</Checkbox>
+                            <Checkbox>{t('auth.login.rememberMe')}</Checkbox>
                         </Form.Item>
 
                         <a className="login-form-forgot" href="" style={{ float: 'right' }}>
-                            忘记密码
+                            {t('auth.login.forgotPassword')}
                         </a>
                     </Form.Item>
 
                     <Form.Item>
                         <Button type="primary" htmlType="submit" className="login-form-button" block loading={loading}>
-                            登录
+                            {t('auth.login.submit')}
                         </Button>
                         <div style={{ marginTop: 16, textAlign: 'center' }}>
-                            还没有账号? <Link to="/register">立即注册</Link>
+                            {t('auth.login.noAccount')} <Link to="/register">{t('auth.login.registerNow')}</Link>
                         </div>
                     </Form.Item>
                 </Form>

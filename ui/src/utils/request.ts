@@ -1,3 +1,4 @@
+import i18n from '@/i18n/config';
 import { message } from 'antd';
 import axios from 'axios';
 
@@ -38,39 +39,39 @@ request.interceptors.response.use(
                     // Unauthorized - clear token and redirect to login
                     localStorage.removeItem('token');
                     // Only redirect if not already on login/register/console page to avoid loops
-                    const isAuthPage = window.location.pathname.includes('/login') || 
-                                      window.location.pathname.includes('/register') || 
-                                      window.location.pathname.includes('/console');
+                    const isAuthPage = window.location.pathname.includes('/login') ||
+                        window.location.pathname.includes('/register') ||
+                        window.location.pathname.includes('/console');
                     if (!isAuthPage) {
                         window.location.href = '/login';
-                        message.error('登录已过期，请重新登录');
+                        message.error(i18n.t('common.sessionExpired'));
                     } else {
                         // On auth pages, show the error message from server
-                        const errorMsg = data?.message || '用户名或密码错误';
+                        const errorMsg = data?.message || i18n.t('auth.login.failed');
                         message.error(errorMsg);
                     }
                     break;
                 case 403:
-                    message.error('没有权限执行此操作');
+                    message.error(i18n.t('common.permissionDenied'));
                     break;
                 case 404:
-                    message.error('请求的资源不存在');
+                    message.error(i18n.t('common.resourceNotFound'));
                     break;
                 case 500:
-                    message.error('服务器错误，请稍后重试');
+                    message.error(i18n.t('common.serverError'));
                     break;
                 default:
                     // Provide context-specific error messages based on the page
                     const isRegisterPage = window.location.pathname.includes('/register');
-                    const defaultMessage = isRegisterPage 
-                        ? '注册失败，请检查输入信息' 
-                        : '发生未知错误';
+                    const defaultMessage = isRegisterPage
+                        ? i18n.t('auth.register.failed')
+                        : i18n.t('common.unknownError');
                     message.error(data?.message || defaultMessage);
             }
         } else if (error.request) {
-            message.error('网络连接失败，请检查您的网络');
+            message.error(i18n.t('common.networkError'));
         } else {
-            message.error('请求配置错误');
+            message.error(i18n.t('common.error'));
         }
         return Promise.reject(error);
     }

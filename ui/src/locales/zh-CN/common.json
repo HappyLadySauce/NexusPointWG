@@ -1,0 +1,76 @@
+{
+    "common": {
+        "ok": "确定",
+        "cancel": "取消",
+        "loading": "加载中",
+        "success": "成功",
+        "error": "错误",
+        "save": "保存",
+        "delete": "删除",
+        "edit": "编辑",
+        "search": "搜索",
+        "reset": "重置",
+        "operation": "操作",
+        "unknownError": "发生未知错误",
+        "networkError": "网络连接失败",
+        "sessionExpired": "登录已过期，请重新登录",
+        "permissionDenied": "没有权限执行此操作",
+        "resourceNotFound": "请求的资源不存在",
+        "serverError": "服务器错误，请稍后重试"
+    },
+    "auth": {
+        "login": {
+            "title": "NexusPoint WG",
+            "subtitle": "WireGuard 管理平台",
+            "submit": "登录",
+            "forgotPassword": "忘记密码",
+            "noAccount": "还没有账号?",
+            "registerNow": "立即注册",
+            "success": "登录成功",
+            "failed": "登录失败",
+            "rememberMe": "记住我"
+        },
+        "register": {
+            "title": "NexusPoint WG",
+            "subtitle": "用户注册",
+            "submit": "注册",
+            "hasAccount": "已有账号?",
+            "loginNow": "立即登录",
+            "success": "注册成功！请等待管理员审核激活账号",
+            "failed": "注册失败，请检查输入信息"
+        },
+        "fields": {
+            "username": {
+                "label": "用户名",
+                "placeholder": "用户名 / 邮箱",
+                "required": "请输入用户名!",
+                "min": "用户名至少3个字符!",
+                "max": "用户名最多32个字符!"
+            },
+            "password": {
+                "label": "密码",
+                "placeholder": "密码",
+                "required": "请输入密码!",
+                "min": "密码至少8个字符!",
+                "max": "密码最多32个字符!"
+            },
+            "confirmPassword": {
+                "label": "确认密码",
+                "placeholder": "确认密码",
+                "required": "请确认密码!",
+                "mismatch": "两次输入的密码不一致!"
+            },
+            "email": {
+                "label": "邮箱",
+                "placeholder": "邮箱地址",
+                "required": "请输入邮箱!",
+                "invalid": "请输入有效的邮箱地址!"
+            },
+            "nickname": {
+                "label": "昵称",
+                "placeholder": "昵称 (可选，默认使用用户名)",
+                "max": "昵称最多32个字符!"
+            }
+        }
+    }
+}

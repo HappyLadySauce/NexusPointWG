@@ -1,0 +1,76 @@
+{
+    "common": {
+        "ok": "OK",
+        "cancel": "Cancel",
+        "loading": "Loading",
+        "success": "Success",
+        "error": "Error",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "search": "Search",
+        "reset": "Reset",
+        "operation": "Operation",
+        "unknownError": "Unknown error occurred",
+        "networkError": "Network connection failed",
+        "sessionExpired": "Session expired, please login again",
+        "permissionDenied": "Permission denied",
+        "resourceNotFound": "Resource not found",
+        "serverError": "Server error, please try again later"
+    },
+    "auth": {
+        "login": {
+            "title": "NexusPoint WG",
+            "subtitle": "WireGuard Management Platform",
+            "submit": "Login",
+            "forgotPassword": "Forgot Password",
+            "noAccount": "No account?",
+            "registerNow": "Register now",
+            "success": "Login successful",
+            "failed": "Login failed",
+            "rememberMe": "Remember me"
+        },
+        "register": {
+            "title": "NexusPoint WG",
+            "subtitle": "User Registration",
+            "submit": "Register",
+            "hasAccount": "Already have an account?",
+            "loginNow": "Login now",
+            "success": "Registration successful! Please wait for admin approval",
+            "failed": "Registration failed, please check your input"
+        },
+        "fields": {
+            "username": {
+                "label": "Username",
+                "placeholder": "Username / Email",
+                "required": "Please enter username!",
+                "min": "Username must be at least 3 characters!",
+                "max": "Username cannot exceed 32 characters!"
+            },
+            "password": {
+                "label": "Password",
+                "placeholder": "Password",
+                "required": "Please enter password!",
+                "min": "Password must be at least 8 characters!",
+                "max": "Password cannot exceed 32 characters!"
+            },
+            "confirmPassword": {
+                "label": "Confirm Password",
+                "placeholder": "Confirm Password",
+                "required": "Please confirm password!",
+                "mismatch": "Passwords do not match!"
+            },
+            "email": {
+                "label": "Email",
+                "placeholder": "Email Address",
+                "required": "Please enter email!",
+                "invalid": "Please enter a valid email address!"
+            },
+            "nickname": {
+                "label": "Nickname",
+                "placeholder": "Nickname (Optional, default uses username)",
+                "max": "Nickname cannot exceed 32 characters!"
+            }
+        }
+    }
+}

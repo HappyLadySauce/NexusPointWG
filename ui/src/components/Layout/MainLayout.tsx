@@ -1,3 +1,4 @@
+import LanguageSelect from '@/components/LanguageSelect';
 import {
     CloudServerOutlined,
     DashboardOutlined,
@@ -66,17 +67,24 @@ const MainLayout: React.FC = () => {
 
     const menuItems = isAdmin ? adminMenuItems : userMenuItems;
 
-    const userMenu = (
-        <Menu>
-            <Menu.Item key="profile" icon={<UserOutlined />} onClick={() => navigate('/user/profile')}>
-                个人中心
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item key="logout" icon={<LogoutOutlined />} danger onClick={() => navigate('/login')}>
-                退出登录
-            </Menu.Item>
-        </Menu>
-    );
+    const userMenuItemsList = [
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: '个人中心',
+            onClick: () => navigate('/user/profile')
+        },
+        {
+            type: 'divider'
+        },
+        {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: '退出登录',
+            danger: true,
+            onClick: () => navigate('/login')
+        }
+    ];
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -105,12 +113,15 @@ const MainLayout: React.FC = () => {
                         }}
                     />
 
-                    <Dropdown overlay={userMenu} placement="bottomRight">
-                        <span style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Avatar icon={<UserOutlined />} />
-                            <span>{isAdmin ? 'Admin' : 'User'}</span>
-                        </span>
-                    </Dropdown>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <LanguageSelect />
+                        <Dropdown menu={{ items: userMenuItemsList as any }} placement="bottomRight">
+                            <span style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Avatar icon={<UserOutlined />} />
+                                <span>{isAdmin ? 'Admin' : 'User'}</span>
+                            </span>
+                        </Dropdown>
+                    </div>
                 </Header>
                 <Content
                     style={{
