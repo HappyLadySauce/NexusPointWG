@@ -74,5 +74,55 @@
                 "max": "Nickname cannot exceed 32 characters!"
             }
         }
+    },
+    "menu": {
+        "dashboard": "Dashboard",
+        "users": "Users",
+        "peers": "Peers",
+        "settings": "Settings",
+        "profile": "Profile",
+        "logout": "Logout",
+        "myConfig": "My Config"
+    },
+    "dashboard": {
+        "welcome": "Welcome Back",
+        "totalUsers": "Total Users",
+        "activePeers": "Active Peers",
+        "totalPeers": "Total Peers",
+        "totalTraffic": "Total Traffic"
+    },
+    "admin": {
+        "login": {
+            "title": "NexusPoint WG Admin",
+            "subtitle": "Admin Login",
+            "usernamePlaceholder": "Admin Username",
+            "passwordPlaceholder": "Password",
+            "rememberMe": "Remember me",
+            "submit": "Login"
+        }
+    },
+    "error": {
+        "encrypt": "Encryption failed",
+        "authFailed": "Incorrect username or password",
+        "passwordIncorrect": "Incorrect password",
+        "userNotFound": "User not found",
+        "userNotActive": "User account is not active",
+        "userAlreadyExist": "User already exists",
+        "emailAlreadyExist": "Email already exists",
+        "tokenInvalid": "Invalid token",
+        "tokenExpired": "Token expired",
+        "permissionDenied": "Permission denied"
+    },
+    "validation": {
+        "required": "is required",
+        "min": "must be at least {{min}} characters",
+        "max": "must be at most {{max}} characters",
+        "len": "must be exactly {{len}} characters",
+        "email": "must be a valid email address",
+        "oneof": "must be one of: {{values}}",
+        "urlsafe": "must contain only letters, numbers, underscores, and hyphens",
+        "nochinese": "must not contain Chinese characters",
+        "emaildomain": "must use a common email provider domain ({{domains}})",
+        "invalid": "validation failed ({{tag}})"
     }
 }

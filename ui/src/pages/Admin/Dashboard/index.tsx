@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Card, Col, List, Progress, Row, Statistic, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +22,7 @@ const formatBytes = (bytes: number, decimals = 2) => {
 };
 
 const AdminDashboard: React.FC = () => {
+    const { t } = useTranslation();
     const [stats, setStats] = useState<SystemStats | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -76,13 +78,13 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div>
-            <Title level={2}>仪表盘</Title>
+            <Title level={2}>{t('menu.dashboard')}</Title>
 
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={6}>
                     <Card loading={loading}>
                         <Statistic
-                            title="用户总数"
+                            title={t('dashboard.totalUsers')}
                             value={stats?.total_users}
                             prefix={<UserOutlined />}
                         />
@@ -91,7 +93,7 @@ const AdminDashboard: React.FC = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card loading={loading}>
                         <Statistic
-                            title="活跃 Peers"
+                            title={t('dashboard.activePeers')}
                             value={stats?.active_peers}
                             suffix={`/ ${stats?.total_peers}`}
                             prefix={<CloudServerOutlined />}
@@ -102,7 +104,7 @@ const AdminDashboard: React.FC = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card loading={loading}>
                         <Statistic
-                            title="总接收流量"
+                            title="Total RX"
                             value={formatBytes(stats?.total_traffic_rx || 0)}
                             prefix={<ArrowDownOutlined />}
                         />
@@ -111,7 +113,7 @@ const AdminDashboard: React.FC = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card loading={loading}>
                         <Statistic
-                            title="总发送流量"
+                            title="Total TX"
                             value={formatBytes(stats?.total_traffic_tx || 0)}
                             prefix={<ArrowUpOutlined />}
                         />
@@ -121,17 +123,17 @@ const AdminDashboard: React.FC = () => {
 
             <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
                 <Col xs={24} lg={12}>
-                    <Card title="系统状态" loading={loading}>
+                    <Card title="System Status" loading={loading}>
                         <div style={{ marginBottom: 16 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Text>CPU 使用率</Text>
+                                <Text>CPU</Text>
                                 <Text>{stats?.cpu_usage}%</Text>
                             </div>
                             <Progress percent={stats?.cpu_usage} status={stats?.cpu_usage && stats.cpu_usage > 80 ? 'exception' : 'active'} />
                         </div>
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Text>内存 使用率</Text>
+                                <Text>Memory</Text>
                                 <Text>{stats?.memory_usage}%</Text>
                             </div>
                             <Progress percent={stats?.memory_usage} strokeColor="#faad14" />
@@ -140,7 +142,7 @@ const AdminDashboard: React.FC = () => {
                 </Col>
 
                 <Col xs={24} lg={12}>
-                    <Card title="最近活动" loading={loading}>
+                    <Card title="Recent Activity" loading={loading}>
                         <List
                             itemLayout="horizontal"
                             dataSource={activities}

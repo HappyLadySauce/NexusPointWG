@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -48,6 +47,23 @@ type SuccessResponse struct {
 func FormatValidationError(err error) map[string]string {
 	details := make(map[string]string)
 
+	// Token format: "validation.<tag>|k=v|k2=v2"
+	// Frontend should parse and translate with i18n.
+	toToken := func(tag string, kv map[string]string) string {
+		key := "validation." + tag
+		if len(kv) == 0 {
+			return key
+		}
+		parts := []string{key}
+		for k, v := range kv {
+			if k == "" || v == "" {
+				continue
+			}
+			parts = append(parts, k+"="+v)
+		}
+		return strings.Join(parts, "|")
+	}
+
 	// Check if the error is a validator.ValidationErrors
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		for _, fieldError := range validationErrors {
@@ -65,25 +81,27 @@ func FormatValidationError(err error) map[string]string {
 			var message string
 			switch fieldError.Tag() {
 			case "required":
-				message = fmt.Sprintf("%s is required", jsonFieldName)
+				message = toToken("required", nil)
 			case "min":
-				message = fmt.Sprintf("%s must be at least %s characters", jsonFieldName, fieldError.Param())
+				message = toToken("min", map[string]string{"min": fieldError.Param()})
 			case "max":
-				message = fmt.Sprintf("%s must be at most %s characters", jsonFieldName, fieldError.Param())
+				message = toToken("max", map[string]string{"max": fieldError.Param()})
 			case "email":
-				message = fmt.Sprintf("%s must be a valid email address", jsonFieldName)
+				message = toToken("email", nil)
 			case "len":
-				message = fmt.Sprintf("%s must be exactly %s characters", jsonFieldName, fieldError.Param())
+				message = toToken("len", map[string]string{"len": fieldError.Param()})
 			case "oneof":
-				message = fmt.Sprintf("%s must be one of: %s", jsonFieldName, fieldError.Param())
+				// validator oneof param is space separated: "a b c"
+				values := strings.ReplaceAll(fieldError.Param(), " ", ",")
+				message = toToken("oneof", map[string]string{"values": values})
 			case "urlsafe":
-				message = fmt.Sprintf("%s must contain only letters, numbers, underscores, and hyphens", jsonFieldName)
+				message = toToken("urlsafe", nil)
 			case "nochinese":
-				message = fmt.Sprintf("%s must not contain Chinese characters", jsonFieldName)
+				message = toToken("nochinese", nil)
 			case "emaildomain":
-				message = fmt.Sprintf("%s must use a common email provider domain (%s)", jsonFieldName, strings.Join(customvalidator.AllowedEmailDomains, ", "))
+				message = toToken("emaildomain", map[string]string{"domains": strings.Join(customvalidator.AllowedEmailDomains, ",")})
 			default:
-				message = fmt.Sprintf("%s failed validation on tag '%s'", jsonFieldName, fieldError.Tag())
+				message = toToken("invalid", map[string]string{"tag": fieldError.Tag()})
 			}
 
 			details[jsonFieldName] = message

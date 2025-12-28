@@ -25,6 +25,28 @@ request.interceptors.request.use(
     }
 );
 
+// Error code to translation key mapping
+const errorCodeMap: Record<number, string> = {
+    100201: 'error.encrypt',
+    // 100202: ErrSignatureInvalid
+    100202: 'error.tokenInvalid',
+    // 100203: ErrExpired
+    100203: 'error.tokenExpired',
+    // 100204/100205: invalid/missing auth header
+    100204: 'error.tokenInvalid',
+    100205: 'error.tokenInvalid',
+    // 100206: ErrPasswordIncorrect -> security policy: show generic auth failed
+    100206: 'error.authFailed',
+    // 100207: ErrPermissionDenied
+    100207: 'error.permissionDenied',
+
+    // Server codes
+    110004: 'error.userNotActive',
+    110001: 'error.userAlreadyExist',
+    110002: 'error.emailAlreadyExist',
+    110003: 'error.userNotFound'
+};
+
 // Response interceptor
 request.interceptors.response.use(
     (response) => {
@@ -33,6 +55,14 @@ request.interceptors.response.use(
     (error) => {
         if (error.response) {
             const { status, data } = error.response;
+
+            // Try to map error code to translation key
+            const errorCode = data?.code;
+            let errorMessage = data?.message;
+
+            if (errorCode && errorCodeMap[errorCode]) {
+                errorMessage = i18n.t(errorCodeMap[errorCode] as any);
+            }
 
             switch (status) {
                 case 401:
@@ -44,21 +74,20 @@ request.interceptors.response.use(
                         window.location.pathname.includes('/console');
                     if (!isAuthPage) {
                         window.location.href = '/login';
-                        message.error(i18n.t('common.sessionExpired'));
+                        message.error(i18n.t('error.tokenExpired'));
                     } else {
-                        // On auth pages, show the error message from server
-                        const errorMsg = data?.message || i18n.t('auth.login.failed');
-                        message.error(errorMsg);
+                        // On auth pages, show the error message from server or translation
+                        message.error(errorMessage || i18n.t('auth.login.failed'));
                     }
                     break;
                 case 403:
-                    message.error(i18n.t('common.permissionDenied'));
+                    message.error(errorMessage || i18n.t('error.permissionDenied'));
                     break;
                 case 404:
-                    message.error(i18n.t('common.resourceNotFound'));
+                    message.error(errorMessage || i18n.t('common.resourceNotFound'));
                     break;
                 case 500:
-                    message.error(i18n.t('common.serverError'));
+                    message.error(errorMessage || i18n.t('common.serverError'));
                     break;
                 default:
                     // For registration page, let the component handle 400 errors (field conflicts, validation, etc.)
@@ -71,7 +100,7 @@ request.interceptors.response.use(
                     const defaultMessage = isRegisterPage
                         ? i18n.t('auth.register.failed')
                         : i18n.t('common.unknownError');
-                    message.error(data?.message || defaultMessage);
+                    message.error(errorMessage || defaultMessage);
             }
         } else if (error.request) {
             message.error(i18n.t('common.networkError'));

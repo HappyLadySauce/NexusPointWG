@@ -13,11 +13,13 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Button, Dropdown, Layout, Menu, theme } from 'antd';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
 
 const MainLayout: React.FC = () => {
+    const { t } = useTranslation();
     const [collapsed, setCollapsed] = useState(false);
     const {
         token: { colorBgContainer, borderRadiusLG },
@@ -33,22 +35,22 @@ const MainLayout: React.FC = () => {
         {
             key: '/admin/dashboard',
             icon: <DashboardOutlined />,
-            label: '仪表盘',
+            label: t('menu.dashboard'),
         },
         {
             key: '/admin/users',
             icon: <TeamOutlined />,
-            label: '用户管理',
+            label: t('menu.users'),
         },
         {
             key: '/admin/peers',
             icon: <CloudServerOutlined />,
-            label: 'Peer 管理',
+            label: t('menu.peers'),
         },
         {
             key: '/admin/settings',
             icon: <SettingOutlined />,
-            label: '系统设置',
+            label: t('menu.settings'),
         },
     ];
 
@@ -56,12 +58,12 @@ const MainLayout: React.FC = () => {
         {
             key: '/user/dashboard',
             icon: <DownloadOutlined />,
-            label: '我的配置',
+            label: t('menu.myConfig'),
         },
         {
             key: '/user/profile',
             icon: <ProfileOutlined />,
-            label: '个人中心',
+            label: t('menu.profile'),
         },
     ];
 
@@ -71,7 +73,7 @@ const MainLayout: React.FC = () => {
         {
             key: 'profile',
             icon: <UserOutlined />,
-            label: '个人中心',
+            label: t('menu.profile'),
             onClick: () => navigate('/user/profile')
         },
         {
@@ -80,7 +82,7 @@ const MainLayout: React.FC = () => {
         {
             key: 'logout',
             icon: <LogoutOutlined />,
-            label: '退出登录',
+            label: t('menu.logout'),
             danger: true,
             onClick: () => navigate('/login')
         }

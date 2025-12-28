@@ -44,22 +44,31 @@ const Register: React.FC = () => {
             // Handle validation errors with field-level messages
             if (error?.response?.data?.details) {
                 const details = error.response.data.details;
-                // Check for username or email already exists errors
-                if (details.username) {
-                    // Use translated message for username already exists
-                    message.error(t('auth.fields.username.alreadyExists'));
-                } else if (details.email) {
-                    // Use translated message for email already exists
-                    message.error(t('auth.fields.email.alreadyExists'));
-                } else {
-                    // Show other field-specific errors
-                    Object.keys(details).forEach((field) => {
-                        const fieldName = field === 'username' ? t('auth.fields.username.label') :
-                            field === 'email' ? t('auth.fields.email.label') :
-                                field === 'password' ? t('auth.fields.password.label') : field;
-                        message.error(`${fieldName}: ${details[field]}`);
-                    });
-                }
+                // Show field-specific errors (supports backend validation token format: "validation.xxx|k=v")
+                Object.keys(details).forEach((field) => {
+                    const fieldName = field === 'username' ? t('auth.fields.username.label') :
+                        field === 'email' ? t('auth.fields.email.label') :
+                            field === 'password' ? t('auth.fields.password.label') :
+                                field === 'nickname' ? t('auth.fields.nickname.label') : field;
+
+                    const rawMsg: string = details[field];
+                    if (typeof rawMsg === 'string' && rawMsg.startsWith('validation.')) {
+                        const [key, ...kvPairs] = rawMsg.split('|');
+                        const params: Record<string, string> = {};
+                        kvPairs.forEach((pair) => {
+                            const idx = pair.indexOf('=');
+                            if (idx === -1) return;
+                            const k = pair.slice(0, idx).trim();
+                            const v = pair.slice(idx + 1).trim();
+                            if (k) params[k] = v;
+                        });
+                        message.error(`${fieldName}: ${t(key as any, params as any)}`);
+                        return;
+                    }
+
+                    // Fallback (legacy backend messages)
+                    message.error(`${fieldName}: ${rawMsg}`);
+                });
             } else {
                 // For other errors, show server message if present, otherwise fallback.
                 const serverMsg: string | undefined = error?.response?.data?.message;
