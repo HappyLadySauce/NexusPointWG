@@ -1,8 +1,8 @@
 import { authApi } from '@/api';
 import LanguageSelect from '@/components/LanguageSelect';
+import { useAuthStore } from '@/store/auth';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, Typography, message } from 'antd';
-import { jwtDecode } from "jwt-decode";
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
@@ -23,28 +23,18 @@ const Login: React.FC = () => {
             const token = res.token;
 
             if (token) {
-                localStorage.setItem('token', token);
+                // Use useAuthStore to update state (this also handles localStorage and token decoding)
+                useAuthStore.getState().setToken(token);
                 message.success(t('auth.login.success'));
 
-                // Decode token to get role
-                try {
-                    const decoded: any = jwtDecode(token);
-                    // Assuming token payload has 'role' field. Adjust if needed.
-                    const role = decoded.role || 'user';
+                // Get role from store after token is set
+                const userInfo = useAuthStore.getState().userInfo;
+                const role = userInfo?.role || 'user';
 
-                    if (role === 'admin') {
-                        navigate('/admin/dashboard');
-                    } else {
-                        navigate('/user/dashboard');
-                    }
-                } catch (e) {
-                    // Fallback if decode fails or simple logic
-                    // For now, let's just default to user dashboard if decode fails, or maybe admin for testing if username is admin
-                    if (values.username === 'admin') {
-                        navigate('/admin/dashboard');
-                    } else {
-                        navigate('/user/dashboard');
-                    }
+                if (role === 'admin') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/user/dashboard');
                 }
             } else {
                 message.error(t('auth.login.failed') + '：' + t('common.unknownError'));

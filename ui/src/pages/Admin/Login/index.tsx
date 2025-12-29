@@ -1,7 +1,7 @@
 import { authApi } from '@/api';
+import { useAuthStore } from '@/store/auth';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, Typography, message } from 'antd';
-import { jwtDecode } from "jwt-decode";
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,23 +18,19 @@ const AdminLogin: React.FC = () => {
             const token = res.token;
 
             if (token) {
-                localStorage.setItem('token', token);
+                // Use useAuthStore to update state (this also handles localStorage and token decoding)
+                useAuthStore.getState().setToken(token);
 
-                // Decode token to get role
-                try {
-                    const decoded: any = jwtDecode(token);
-                    const role = decoded.role || 'user';
+                // Get role from store after token is set
+                const userInfo = useAuthStore.getState().userInfo;
+                const role = userInfo?.role || 'user';
 
-                    if (role === 'admin') {
-                        message.success('管理员登录成功');
-                        navigate('/admin/dashboard');
-                    } else {
-                        message.warning('此账号不是管理员，请使用普通用户登录');
-                        localStorage.removeItem('token');
-                    }
-                } catch (e) {
-                    message.error('Token解析失败');
-                    localStorage.removeItem('token');
+                if (role === 'admin') {
+                    message.success('管理员登录成功');
+                    navigate('/admin/dashboard');
+                } else {
+                    message.warning('此账号不是管理员，请使用普通用户登录');
+                    useAuthStore.getState().logout();
                 }
             } else {
                 message.error('登录失败：未获取到 Token');
