@@ -2,7 +2,7 @@ import { listUsers, type User } from '@/api/user';
 import type { WGPeer, WGPeerListQuery } from '@/api/wg';
 import { createPeer, deletePeer, getPeers, updatePeer } from '@/api/wg';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
+import { Button, Form, Input, InputNumber, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -96,12 +96,36 @@ const Peers: React.FC = () => {
         try {
             const values = await form.validateFields();
             if (editingPeer) {
-                await updatePeer(editingPeer.id, values);
+                // Convert snake_case to camelCase for update
+                const updateData: any = {};
+                if (values.allowed_ips !== undefined) {
+                    updateData.allowedIPs = values.allowed_ips;
+                }
+                if (values.persistent_keepalive !== undefined && values.persistent_keepalive !== null) {
+                    updateData.persistentKeepalive = Number(values.persistent_keepalive);
+                }
+                if (values.status !== undefined) {
+                    updateData.status = values.status;
+                }
+                await updatePeer(editingPeer.id, updateData);
             } else {
-                await createPeer(values);
+                // Convert snake_case to camelCase for create
+                const createData: any = {
+                    username: values.username,
+                    deviceName: values.device_name,
+                };
+                if (values.allowed_ips) {
+                    createData.allowedIPs = values.allowed_ips;
+                }
+                if (values.persistent_keepalive !== undefined && values.persistent_keepalive !== null) {
+                    createData.persistentKeepalive = Number(values.persistent_keepalive);
+                }
+                await createPeer(createData);
             }
             message.success(t('common.success'));
             setIsModalOpen(false);
+            setEditingPeer(null);
+            form.resetFields();
             fetchData();
         } catch (error) {
             console.error(error);
@@ -247,7 +271,7 @@ const Peers: React.FC = () => {
                         name="persistent_keepalive"
                         label={t('wg.keepalive')}
                     >
-                        <Input type="number" placeholder="25" />
+                        <InputNumber style={{ width: '100%' }} min={0} max={3600} step={1} precision={0} placeholder="25" />
                     </Form.Item>
                     {editingPeer && (
                         <Form.Item

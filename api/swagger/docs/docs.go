@@ -932,17 +932,17 @@ const docTemplate = `{
         "v1.ChangePwdRequest": {
             "type": "object",
             "required": [
-                "new_password",
-                "old_password"
+                "newPassword",
+                "oldPassword"
             ],
             "properties": {
-                "new_password": {
+                "newPassword": {
                     "description": "NewPassword is the user's new password (8-32 characters, will be hashed)",
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 8
                 },
-                "old_password": {
+                "oldPassword": {
                     "description": "OldPassword is the user's old password (8-32 characters, will be hashed)",
                     "type": "string",
                     "maxLength": 32,
@@ -991,22 +991,22 @@ const docTemplate = `{
         "v1.CreateWGPeerRequest": {
             "type": "object",
             "required": [
-                "device_name",
+                "deviceName",
                 "username"
             ],
             "properties": {
-                "allowed_ips": {
+                "allowedIPs": {
                     "description": "AllowedIPs optionally overrides server-side AllowedIPs for this peer.",
                     "type": "string",
                     "maxLength": 512
                 },
-                "device_name": {
+                "deviceName": {
                     "description": "DeviceName is a human friendly device name.",
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 1
                 },
-                "persistent_keepalive": {
+                "persistentKeepalive": {
                     "description": "PersistentKeepalive is optional keepalive in seconds (0 means unset).",
                     "type": "integer",
                     "maximum": 3600,
@@ -1099,11 +1099,11 @@ const docTemplate = `{
         "v1.UpdateWGPeerRequest": {
             "type": "object",
             "properties": {
-                "allowed_ips": {
+                "allowedIPs": {
                     "type": "string",
                     "maxLength": 512
                 },
-                "persistent_keepalive": {
+                "persistentKeepalive": {
                     "type": "integer",
                     "maximum": 3600,
                     "minimum": 0

@@ -19,14 +19,14 @@ export interface WGPeerListResponse {
 
 export interface CreateWGPeerRequest {
     username: string;
-    device_name: string;
-    allowed_ips?: string;
-    persistent_keepalive?: number;
+    deviceName: string;
+    allowedIPs?: string;
+    persistentKeepalive?: number;
 }
 
 export interface UpdateWGPeerRequest {
-    allowed_ips?: string;
-    persistent_keepalive?: number;
+    allowedIPs?: string;
+    persistentKeepalive?: number;
     status?: 'active' | 'revoked';
 }
 

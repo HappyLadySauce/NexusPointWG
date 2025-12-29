@@ -6,18 +6,18 @@ type CreateWGPeerRequest struct {
 	// Username is the owner username.
 	Username string `json:"username" binding:"required,min=3,max=32,urlsafe,nochinese"`
 	// DeviceName is a human friendly device name.
-	DeviceName string `json:"device_name" binding:"required,min=1,max=64"`
+	DeviceName string `json:"deviceName" binding:"required,min=1,max=64"`
 	// AllowedIPs optionally overrides server-side AllowedIPs for this peer.
-	AllowedIPs string `json:"allowed_ips,omitempty" binding:"omitempty,max=512"`
+	AllowedIPs string `json:"allowedIPs,omitempty" binding:"omitempty,max=512"`
 	// PersistentKeepalive is optional keepalive in seconds (0 means unset).
-	PersistentKeepalive *int `json:"persistent_keepalive,omitempty" binding:"omitempty,min=0,max=3600"`
+	PersistentKeepalive *int `json:"persistentKeepalive,omitempty" binding:"omitempty,min=0,max=3600"`
 }
 
 // UpdateWGPeerRequest represents an admin peer update request.
 // swagger:model
 type UpdateWGPeerRequest struct {
-	AllowedIPs          *string `json:"allowed_ips,omitempty" binding:"omitempty,max=512"`
-	PersistentKeepalive *int    `json:"persistent_keepalive,omitempty" binding:"omitempty,min=0,max=3600"`
+	AllowedIPs          *string `json:"allowedIPs,omitempty" binding:"omitempty,max=512"`
+	PersistentKeepalive *int    `json:"persistentKeepalive,omitempty" binding:"omitempty,min=0,max=3600"`
 	Status              *string `json:"status,omitempty" binding:"omitempty,oneof=active revoked"`
 }
 
