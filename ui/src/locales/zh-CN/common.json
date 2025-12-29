@@ -36,7 +36,7 @@
             "submit": "注册",
             "hasAccount": "已有账号?",
             "loginNow": "立即登录",
-            "success": "注册成功！请等待管理员审核激活账号",
+            "success": "注册成功",
             "failed": "注册失败，请检查输入信息"
         },
         "fields": {

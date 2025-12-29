@@ -36,7 +36,7 @@
             "submit": "Register",
             "hasAccount": "Already have an account?",
             "loginNow": "Login now",
-            "success": "Registration successful! Please wait for admin approval",
+            "success": "Registration successful",
             "failed": "Registration failed, please check your input"
         },
         "fields": {
