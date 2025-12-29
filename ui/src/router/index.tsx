@@ -1,10 +1,13 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import MainLayout from '../components/Layout/MainLayout'
-import AdminDashboard from '../pages/Admin/Dashboard'
-import AdminLogin from '../pages/Admin/Login'
-import Login from '../pages/Login'
-import Register from '../pages/Register'
-import UserDashboard from '../pages/User/Dashboard'
+import { Navigate, Route, Routes } from 'react-router-dom';
+import AuthGuard from '../components/Guard/AuthGuard';
+import RoleGuard from '../components/Guard/RoleGuard';
+import MainLayout from '../components/Layout/MainLayout';
+import AdminDashboard from '../pages/Admin/Dashboard';
+import AdminLogin from '../pages/Admin/Login';
+import Peers from '../pages/Admin/Peers';
+import Login from '../pages/Login';
+import Register from '../pages/Register';
+import UserDashboard from '../pages/User/Dashboard';
 
 const AppRouter = () => {
     return (
@@ -14,17 +17,34 @@ const AppRouter = () => {
             <Route path="/console" element={<AdminLogin />} />
 
             {/* Admin Routes */}
-            <Route path="/admin" element={<MainLayout />}>
+            <Route
+                path="/admin"
+                element={
+                    <AuthGuard>
+                        <RoleGuard roles={['admin']}>
+                            <MainLayout />
+                        </RoleGuard>
+                    </AuthGuard>
+                }
+            >
                 <Route path="dashboard" element={<AdminDashboard />} />
-                {/* Placeholders for now */}
                 <Route path="users" element={<div>用户管理</div>} />
-                <Route path="peers" element={<div>Peer 管理</div>} />
+                <Route path="peers" element={<Peers />} />
                 <Route path="settings" element={<div>系统设置</div>} />
                 <Route index element={<Navigate to="dashboard" replace />} />
             </Route>
 
             {/* User Routes */}
-            <Route path="/user" element={<MainLayout />}>
+            <Route
+                path="/user"
+                element={
+                    <AuthGuard>
+                        <RoleGuard roles={['user']}>
+                            <MainLayout />
+                        </RoleGuard>
+                    </AuthGuard>
+                }
+            >
                 <Route path="dashboard" element={<UserDashboard />} />
                 <Route path="profile" element={<div>个人中心</div>} />
                 <Route index element={<Navigate to="dashboard" replace />} />
@@ -35,7 +55,7 @@ const AppRouter = () => {
             <Route path="/admin/login" element={<Navigate to="/console" replace />} />
             <Route path="*" element={<div>404 Not Found</div>} />
         </Routes>
-    )
-}
+    );
+};
 
-export default AppRouter
+export default AppRouter;

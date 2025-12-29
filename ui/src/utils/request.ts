@@ -1,4 +1,5 @@
 import i18n from '@/i18n/config';
+import { useAuthStore } from '@/store/auth';
 import { message } from 'antd';
 import axios from 'axios';
 
@@ -14,7 +15,7 @@ const request = axios.create({
 // Request interceptor
 request.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = useAuthStore.getState().token;
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -44,12 +45,23 @@ const errorCodeMap: Record<number, string> = {
     110004: 'error.userNotActive',
     110001: 'error.userAlreadyExist',
     110002: 'error.emailAlreadyExist',
-    110003: 'error.userNotFound'
+    110003: 'error.userNotFound',
+
+    // WireGuard codes
+    120001: 'error.wgPeerNotFound',
+    // Server config errors
+    120002: 'error.wgServerConfigNotFound',
+    120003: 'error.wgWriteFailed',
+    120004: 'error.wgApplyFailed'
 };
 
 // Response interceptor
 request.interceptors.response.use(
     (response) => {
+        // Return the whole response object if data structure is not standard
+        // But api-contract says { code, message, details, ... } or data.
+        // Usually axios returns { data, status, headers ... }
+        // We return response.data to get the payload directly.
         return response.data;
     },
     (error) => {
@@ -60,18 +72,32 @@ request.interceptors.response.use(
             const errorCode = data?.code;
             let errorMessage = data?.message;
 
+            // Priority:
+            // 1. code -> i18n
+            // 2. details -> i18n
+            // 3. message (fallback)
+
             if (errorCode && errorCodeMap[errorCode]) {
                 errorMessage = i18n.t(errorCodeMap[errorCode] as any);
+            }
+
+            // Handle validation details if present
+            // e.g. details: { email: "validation.email|..." }
+            if (data?.details && typeof data.details === 'object') {
+                // If it's a 400 validation error, we might want to let the component handle it
+                // But if we want global toast:
+                // Construct a message or just show the first one.
+                // For now, let's stick to the errorCode message or fallback.
+                // Component form will handle field highlighting via catch().
             }
 
             switch (status) {
                 case 401:
                     // Unauthorized - clear token and redirect to login
-                    localStorage.removeItem('token');
+                    useAuthStore.getState().logout();
                     // Only redirect if not already on login/register/console page to avoid loops
                     const isAuthPage = window.location.pathname.includes('/login') ||
-                        window.location.pathname.includes('/register') ||
-                        window.location.pathname.includes('/console');
+                        window.location.pathname.includes('/register');
                     if (!isAuthPage) {
                         window.location.href = '/login';
                         message.error(i18n.t('error.tokenExpired'));
@@ -89,18 +115,17 @@ request.interceptors.response.use(
                 case 500:
                     message.error(errorMessage || i18n.t('common.serverError'));
                     break;
-                default:
+                case 400:
                     // For registration page, let the component handle 400 errors (field conflicts, validation, etc.)
                     const isRegisterPage = window.location.pathname.includes('/register');
-                    if (isRegisterPage && status === 400) {
+                    if (isRegisterPage) {
                         // Don't show error message here, let Register component handle it
                         break;
                     }
-                    // Provide context-specific error messages based on the page
-                    const defaultMessage = isRegisterPage
-                        ? i18n.t('auth.register.failed')
-                        : i18n.t('common.unknownError');
-                    message.error(errorMessage || defaultMessage);
+                    message.error(errorMessage || i18n.t('common.badRequest'));
+                    break;
+                default:
+                    message.error(errorMessage || i18n.t('common.unknownError'));
             }
         } else if (error.request) {
             message.error(i18n.t('common.networkError'));
@@ -112,4 +137,3 @@ request.interceptors.response.use(
 );
 
 export default request;
-

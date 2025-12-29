@@ -1,4 +1,5 @@
 import LanguageSelect from '@/components/LanguageSelect';
+import { useAuthStore } from '@/store/auth';
 import {
     CloudServerOutlined,
     DashboardOutlined,
@@ -27,9 +28,10 @@ const MainLayout: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
+    const { userInfo, logout } = useAuthStore();
 
-    // Mock role check - replace with actual auth context later
-    const isAdmin = location.pathname.startsWith('/admin');
+    // Use auth store role if available, fallback to path check or just default to user
+    const isAdmin = userInfo?.role === 'admin';
 
     const adminMenuItems = [
         {
@@ -84,7 +86,10 @@ const MainLayout: React.FC = () => {
             icon: <LogoutOutlined />,
             label: t('menu.logout'),
             danger: true,
-            onClick: () => navigate('/login')
+            onClick: () => {
+                logout();
+                navigate('/login');
+            }
         }
     ];
 
@@ -119,8 +124,8 @@ const MainLayout: React.FC = () => {
                         <LanguageSelect />
                         <Dropdown menu={{ items: userMenuItemsList as any }} placement="bottomRight">
                             <span style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Avatar icon={<UserOutlined />} />
-                                <span>{isAdmin ? 'Admin' : 'User'}</span>
+                                <Avatar icon={<UserOutlined />} src={userInfo?.avatar} />
+                                <span>{userInfo?.nickname || userInfo?.username || (isAdmin ? 'Admin' : 'User')}</span>
                             </span>
                         </Dropdown>
                     </div>

@@ -12,4 +12,5 @@ type UserStore interface {
 	CreateUser(ctx context.Context, user *model.User) error
 	UpdateUser(ctx context.Context, user *model.User) error
 	DeleteUser(ctx context.Context, id string) error
+	ListUsers(ctx context.Context, opt UserListOptions) ([]*model.User, int64, error)
 }

@@ -12,6 +12,7 @@ func init() {
 
 	// 需要认证的用户资源路由
 	authed := router.Authed()
+	authed.GET("/users", userController.ListUsers)
 	authed.GET("/users/:username", userController.GetUserInfo)
 	authed.PUT("/users/:username", userController.UpdateUserInfo)
 	authed.DELETE("/users/:username", userController.DeleteUser)

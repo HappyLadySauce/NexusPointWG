@@ -54,3 +54,10 @@ type UserResponse struct {
 	Nickname string `json:"nickname"`
 	Email    string `json:"email"`
 }
+
+// UserListResponse represents a paginated list of users.
+// swagger:model
+type UserListResponse struct {
+	Total int64          `json:"total"`
+	Items []UserResponse `json:"items"`
+}

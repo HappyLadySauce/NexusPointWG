@@ -42,6 +42,8 @@ const (
 	ActionUserHardDelete Action = "user:hard_delete"
 	// ChangePassword: change own password (self-only, requires old password verification)
 	ActionUserChangePassword Action = "user:change_password"
+	// List: list users (admin-only via policy)
+	ActionUserList Action = "user:list"
 
 	// ---- wg_peer ----
 	ActionWGPeerList   Action = "wg_peer:list"

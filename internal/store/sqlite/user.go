@@ -8,6 +8,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
+	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/errors"
 )
 
@@ -155,4 +156,46 @@ func parseUniqueConstraintField(err error) string {
 	}
 
 	return ""
+}
+
+func (u *users) ListUsers(ctx context.Context, opt store.UserListOptions) ([]*model.User, int64, error) {
+	var (
+		users []*model.User
+		total int64
+	)
+
+	dbq := u.db.WithContext(ctx).Model(&model.User{})
+	if strings.TrimSpace(opt.Username) != "" {
+		dbq = dbq.Where("username LIKE ?", "%"+opt.Username+"%")
+	}
+	if strings.TrimSpace(opt.Email) != "" {
+		dbq = dbq.Where("email LIKE ?", "%"+opt.Email+"%")
+	}
+	if strings.TrimSpace(opt.Role) != "" {
+		dbq = dbq.Where("role = ?", opt.Role)
+	}
+	if strings.TrimSpace(opt.Status) != "" {
+		dbq = dbq.Where("status = ?", opt.Status)
+	}
+
+	if err := dbq.Count(&total).Error; err != nil {
+		return nil, 0, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+
+	limit := opt.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	offset := opt.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	if err := dbq.Order("created_at DESC").Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+		return nil, 0, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return users, total, nil
 }

@@ -117,8 +117,8 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		return nil, err
 	}
 
-	// 3) Apply server config
-	if err := w.SyncServerConfig(ctx); err != nil {
+	// 3) Apply server config (lock already held)
+	if err := w.syncServerConfigUnlocked(ctx); err != nil {
 		return nil, err
 	}
 
@@ -199,7 +199,8 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 	if err := w.writeUserFiles(ctx, user.Username, peer, clientPriv, serverPub, ifaceCfg.MTU); err != nil {
 		return err
 	}
-	return w.SyncServerConfig(ctx)
+	// Lock already held, use unlocked version
+	return w.syncServerConfigUnlocked(ctx)
 }
 
 func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) error {
@@ -223,7 +224,8 @@ func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) err
 	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
 		return err
 	}
-	if err := w.SyncServerConfig(ctx); err != nil {
+	// Lock already held, use unlocked version
+	if err := w.syncServerConfigUnlocked(ctx); err != nil {
 		return err
 	}
 	// Best-effort cleanup of derived artifacts.

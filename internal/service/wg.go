@@ -66,6 +66,17 @@ func (w *wgSrv) SyncServerConfig(ctx context.Context) error {
 	}
 	defer func() { _ = lock.Release() }()
 
+	return w.syncServerConfigUnlocked(ctx)
+}
+
+// syncServerConfigUnlocked performs the actual server config sync without acquiring a lock.
+// It should only be called when the caller already holds the lock.
+func (w *wgSrv) syncServerConfigUnlocked(ctx context.Context) error {
+	cfg := config.Get()
+	if cfg == nil || cfg.WireGuard == nil {
+		return errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
+	}
+
 	peers, err := w.loadAllPeers(ctx)
 	if err != nil {
 		return err

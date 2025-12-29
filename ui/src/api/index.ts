@@ -10,9 +10,10 @@ export const authApi = {
         localStorage.removeItem('token');
     },
     getCurrentUser: () => {
-        // Assuming there's an endpoint to get current user info
-        // Adjust endpoint based on actual backend
-        return request.get<any, User>('/users/me');
+        // Backend currently does not provide /users/me.
+        // Keep this method but point it to /users/:username at call site when needed.
+        // For now, return a rejected promise to avoid silent runtime 404 loops.
+        return Promise.reject(new Error('not implemented: /users/me'));
     }
 };
 

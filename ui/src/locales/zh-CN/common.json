@@ -16,7 +16,38 @@
         "sessionExpired": "登录已过期，请重新登录",
         "permissionDenied": "没有权限执行此操作",
         "resourceNotFound": "请求的资源不存在",
-        "serverError": "服务器错误，请稍后重试"
+        "serverError": "服务器错误，请稍后重试",
+        "downloadFailed": "下载失败",
+        "download": "下载",
+        "create": "创建",
+        "action": "操作",
+        "confirmDelete": "确认删除？",
+        "badRequest": "请求参数错误"
+    },
+    "user": {
+        "username": "用户名"
+    },
+    "wg": {
+        "device": "设备名称",
+        "clientIP": "客户端 IP",
+        "allowedIPs": "允许 IP (AllowedIPs)",
+        "status": "状态",
+        "createPeer": "创建 Peer",
+        "editPeer": "编辑 Peer",
+        "myConfigs": "我的配置",
+        "noConfigs": "暂无配置",
+        "showQR": "显示二维码",
+        "rotateKey": "轮换密钥",
+        "revoke": "撤销",
+        "confirmRotate": "确定要重新生成密钥吗？客户端将需要重新下载配置。",
+        "confirmRevoke": "确定要撤销此配置吗？客户端将无法连接。",
+        "tip": {
+            "allowedIPs": "可选，覆盖服务器默认配置。例如：10.10.0.0/24"
+        },
+        "placeholder": {
+            "username": "请输入用户名"
+        },
+        "keepalive": "PersistentKeepalive (秒)"
     },
     "auth": {
         "login": {
@@ -111,7 +142,11 @@
         "emailAlreadyExist": "邮箱已存在",
         "tokenInvalid": "Token 无效",
         "tokenExpired": "Token 已过期",
-        "permissionDenied": "没有权限执行此操作"
+        "permissionDenied": "没有权限执行此操作",
+        "wgPeerNotFound": "WireGuard Peer 不存在",
+        "wgServerConfigNotFound": "服务器配置文件未找到",
+        "wgWriteFailed": "写入配置文件失败",
+        "wgApplyFailed": "应用配置失败"
     },
     "validation": {
         "required": "不能为空",

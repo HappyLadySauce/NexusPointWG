@@ -13,6 +13,7 @@ type UserSrv interface {
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	UpdateUser(ctx context.Context, user *model.User) error
 	DeleteUser(ctx context.Context, id string) error
+	ListUsers(ctx context.Context, opt store.UserListOptions) ([]*model.User, int64, error)
 }
 
 type userSrv struct {
@@ -62,4 +63,8 @@ func (u *userSrv) UpdateUser(ctx context.Context, user *model.User) error {
 
 func (u *userSrv) DeleteUser(ctx context.Context, id string) error {
 	return u.store.Users().DeleteUser(ctx, id)
+}
+
+func (u *userSrv) ListUsers(ctx context.Context, opt store.UserListOptions) ([]*model.User, int64, error) {
+	return u.store.Users().ListUsers(ctx, opt)
 }
