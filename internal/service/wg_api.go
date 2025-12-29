@@ -38,7 +38,7 @@ func (w *wgSrv) AdminGetPeer(ctx context.Context, id string) (*model.WGPeer, err
 func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, currentPeerID string) error {
 	cfg := config.Get()
 	if cfg == nil || cfg.WireGuard == nil {
-		return errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
+		return errors.WithCode(code.ErrWGConfigNotInitialized, code.Message(code.ErrWGConfigNotInitialized))
 	}
 
 	// 1. 解析新的 ClientIP
@@ -48,7 +48,7 @@ func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, 
 	}
 	ip := prefix.Addr()
 	if !ip.Is4() {
-		return errors.WithCode(code.ErrValidation, "ClientIP must be IPv4")
+		return errors.WithCode(code.ErrIPNotIPv4, code.Message(code.ErrIPNotIPv4))
 	}
 
 	// 2. 读取服务器配置，获取分配池信息
@@ -62,13 +62,13 @@ func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, 
 	// 获取服务器 IP
 	_, serverIP, err := iputil.ParseFirstV4Prefix(ifaceCfg.Address)
 	if err != nil {
-		return errors.WithCode(code.ErrValidation, "invalid server interface address: %v", err)
+		return errors.WithCode(code.ErrWGServerAddressInvalid, "invalid server interface address: %v", err)
 	}
 
 	// 从 AllowedIPs 中提取分配前缀
 	allowedIPsList := wgfile.ExtractAllowedIPs(string(raw))
 	if len(allowedIPsList) == 0 {
-		return errors.WithCode(code.ErrValidation, "no AllowedIPs found in server config")
+		return errors.WithCode(code.ErrWGAllowedIPsNotFound, "")
 	}
 
 	var allocationPrefix netip.Prefix
@@ -82,7 +82,7 @@ func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, 
 	}
 
 	if allocationPrefix == (netip.Prefix{}) {
-		return errors.WithCode(code.ErrValidation, "no valid IPv4 prefix found in AllowedIPs")
+		return errors.WithCode(code.ErrWGIPv4PrefixNotFound, "")
 	}
 
 	// 3. 收集已使用的 IP（排除当前 peer）
@@ -151,7 +151,7 @@ func (w *wgSrv) AdminUpdatePeer(ctx context.Context, id string, req v1.UpdateWGP
 		newPriv := strings.TrimSpace(*req.PrivateKey)
 		// Validate the private key by trying to generate public key from it
 		if _, err := wgPubKey(ctx, newPriv); err != nil {
-			return nil, errors.WithCode(code.ErrValidation, "invalid private key: %v", err)
+			return nil, errors.WithCode(code.ErrWGPrivateKeyInvalid, "invalid private key: %v", err)
 		}
 		privateKeyChanged = true
 		regenerateUserFiles = true
@@ -276,7 +276,7 @@ func (w *wgSrv) UserListPeers(ctx context.Context, userID string) ([]*model.WGPe
 
 func (w *wgSrv) ToWGPeerResponse(ctx context.Context, peer *model.WGPeer) (*v1.WGPeerResponse, error) {
 	if peer == nil {
-		return nil, errors.WithCode(code.ErrValidation, "peer is nil")
+		return nil, errors.WithCode(code.ErrWGPeerNil, "")
 	}
 	user, err := w.storeSvc.store.Users().GetUser(ctx, peer.UserID)
 	if err != nil {

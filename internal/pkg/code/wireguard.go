@@ -32,4 +32,68 @@ const (
 
 	// ErrIPAlreadyInUse - 400: IP is already in use.
 	ErrIPAlreadyInUse
+
+	// WireGuard 配置相关错误
+	// ErrWGConfigNotInitialized - 500: WireGuard config is not initialized.
+	ErrWGConfigNotInitialized int = iota + 120010
+
+	// ErrWGLockAcquireFailed - 500: Failed to acquire WireGuard lock.
+	ErrWGLockAcquireFailed
+
+	// ErrWGServerPrivateKeyMissing - 500: Server config missing Interface.PrivateKey.
+	ErrWGServerPrivateKeyMissing
+
+	// ErrWGServerAddressInvalid - 400: Invalid server interface address.
+	ErrWGServerAddressInvalid
+
+	// ErrWGAllowedIPsNotFound - 400: No AllowedIPs found in server config.
+	ErrWGAllowedIPsNotFound
+
+	// ErrWGIPv4PrefixNotFound - 400: No valid IPv4 prefix found in AllowedIPs.
+	ErrWGIPv4PrefixNotFound
+
+	// ErrWGPrefixTooSmall - 400: AllowedIPs prefix too small for client IP allocation.
+	ErrWGPrefixTooSmall
+
+	// ErrWGEndpointRequired - 400: WireGuard endpoint is required.
+	ErrWGEndpointRequired
+
+	// ErrWGIPAllocationFailed - 400: Failed to allocate IP address.
+	ErrWGIPAllocationFailed
+
+	// WireGuard 密钥相关错误
+	// ErrWGPrivateKeyInvalid - 400: Invalid private key.
+	ErrWGPrivateKeyInvalid int = iota + 120020
+
+	// ErrWGKeyGenerationFailed - 500: Failed to generate WireGuard key.
+	ErrWGKeyGenerationFailed
+
+	// ErrWGPublicKeyGenerationFailed - 500: Failed to generate public key from private key.
+	ErrWGPublicKeyGenerationFailed
+
+	// WireGuard 文件操作错误
+	// ErrWGUserConfigNotFound - 404: User WireGuard config not found.
+	ErrWGUserConfigNotFound int = iota + 120030
+
+	// ErrWGPrivateKeyReadFailed - 500: Failed to read private key file.
+	ErrWGPrivateKeyReadFailed
+
+	// ErrWGUserDirCreateFailed - 500: Failed to create user directory.
+	ErrWGUserDirCreateFailed
+
+	// ErrWGPrivateKeyWriteFailed - 500: Failed to write private key file.
+	ErrWGPrivateKeyWriteFailed
+
+	// ErrWGPublicKeyWriteFailed - 500: Failed to write public key file.
+	ErrWGPublicKeyWriteFailed
+
+	// ErrWGConfigWriteFailed - 500: Failed to write WireGuard config file.
+	ErrWGConfigWriteFailed
+
+	// WireGuard 数据相关错误
+	// ErrWGPeerIDGenerationFailed - 500: Failed to generate peer ID.
+	ErrWGPeerIDGenerationFailed int = iota + 120040
+
+	// ErrWGPeerNil - 400: Peer is nil.
+	ErrWGPeerNil
 )

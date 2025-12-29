@@ -27,7 +27,7 @@ import (
 func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest) (*model.WGPeer, error) {
 	cfg := config.Get()
 	if cfg == nil || cfg.WireGuard == nil {
-		return nil, errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
+		return nil, errors.WithCode(code.ErrWGConfigNotInitialized, "")
 	}
 
 	// Determine endpoint: use request endpoint if provided, otherwise use config default
@@ -36,14 +36,14 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		endpoint = strings.TrimSpace(*req.Endpoint)
 	}
 	if strings.TrimSpace(endpoint) == "" {
-		return nil, errors.WithCode(code.ErrValidation, "wireguard.endpoint is required (either in config or request)")
+		return nil, errors.WithCode(code.ErrWGEndpointRequired, "")
 	}
 
 	// Serialize allocate-ip + file write + server apply.
 	lockPath := filepath.Join(cfg.WireGuard.RootDir, ".nexuspointwg.lock")
 	lock, err := wgfile.AcquireFileLock(lockPath)
 	if err != nil {
-		return nil, errors.WithCode(code.ErrUnknown, "failed to acquire wireguard lock: %v", err)
+		return nil, errors.WithCode(code.ErrWGLockAcquireFailed, "failed to acquire wireguard lock: %v", err)
 	}
 	defer func() { _ = lock.Release() }()
 
@@ -59,7 +59,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 	ifaceCfg := wgfile.ParseInterfaceConfig(string(raw))
 	if strings.TrimSpace(ifaceCfg.PrivateKey) == "" {
-		return nil, errors.WithCode(code.ErrValidation, "server config missing Interface.PrivateKey")
+		return nil, errors.WithCode(code.ErrWGServerPrivateKeyMissing, "")
 	}
 
 	serverPub, err := wgPubKey(ctx, ifaceCfg.PrivateKey)
@@ -70,14 +70,14 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	// Parse server Address to get server IP (for exclusion during allocation)
 	_, serverIP, err := iputil.ParseFirstV4Prefix(ifaceCfg.Address)
 	if err != nil {
-		return nil, errors.WithCode(code.ErrValidation, "invalid server interface address: %v", err)
+		return nil, errors.WithCode(code.ErrWGServerAddressInvalid, "invalid server interface address: %v", err)
 	}
 
 	// Extract client IP allocation pool from AllowedIPs in [Peer] blocks
 	// AllowedIPs represents networks that clients can access, and we allocate client IPs from the first IPv4 subnet
 	allowedIPsList := wgfile.ExtractAllowedIPs(string(raw))
 	if len(allowedIPsList) == 0 {
-		return nil, errors.WithCode(code.ErrValidation, "no AllowedIPs found in server config. At least one AllowedIPs entry is required for client IP allocation")
+		return nil, errors.WithCode(code.ErrWGAllowedIPsNotFound, "no AllowedIPs found in server config. At least one AllowedIPs entry is required for client IP allocation")
 	}
 
 	// Use the first AllowedIPs entry (comma-separated list) to find allocation pool
@@ -92,7 +92,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 
 	if allocationPrefix == (netip.Prefix{}) {
-		return nil, errors.WithCode(code.ErrValidation, "no valid IPv4 prefix found in AllowedIPs for client IP allocation")
+		return nil, errors.WithCode(code.ErrWGIPv4PrefixNotFound, "no valid IPv4 prefix found in AllowedIPs for client IP allocation")
 	}
 
 	// Validate prefix: must have enough bits for allocation
@@ -104,7 +104,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		if allocationPrefix.Bits() == 32 {
 			usableHosts = 0 // /32 has no usable hosts for allocation
 		}
-		return nil, errors.WithCode(code.ErrValidation,
+		return nil, errors.WithCode(code.ErrWGPrefixTooSmall,
 			"AllowedIPs prefix too small (%s): only %d usable host(s), need at least /29 (e.g., 100.100.100.0/24) for client IP allocation",
 			allocationPrefix.String(), usableHosts)
 	}
@@ -120,7 +120,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	allocator := ipalloc.NewAllocator(allocationPrefix, serverIP, usedIPs)
 	clientAddr, err := allocator.Allocate()
 	if err != nil {
-		return nil, errors.WithCode(code.ErrValidation, "failed to allocate IP: %v", err)
+		return nil, errors.WithCode(code.ErrWGIPAllocationFailed, "failed to allocate IP: %v", err)
 	}
 	clientCIDR := clientAddr.String() + "/32"
 
@@ -130,7 +130,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		clientPriv = strings.TrimSpace(*req.PrivateKey)
 		// Validate the private key by trying to generate public key from it
 		if _, err := wgPubKey(ctx, clientPriv); err != nil {
-			return nil, errors.WithCode(code.ErrValidation, "invalid private key: %v", err)
+			return nil, errors.WithCode(code.ErrWGPrivateKeyInvalid, "invalid private key: %v", err)
 		}
 	} else {
 		// Auto-generate private key
@@ -147,7 +147,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 
 	peerID, err := snowflake.GenerateID()
 	if err != nil {
-		return nil, errors.WithCode(code.ErrUnknown, "failed to generate id: %v", err)
+		return nil, errors.WithCode(code.ErrWGPeerIDGenerationFailed, "failed to generate id: %v", err)
 	}
 
 	keepalive := 0
@@ -207,7 +207,7 @@ func (w *wgSrv) UserDownloadConfig(ctx context.Context, userID, peerID string) (
 	confPath := filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peer.ID, "peer.conf")
 	b, err := os.ReadFile(confPath)
 	if err != nil {
-		return "", nil, errors.WithCode(code.ErrWGServerConfigNotFound, "config not found")
+		return "", nil, errors.WithCode(code.ErrWGUserConfigNotFound, "config not found")
 	}
 	filename := sanitizeFilename(peer.DeviceName)
 	if filename == "" {
@@ -229,7 +229,7 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 	lockPath := filepath.Join(cfg.WireGuard.RootDir, ".nexuspointwg.lock")
 	lock, err := wgfile.AcquireFileLock(lockPath)
 	if err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to acquire wireguard lock: %v", err)
+		return errors.WithCode(code.ErrWGLockAcquireFailed, "failed to acquire wireguard lock: %v", err)
 	}
 	defer func() { _ = lock.Release() }()
 
@@ -282,7 +282,7 @@ func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req
 	lockPath := filepath.Join(cfg.WireGuard.RootDir, ".nexuspointwg.lock")
 	lock, err := wgfile.AcquireFileLock(lockPath)
 	if err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to acquire wireguard lock: %v", err)
+		return errors.WithCode(code.ErrWGLockAcquireFailed, "failed to acquire wireguard lock: %v", err)
 	}
 	defer func() { _ = lock.Release() }()
 
@@ -340,7 +340,7 @@ func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req
 		privKeyPath := filepath.Join(baseDir, "privatekey")
 		clientPrivBytes, pErr := os.ReadFile(privKeyPath)
 		if pErr != nil {
-			return errors.WithCode(code.ErrUnknown, "failed to read private key: %v", pErr)
+			return errors.WithCode(code.ErrWGPrivateKeyReadFailed, "failed to read private key: %v", pErr)
 		}
 		clientPriv := strings.TrimSpace(string(clientPrivBytes))
 
@@ -376,7 +376,7 @@ func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) err
 	lockPath := filepath.Join(cfg.WireGuard.RootDir, ".nexuspointwg.lock")
 	lock, err := wgfile.AcquireFileLock(lockPath)
 	if err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to acquire wireguard lock: %v", err)
+		return errors.WithCode(code.ErrWGLockAcquireFailed, "failed to acquire wireguard lock: %v", err)
 	}
 	defer func() { _ = lock.Release() }()
 
@@ -403,20 +403,20 @@ func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) err
 func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model.WGPeer, clientPriv string, serverPub string, mtu string, endpoint string) error {
 	cfg := config.Get()
 	if cfg == nil || cfg.WireGuard == nil {
-		return errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
+		return errors.WithCode(code.ErrWGConfigNotInitialized, "")
 	}
 
 	baseDir := filepath.Join(cfg.WireGuard.ResolvedUserDir(), username, peer.ID)
 	if err := os.MkdirAll(baseDir, 0700); err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to create user dir: %v", err)
+		return errors.WithCode(code.ErrWGUserDirCreateFailed, "failed to create user dir: %v", err)
 	}
 
 	// Keys
 	if err := os.WriteFile(filepath.Join(baseDir, "privatekey"), []byte(strings.TrimSpace(clientPriv)+"\n"), 0600); err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to write private key: %v", err)
+		return errors.WithCode(code.ErrWGPrivateKeyWriteFailed, "failed to write private key: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(baseDir, "publickey"), []byte(strings.TrimSpace(peer.ClientPublicKey)+"\n"), 0600); err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to write public key: %v", err)
+		return errors.WithCode(code.ErrWGPublicKeyWriteFailed, "failed to write public key: %v", err)
 	}
 
 	// Client config
@@ -435,7 +435,7 @@ func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model
 	}
 	conf := renderClientConfig(endpoint, dns, clientAllowedIPs, serverPub, peer.ClientIP, clientPriv, peer.PersistentKeepalive, mtu)
 	if err := os.WriteFile(filepath.Join(baseDir, "peer.conf"), []byte(conf), 0600); err != nil {
-		return errors.WithCode(code.ErrUnknown, "failed to write peer.conf: %v", err)
+		return errors.WithCode(code.ErrWGConfigWriteFailed, "failed to write peer.conf: %v", err)
 	}
 
 	// meta.json (minimal)
@@ -492,7 +492,7 @@ func wgGenKey(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "wg", "genkey")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", errors.WithCode(code.ErrUnknown, "wg genkey failed: %s", strings.TrimSpace(string(out)))
+		return "", errors.WithCode(code.ErrWGKeyGenerationFailed, "wg genkey failed: %s", strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -502,7 +502,7 @@ func wgPubKey(ctx context.Context, privateKey string) (string, error) {
 	cmd.Stdin = bytes.NewBufferString(strings.TrimSpace(privateKey) + "\n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", errors.WithCode(code.ErrUnknown, "wg pubkey failed: %s", strings.TrimSpace(string(out)))
+		return "", errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "wg pubkey failed: %s", strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

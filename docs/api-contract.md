@@ -118,6 +118,50 @@
 - `110003`：用户不存在（ErrUserNotFound）
 - `110004`：用户未激活（ErrUserNotActive）
 
+### 4.3 WireGuard 相关（摘自 `internal/pkg/code/wireguard.go`）
+
+#### 基础错误（120001-120009）
+- `120001`：WireGuard peer 不存在（ErrWGPeerNotFound）
+- `120002`：服务器 WireGuard 配置文件未找到（ErrWGServerConfigNotFound）
+- `120003`：写入服务器 WireGuard 配置失败（ErrWGWriteServerConfigFailed）
+- `120004`：应用 WireGuard 配置失败（ErrWGApplyFailed）
+
+#### IP 地址验证错误（120005-120010）
+- `120005`：IP 不是 IPv4（ErrIPNotIPv4）
+- `120006`：IP 不在分配前缀范围内（ErrIPOutOfRange）
+- `120007`：IP 是网络地址（ErrIPIsNetworkAddress）
+- `120008`：IP 是广播地址（ErrIPIsBroadcastAddress）
+- `120009`：IP 是服务器 IP（ErrIPIsServerIP）
+- `120010`：IP 已被使用（ErrIPAlreadyInUse）
+
+#### WireGuard 配置错误（120010-120019）
+- `120010`：WireGuard 配置未初始化（ErrWGConfigNotInitialized）
+- `120011`：获取 WireGuard 锁失败（ErrWGLockAcquireFailed）
+- `120012`：服务器配置缺少 Interface.PrivateKey（ErrWGServerPrivateKeyMissing）
+- `120013`：无效的服务器接口地址（ErrWGServerAddressInvalid）
+- `120014`：服务器配置中未找到 AllowedIPs（ErrWGAllowedIPsNotFound）
+- `120015`：未找到有效的 IPv4 前缀（ErrWGIPv4PrefixNotFound）
+- `120016`：AllowedIPs 前缀太小，无法分配客户端 IP（ErrWGPrefixTooSmall）
+- `120017`：WireGuard endpoint 是必需的（ErrWGEndpointRequired）
+- `120018`：IP 地址分配失败（ErrWGIPAllocationFailed）
+
+#### WireGuard 密钥错误（120020-120022）
+- `120020`：无效的私钥（ErrWGPrivateKeyInvalid）
+- `120021`：生成 WireGuard 密钥失败（ErrWGKeyGenerationFailed）
+- `120022`：从私钥生成公钥失败（ErrWGPublicKeyGenerationFailed）
+
+#### WireGuard 文件操作错误（120030-120035）
+- `120030`：用户 WireGuard 配置未找到（ErrWGUserConfigNotFound）
+- `120031`：读取私钥文件失败（ErrWGPrivateKeyReadFailed）
+- `120032`：创建用户目录失败（ErrWGUserDirCreateFailed）
+- `120033`：写入私钥文件失败（ErrWGPrivateKeyWriteFailed）
+- `120034`：写入公钥文件失败（ErrWGPublicKeyWriteFailed）
+- `120035`：写入 WireGuard 配置文件失败（ErrWGConfigWriteFailed）
+
+#### WireGuard 数据错误（120040-120041）
+- `120040`：生成 peer ID 失败（ErrWGPeerIDGenerationFailed）
+- `120041`：Peer 为 nil（ErrWGPeerNil）
+
 ---
 
 ## 5. 登录失败提示策略（安全规范）
@@ -316,6 +360,35 @@ Swagger 文件：`api/swagger/docs/swagger.json`
 | 110002 | ErrEmailAlreadyExist | 400 | `error.emailAlreadyExist` | 注册邮箱重复 |
 | 110003 | ErrUserNotFound | 404/401 | `error.authFailed` 或 `error.userNotFound` | **登录页建议统一 `authFailed`**；其它业务可用 `userNotFound` |
 | 110004 | ErrUserNotActive | 403 | `error.userNotActive` | |
+| 120001 | ErrWGPeerNotFound | 404 | `error.wgPeerNotFound` | WireGuard peer 不存在 |
+| 120002 | ErrWGServerConfigNotFound | 500 | `error.wgServerConfigNotFound` | 服务器配置未找到 |
+| 120003 | ErrWGWriteServerConfigFailed | 500 | `error.wgWriteServerConfigFailed` | 写入服务器配置失败 |
+| 120004 | ErrWGApplyFailed | 500 | `error.wgApplyFailed` | 应用配置失败 |
+| 120005 | ErrIPNotIPv4 | 400 | `error.ipNotIPv4` | IP 不是 IPv4 |
+| 120006 | ErrIPOutOfRange | 400 | `error.ipOutOfRange` | IP 不在范围内 |
+| 120007 | ErrIPIsNetworkAddress | 400 | `error.ipIsNetworkAddress` | IP 是网络地址 |
+| 120008 | ErrIPIsBroadcastAddress | 400 | `error.ipIsBroadcastAddress` | IP 是广播地址 |
+| 120009 | ErrIPIsServerIP | 400 | `error.ipIsServerIP` | IP 是服务器 IP |
+| 120010 | ErrIPAlreadyInUse | 400 | `error.ipAlreadyInUse` | IP 已被使用 |
+| 120011 | ErrWGLockAcquireFailed | 500 | `error.wgLockAcquireFailed` | 获取锁失败 |
+| 120012 | ErrWGServerPrivateKeyMissing | 500 | `error.wgServerPrivateKeyMissing` | 服务器私钥缺失 |
+| 120013 | ErrWGServerAddressInvalid | 400 | `error.wgServerAddressInvalid` | 服务器地址无效 |
+| 120014 | ErrWGAllowedIPsNotFound | 400 | `error.wgAllowedIPsNotFound` | 未找到 AllowedIPs |
+| 120015 | ErrWGIPv4PrefixNotFound | 400 | `error.wgIPv4PrefixNotFound` | 未找到 IPv4 前缀 |
+| 120016 | ErrWGPrefixTooSmall | 400 | `error.wgPrefixTooSmall` | 前缀太小 |
+| 120017 | ErrWGEndpointRequired | 400 | `error.wgEndpointRequired` | Endpoint 必需 |
+| 120018 | ErrWGIPAllocationFailed | 400 | `error.wgIPAllocationFailed` | IP 分配失败 |
+| 120020 | ErrWGPrivateKeyInvalid | 400 | `error.wgPrivateKeyInvalid` | 无效的私钥 |
+| 120021 | ErrWGKeyGenerationFailed | 500 | `error.wgKeyGenerationFailed` | 密钥生成失败 |
+| 120022 | ErrWGPublicKeyGenerationFailed | 500 | `error.wgPublicKeyGenerationFailed` | 公钥生成失败 |
+| 120030 | ErrWGUserConfigNotFound | 404 | `error.wgUserConfigNotFound` | 用户配置未找到 |
+| 120031 | ErrWGPrivateKeyReadFailed | 500 | `error.wgPrivateKeyReadFailed` | 读取私钥失败 |
+| 120032 | ErrWGUserDirCreateFailed | 500 | `error.wgUserDirCreateFailed` | 创建用户目录失败 |
+| 120033 | ErrWGPrivateKeyWriteFailed | 500 | `error.wgPrivateKeyWriteFailed` | 写入私钥失败 |
+| 120034 | ErrWGPublicKeyWriteFailed | 500 | `error.wgPublicKeyWriteFailed` | 写入公钥失败 |
+| 120035 | ErrWGConfigWriteFailed | 500 | `error.wgConfigWriteFailed` | 写入配置失败 |
+| 120040 | ErrWGPeerIDGenerationFailed | 500 | `error.wgPeerIDGenerationFailed` | 生成 peer ID 失败 |
+| 120041 | ErrWGPeerNil | 400 | `error.wgPeerNil` | Peer 为 nil |
 
 ### 11.3 validation token → i18n key
 后端 `details[field]` 为 token：`validation.<tag>|...`，前端解析后调用 `t('validation.<tag>', params)`。
