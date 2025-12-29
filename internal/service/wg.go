@@ -35,6 +35,7 @@ type WGSrv interface {
 	UserDownloadConfig(ctx context.Context, userID, peerID string) (filename string, content []byte, err error)
 	UserRotateConfig(ctx context.Context, userID, peerID string) error
 	UserRevokeConfig(ctx context.Context, userID, peerID string) error
+	UserUpdateConfig(ctx context.Context, userID, peerID string, req v1.UserUpdateConfigRequest) error
 
 	// ---- response mappers ----
 	ToWGPeerResponse(ctx context.Context, peer *model.WGPeer) (*v1.WGPeerResponse, error)
@@ -112,7 +113,7 @@ func (w *wgSrv) syncServerConfigUnlocked(ctx context.Context) error {
 }
 
 func (w *wgSrv) loadAllPeers(ctx context.Context) ([]*model.WGPeer, error) {
-	// Load all peers; filter revoked at render stage.
+	// Load all peers; filter disabled at render stage.
 	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{
 		Offset: 0,
 		Limit:  10000,

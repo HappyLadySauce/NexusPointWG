@@ -76,6 +76,7 @@ const Peers: React.FC = () => {
             username: record.username,
             device_name: record.device_name,
             allowed_ips: record.allowed_ips,
+            dns: record.dns,
             persistent_keepalive: record.persistent_keepalive,
             status: record.status,
         });
@@ -104,6 +105,9 @@ const Peers: React.FC = () => {
                 if (values.persistent_keepalive !== undefined && values.persistent_keepalive !== null) {
                     updateData.persistentKeepalive = Number(values.persistent_keepalive);
                 }
+                if (values.dns !== undefined) {
+                    updateData.dns = values.dns;
+                }
                 if (values.status !== undefined) {
                     updateData.status = values.status;
                 }
@@ -122,6 +126,9 @@ const Peers: React.FC = () => {
                 }
                 if (values.endpoint) {
                     createData.endpoint = values.endpoint;
+                }
+                if (values.dns) {
+                    createData.dns = values.dns;
                 }
                 if (values.private_key) {
                     createData.privateKey = values.private_key;
@@ -143,10 +150,11 @@ const Peers: React.FC = () => {
                 Object.keys(details).forEach((field) => {
                     const fieldName = field === 'allowedIPs' ? t('wg.allowedIPs') :
                         field === 'endpoint' ? t('wg.endpoint') :
-                            field === 'privateKey' ? t('wg.privateKey') :
-                                field === 'deviceName' ? t('wg.device') :
-                                    field === 'username' ? t('user.username') :
-                                        field === 'persistentKeepalive' ? t('wg.keepalive') : field;
+                            field === 'dns' ? t('wg.dns') :
+                                field === 'privateKey' ? t('wg.privateKey') :
+                                    field === 'deviceName' ? t('wg.device') :
+                                        field === 'username' ? t('user.username') :
+                                            field === 'persistentKeepalive' ? t('wg.keepalive') : field;
 
                     const rawMsg: string = details[field];
                     if (typeof rawMsg === 'string' && rawMsg.startsWith('validation.')) {
@@ -163,8 +171,9 @@ const Peers: React.FC = () => {
                         // Set form field error
                         const formFieldName = field === 'allowedIPs' ? 'allowed_ips' :
                             field === 'deviceName' ? 'device_name' :
-                                field === 'privateKey' ? 'private_key' :
-                                    field === 'persistentKeepalive' ? 'persistent_keepalive' : field;
+                                field === 'dns' ? 'dns' :
+                                    field === 'privateKey' ? 'private_key' :
+                                        field === 'persistentKeepalive' ? 'persistent_keepalive' : field;
                         form.setFields([{
                             name: formFieldName,
                             errors: [t(key as any, params as any)]
@@ -213,11 +222,18 @@ const Peers: React.FC = () => {
             title: t('wg.status'),
             dataIndex: 'status',
             key: 'status',
-            render: (status: string) => (
-                <Tag color={status === 'active' ? 'success' : 'error'}>
-                    {status.toUpperCase()}
-                </Tag>
-            ),
+            render: (status: string) => {
+                let color = 'default';
+                let text = status.toUpperCase();
+                if (status === 'active') {
+                    color = 'success';
+                    text = t('wg.statusActive');
+                } else if (status === 'disabled') {
+                    color = 'warning';
+                    text = t('wg.statusDisabled');
+                }
+                return <Tag color={color}>{text}</Tag>;
+            },
         },
         {
             title: t('common.action'),
@@ -317,6 +333,13 @@ const Peers: React.FC = () => {
                         <Input placeholder="10.10.0.0/24, ..." />
                     </Form.Item>
                     <Form.Item
+                        name="dns"
+                        label={t('wg.dns')}
+                        tooltip={t('wg.tip.dns')}
+                    >
+                        <Input placeholder={t('wg.placeholder.dns')} />
+                    </Form.Item>
+                    <Form.Item
                         name="persistent_keepalive"
                         label={t('wg.keepalive')}
                     >
@@ -349,8 +372,8 @@ const Peers: React.FC = () => {
                             label={t('wg.status')}
                         >
                             <Select>
-                                <Select.Option value="active">Active</Select.Option>
-                                <Select.Option value="revoked">Revoked</Select.Option>
+                                <Select.Option value="active">{t('wg.statusActive')}</Select.Option>
+                                <Select.Option value="disabled">{t('wg.statusDisabled')}</Select.Option>
                             </Select>
                         </Form.Item>
                     )}

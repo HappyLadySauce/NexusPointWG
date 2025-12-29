@@ -56,4 +56,5 @@ const (
 	ActionWGConfigDownload Action = "wg_config:download"
 	ActionWGConfigRotate   Action = "wg_config:rotate"
 	ActionWGConfigRevoke   Action = "wg_config:revoke"
+	ActionWGConfigUpdate   Action = "wg_config:update"
 )

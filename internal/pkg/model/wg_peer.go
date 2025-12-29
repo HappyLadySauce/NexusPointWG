@@ -22,6 +22,9 @@ type WGPeer struct {
 	// AllowedIPs overrides client allowed ips. If empty, server/global defaults may be used.
 	AllowedIPs string `json:"allowed_ips" gorm:"not null;default:''"`
 
+	// DNS optionally overrides the default DNS from config.
+	DNS string `json:"dns" gorm:"not null;default:''"`
+
 	// PersistentKeepalive is optional keepalive value in seconds; 0 means unset.
 	PersistentKeepalive int `json:"persistent_keepalive" gorm:"not null;default:0"`
 
@@ -33,6 +36,6 @@ type WGPeer struct {
 }
 
 const (
-	WGPeerStatusActive  = "active"
-	WGPeerStatusRevoked = "disabled"
+	WGPeerStatusActive   = "active"
+	WGPeerStatusDisabled = "disabled"
 )

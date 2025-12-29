@@ -104,12 +104,51 @@ func (w *WGController) RotateConfig(c *gin.Context) {
 	core.WriteResponse(c, nil, nil)
 }
 
+// UpdateConfig updates a user's WireGuard config.
+// @Summary Update WireGuard config
+// @Description User can update AllowedIPs, DNS, PersistentKeepalive, Endpoint. Cannot update PrivateKey, DeviceName, Status, ClientIP.
+// @Tags wg
+// @Accept json
+// @Produce json
+// @Param id path string true "Peer ID"
+// @Param config body v1.UserUpdateConfigRequest true "Update config payload"
+// @Success 200 {object} core.SuccessResponse "Config updated successfully"
+// @Failure 400 {object} core.ErrResponse "Bad request - invalid input or forbidden fields"
+// @Failure 401 {object} core.ErrResponse "Unauthorized"
+// @Failure 403 {object} core.ErrResponse "Forbidden - permission denied"
+// @Failure 500 {object} core.ErrResponse "Internal server error"
+// @Router /api/v1/wg/configs/{id} [put]
+func (w *WGController) UpdateConfig(c *gin.Context) {
+	userID, err := requesterUserID(c)
+	if err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if err := enforce(c, spec.Obj(spec.ResourceWGConfig, spec.ScopeSelf), spec.ActionWGConfigUpdate); err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+
+	var req v1.UserUpdateConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		core.WriteResponseBindErr(c, err, nil)
+		return
+	}
+
+	id := c.Param("id")
+	if err := w.srv.WG().UserUpdateConfig(context.Background(), userID, id, req); err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	core.WriteResponse(c, nil, nil)
+}
+
 // RevokeConfig revokes a peer/config (self).
 // @Summary Revoke WireGuard config
 // @Tags wg
 // @Produce json
 // @Param id path string true "Peer ID"
-// @Success 200 {object} core.SuccessResponse "Revoked successfully"
+// @Success 200 {object} core.SuccessResponse "Deleted successfully"
 // @Failure 401 {object} core.ErrResponse "Unauthorized"
 // @Failure 403 {object} core.ErrResponse "Forbidden"
 // @Failure 500 {object} core.ErrResponse "Internal server error"

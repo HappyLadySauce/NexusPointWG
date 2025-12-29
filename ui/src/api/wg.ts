@@ -8,8 +8,9 @@ export interface WGPeer {
     client_public_key: string;
     client_ip: string;
     allowed_ips: string;
+    dns: string;
     persistent_keepalive: number;
-    status: 'active' | 'revoked';
+    status: 'active' | 'disabled';
 }
 
 export interface WGPeerListResponse {
@@ -23,13 +24,26 @@ export interface CreateWGPeerRequest {
     allowedIPs?: string;
     persistentKeepalive?: number;
     endpoint?: string;
+    dns?: string;
     privateKey?: string;
 }
 
 export interface UpdateWGPeerRequest {
     allowedIPs?: string;
     persistentKeepalive?: number;
-    status?: 'active' | 'revoked';
+    dns?: string;
+    status?: 'active' | 'disabled';
+    privateKey?: string;
+    endpoint?: string;
+    deviceName?: string;
+    clientIP?: string;
+}
+
+export interface UserUpdateConfigRequest {
+    allowedIPs?: string;
+    persistentKeepalive?: number;
+    dns?: string;
+    endpoint?: string;
 }
 
 export interface WGPeerListQuery {
@@ -71,5 +85,9 @@ export const rotateConfig = (id: string) => {
 
 export const revokeConfig = (id: string) => {
     return request.post<any, void>(`/wg/configs/${id}/revoke`);
+};
+
+export const updateConfig = (id: string, data: UserUpdateConfigRequest) => {
+    return request.put<any, void>(`/wg/configs/${id}`, data);
 };
 

@@ -155,6 +155,10 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		keepalive = *req.PersistentKeepalive
 	}
 
+	dns := ""
+	if req.DNS != nil {
+		dns = strings.TrimSpace(*req.DNS)
+	}
 	peer := &model.WGPeer{
 		ID:                  peerID,
 		UserID:              owner.ID,
@@ -162,6 +166,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		ClientPublicKey:     clientPub,
 		ClientIP:            clientCIDR,
 		AllowedIPs:          strings.TrimSpace(req.AllowedIPs),
+		DNS:                 dns,
 		PersistentKeepalive: keepalive,
 		Status:              model.WGPeerStatusActive,
 	}
@@ -264,6 +269,100 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 	return w.syncServerConfigUnlocked(ctx)
 }
 
+func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req v1.UserUpdateConfigRequest) error {
+	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
+	if err != nil {
+		return err
+	}
+	if peer.UserID != userID {
+		return errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied))
+	}
+
+	cfg := config.Get()
+	lockPath := filepath.Join(cfg.WireGuard.RootDir, ".nexuspointwg.lock")
+	lock, err := wgfile.AcquireFileLock(lockPath)
+	if err != nil {
+		return errors.WithCode(code.ErrUnknown, "failed to acquire wireguard lock: %v", err)
+	}
+	defer func() { _ = lock.Release() }()
+
+	// Track if user files need regeneration
+	regenerateUserFiles := false
+
+	// Update allowed fields only
+	if req.AllowedIPs != nil {
+		newAllowedIPs := strings.TrimSpace(*req.AllowedIPs)
+		if peer.AllowedIPs != newAllowedIPs {
+			peer.AllowedIPs = newAllowedIPs
+			regenerateUserFiles = true
+		}
+	}
+	if req.PersistentKeepalive != nil {
+		if peer.PersistentKeepalive != *req.PersistentKeepalive {
+			peer.PersistentKeepalive = *req.PersistentKeepalive
+			regenerateUserFiles = true
+		}
+	}
+	if req.DNS != nil {
+		newDNS := strings.TrimSpace(*req.DNS)
+		if peer.DNS != newDNS {
+			peer.DNS = newDNS
+			regenerateUserFiles = true
+		}
+	}
+
+	// Save to database
+	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+		return err
+	}
+
+	// Regenerate user files if needed
+	if regenerateUserFiles {
+		user, uErr := w.storeSvc.store.Users().GetUser(ctx, userID)
+		if uErr != nil {
+			return uErr
+		}
+
+		// Read server config to get server public key and MTU
+		serverConfPath := cfg.WireGuard.ServerConfigPath()
+		raw, rErr := os.ReadFile(serverConfPath)
+		if rErr != nil {
+			return errors.WithCode(code.ErrWGServerConfigNotFound, "failed to read %s: %v", serverConfPath, rErr)
+		}
+		ifaceCfg := wgfile.ParseInterfaceConfig(string(raw))
+		serverPub, sErr := wgPubKey(ctx, ifaceCfg.PrivateKey)
+		if sErr != nil {
+			return sErr
+		}
+
+		// Read client private key from file
+		baseDir := filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peer.ID)
+		privKeyPath := filepath.Join(baseDir, "privatekey")
+		clientPrivBytes, pErr := os.ReadFile(privKeyPath)
+		if pErr != nil {
+			return errors.WithCode(code.ErrUnknown, "failed to read private key: %v", pErr)
+		}
+		clientPriv := strings.TrimSpace(string(clientPrivBytes))
+
+		// Determine endpoint: use request endpoint if provided, otherwise use config default
+		endpoint := cfg.WireGuard.Endpoint
+		if req.Endpoint != nil && strings.TrimSpace(*req.Endpoint) != "" {
+			endpoint = strings.TrimSpace(*req.Endpoint)
+		}
+
+		if err := w.writeUserFiles(ctx, user.Username, peer, clientPriv, serverPub, ifaceCfg.MTU, endpoint); err != nil {
+			return err
+		}
+	}
+
+	// Sync server config (lock already held, use unlocked version)
+	if err := w.syncServerConfigUnlocked(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) error {
 	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
 	if err != nil {
@@ -329,7 +428,12 @@ func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model
 			clientAllowedIPs = "0.0.0.0/0,::/0" // 最终默认值
 		}
 	}
-	conf := renderClientConfig(endpoint, cfg.WireGuard.DNS, clientAllowedIPs, serverPub, peer.ClientIP, clientPriv, peer.PersistentKeepalive, mtu)
+	// 优先使用 peer.DNS（用户在前端填写的值），如果为空则使用默认值
+	dns := strings.TrimSpace(peer.DNS)
+	if dns == "" {
+		dns = strings.TrimSpace(cfg.WireGuard.DNS)
+	}
+	conf := renderClientConfig(endpoint, dns, clientAllowedIPs, serverPub, peer.ClientIP, clientPriv, peer.PersistentKeepalive, mtu)
 	if err := os.WriteFile(filepath.Join(baseDir, "peer.conf"), []byte(conf), 0600); err != nil {
 		return errors.WithCode(code.ErrUnknown, "failed to write peer.conf: %v", err)
 	}

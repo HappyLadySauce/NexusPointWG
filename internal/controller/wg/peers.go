@@ -21,7 +21,7 @@ import (
 // @Param user_id query string false "Filter by user id"
 // @Param device_name query string false "Filter by device name (contains)"
 // @Param client_ip query string false "Filter by client ip (exact)"
-// @Param status query string false "Filter by status (active/revoked)"
+// @Param status query string false "Filter by status (active/disabled)"
 // @Param offset query int false "Offset"
 // @Param limit query int false "Limit"
 // @Success 200 {object} v1.WGPeerListResponse "Peers listed successfully"
@@ -174,7 +174,7 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 // @Tags wg
 // @Produce json
 // @Param id path string true "Peer ID"
-// @Success 200 {object} core.SuccessResponse "Peer revoked successfully"
+// @Success 200 {object} core.SuccessResponse "Peer deleted successfully"
 // @Failure 401 {object} core.ErrResponse "Unauthorized"
 // @Failure 403 {object} core.ErrResponse "Forbidden"
 // @Failure 404 {object} core.ErrResponse "Not found"

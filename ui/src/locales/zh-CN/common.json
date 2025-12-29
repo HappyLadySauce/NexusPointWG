@@ -42,18 +42,23 @@
         "confirmRotate": "确定要重新生成密钥吗？客户端将需要重新下载配置。",
         "confirmRevoke": "确定要撤销此配置吗？客户端将无法连接。",
         "endpoint": "Endpoint",
+        "dns": "DNS",
         "privateKey": "PrivateKey",
         "tip": {
             "allowedIPs": "可选，覆盖服务器默认配置。例如：10.10.0.0/24",
             "endpoint": "可选，覆盖配置文件中的默认 endpoint。例如：127.0.0.1:51820",
+            "dns": "可选，覆盖配置文件中的默认 DNS。例如：1.1.1.1 或 1.1.1.1,8.8.8.8",
             "privateKey": "可选，如果留空将自动生成。WireGuard 私钥（base64 编码）"
         },
         "placeholder": {
             "username": "请输入用户名",
             "endpoint": "例如：127.0.0.1:51820",
+            "dns": "例如：1.1.1.1",
             "privateKey": "留空将自动生成"
         },
-        "keepalive": "PersistentKeepalive (秒)"
+        "keepalive": "PersistentKeepalive (秒)",
+        "statusActive": "活跃",
+        "statusDisabled": "已禁用"
     },
     "auth": {
         "login": {

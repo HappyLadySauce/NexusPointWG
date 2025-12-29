@@ -19,6 +19,7 @@ func init() {
 
 	// User configs
 	authed.GET("/wg/configs", wgController.ListMyConfigs)
+	authed.PUT("/wg/configs/:id", wgController.UpdateConfig)
 	authed.GET("/wg/configs/:id/download", wgController.DownloadConfig)
 	authed.POST("/wg/configs/:id/rotate", wgController.RotateConfig)
 	authed.POST("/wg/configs/:id/revoke", wgController.RevokeConfig)

@@ -14,6 +14,7 @@ p, user, wg_peer:self, wg_peer:list
 p, user, wg_config:self, wg_config:download
 p, user, wg_config:self, wg_config:rotate
 p, user, wg_config:self, wg_config:revoke
+p, user, wg_config:self, wg_config:update
 
 # Grouping policies:
 # If you choose to pass r.sub as a role string directly (recommended initially), g lines are not required.

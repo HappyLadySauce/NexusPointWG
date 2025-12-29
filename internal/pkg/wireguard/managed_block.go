@@ -40,8 +40,8 @@ func RenderManagedBlock(peers []*model.WGPeer) string {
 		if p == nil {
 			continue
 		}
-		// Skip revoked peers by default
-		if strings.TrimSpace(p.Status) == model.WGPeerStatusRevoked {
+		// Skip disabled peers
+		if strings.TrimSpace(p.Status) == model.WGPeerStatusDisabled {
 			continue
 		}
 		// 服务器配置中的 AllowedIPs 始终使用客户端 IP

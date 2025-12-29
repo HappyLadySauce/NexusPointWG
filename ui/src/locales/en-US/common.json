@@ -42,18 +42,23 @@
         "confirmRotate": "Are you sure to rotate key? Client will need to re-download config.",
         "confirmRevoke": "Are you sure to revoke this config? Client will lose access.",
         "endpoint": "Endpoint",
+        "dns": "DNS",
         "privateKey": "PrivateKey",
         "tip": {
             "allowedIPs": "Optional, overrides server default. e.g. 10.10.0.0/24",
             "endpoint": "Optional, overrides default endpoint from config. e.g. 127.0.0.1:51820",
+            "dns": "Optional, overrides default DNS from config. e.g. 1.1.1.1 or 1.1.1.1,8.8.8.8",
             "privateKey": "Optional, will be auto-generated if left empty. WireGuard private key (base64 encoded)"
         },
         "placeholder": {
             "username": "Enter username",
             "endpoint": "e.g. 127.0.0.1:51820",
+            "dns": "e.g. 1.1.1.1",
             "privateKey": "Leave empty to auto-generate"
         },
-        "keepalive": "PersistentKeepalive (seconds)"
+        "keepalive": "PersistentKeepalive (seconds)",
+        "statusActive": "Active",
+        "statusDisabled": "Disabled"
     },
     "auth": {
         "login": {
