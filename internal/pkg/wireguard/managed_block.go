@@ -44,10 +44,9 @@ func RenderManagedBlock(peers []*model.WGPeer) string {
 		if strings.TrimSpace(p.Status) == model.WGPeerStatusRevoked {
 			continue
 		}
-		allowed := strings.TrimSpace(p.AllowedIPs)
-		if allowed == "" {
-			allowed = strings.TrimSpace(p.ClientIP)
-		}
+		// 服务器配置中的 AllowedIPs 始终使用客户端 IP
+		// 这表示服务器允许该客户端访问的网络（即客户端的 IP 地址）
+		allowed := strings.TrimSpace(p.ClientIP)
 		if allowed == "" || strings.TrimSpace(p.ClientPublicKey) == "" {
 			// Incomplete record; skip for safety.
 			continue

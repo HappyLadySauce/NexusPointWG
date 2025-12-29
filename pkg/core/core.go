@@ -67,15 +67,8 @@ func FormatValidationError(err error) map[string]string {
 	// Check if the error is a validator.ValidationErrors
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		for _, fieldError := range validationErrors {
-			// Get the field name (remove struct name prefix if present, e.g., "User.Password" -> "Password")
-			fieldName := fieldError.Field()
-			if idx := strings.Index(fieldName, "."); idx != -1 {
-				fieldName = fieldName[idx+1:]
-			}
-
-			// Convert struct field name to JSON field name (camelCase to lowercase)
-			// This matches the JSON tag naming convention used in this project
-			jsonFieldName := strings.ToLower(fieldName[:1]) + fieldName[1:]
+			// Get JSON field name from struct field tag
+			jsonFieldName := getJSONFieldName(fieldError)
 
 			// Generate user-friendly error message based on the validation tag
 			var message string
@@ -100,6 +93,10 @@ func FormatValidationError(err error) map[string]string {
 				message = toToken("nochinese", nil)
 			case "emaildomain":
 				message = toToken("emaildomain", map[string]string{"domains": strings.Join(customvalidator.AllowedEmailDomains, ",")})
+			case "cidr":
+				message = toToken("cidr", nil)
+			case "endpoint":
+				message = toToken("endpoint", nil)
 			default:
 				message = toToken("invalid", map[string]string{"tag": fieldError.Tag()})
 			}
@@ -112,6 +109,38 @@ func FormatValidationError(err error) map[string]string {
 	}
 
 	return details
+}
+
+// getJSONFieldName extracts the JSON field name from a validation error.
+// It uses the namespace to get the field name and converts it to camelCase JSON field name.
+func getJSONFieldName(fieldError validator.FieldError) string {
+	// Use Namespace() to get the full path (e.g., "CreateWGPeerRequest.AllowedIPs")
+	namespace := fieldError.Namespace()
+	if namespace != "" {
+		// Parse namespace to get the field name (last part after the dot)
+		parts := strings.Split(namespace, ".")
+		if len(parts) > 0 {
+			fieldName := parts[len(parts)-1]
+			// Convert struct field name to JSON field name (camelCase)
+			// e.g., "AllowedIPs" -> "allowedIPs"
+			if len(fieldName) > 0 {
+				jsonFieldName := strings.ToLower(fieldName[:1]) + fieldName[1:]
+				return jsonFieldName
+			}
+		}
+	}
+
+	// Fallback: use Field() method and convert to camelCase
+	fieldName := fieldError.Field()
+	if idx := strings.Index(fieldName, "."); idx != -1 {
+		fieldName = fieldName[idx+1:]
+	}
+	if len(fieldName) > 0 {
+		jsonFieldName := strings.ToLower(fieldName[:1]) + fieldName[1:]
+		return jsonFieldName
+	}
+
+	return fieldName
 }
 
 // WriteResponseWithDetails write an error or the response data into http response body with details.

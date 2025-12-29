@@ -50,14 +50,13 @@ func (w *wgSrv) AdminRevokePeer(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	peer.Status = model.WGPeerStatusRevoked
-	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+
+	// Delete database record (hard delete)
+	if err := w.storeSvc.store.WGPeers().Delete(ctx, id); err != nil {
 		return err
 	}
-	if err := w.SyncServerConfig(ctx); err != nil {
-		return err
-	}
-	// Best-effort cleanup of derived artifacts.
+
+	// Delete configuration files (hard delete)
 	cfg := config.Get()
 	if cfg != nil && cfg.WireGuard != nil {
 		user, uErr := w.storeSvc.store.Users().GetUser(ctx, peer.UserID)
@@ -65,6 +64,12 @@ func (w *wgSrv) AdminRevokePeer(ctx context.Context, id string) error {
 			_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peer.ID))
 		}
 	}
+
+	// Sync server config to remove peer from server configuration
+	if err := w.SyncServerConfig(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 

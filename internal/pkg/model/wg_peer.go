@@ -34,5 +34,5 @@ type WGPeer struct {
 
 const (
 	WGPeerStatusActive  = "active"
-	WGPeerStatusRevoked = "revoked"
+	WGPeerStatusRevoked = "disabled"
 )

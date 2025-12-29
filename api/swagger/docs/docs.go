@@ -1006,11 +1006,20 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 1
                 },
+                "endpoint": {
+                    "description": "Endpoint optionally overrides the default endpoint from config.",
+                    "type": "string",
+                    "maxLength": 255
+                },
                 "persistentKeepalive": {
                     "description": "PersistentKeepalive is optional keepalive in seconds (0 means unset).",
                     "type": "integer",
                     "maximum": 3600,
                     "minimum": 0
+                },
+                "privateKey": {
+                    "description": "PrivateKey is an optional client private key. If not provided, one will be auto-generated.",
+                    "type": "string"
                 },
                 "username": {
                     "description": "Username is the owner username.",

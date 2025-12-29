@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	ipalloc "github.com/HappyLadySauce/NexusPointWG/internal/pkg/ipalloc"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
 	wgfile "github.com/HappyLadySauce/NexusPointWG/internal/pkg/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
+	iputil "github.com/HappyLadySauce/NexusPointWG/pkg/utils/ip"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
 )
@@ -27,8 +29,14 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	if cfg == nil || cfg.WireGuard == nil {
 		return nil, errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
 	}
-	if strings.TrimSpace(cfg.WireGuard.Endpoint) == "" {
-		return nil, errors.WithCode(code.ErrValidation, "wireguard.endpoint is required")
+
+	// Determine endpoint: use request endpoint if provided, otherwise use config default
+	endpoint := cfg.WireGuard.Endpoint
+	if req.Endpoint != nil && strings.TrimSpace(*req.Endpoint) != "" {
+		endpoint = strings.TrimSpace(*req.Endpoint)
+	}
+	if strings.TrimSpace(endpoint) == "" {
+		return nil, errors.WithCode(code.ErrValidation, "wireguard.endpoint is required (either in config or request)")
 	}
 
 	// Serialize allocate-ip + file write + server apply.
@@ -59,26 +67,79 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 		return nil, err
 	}
 
-	prefix, serverIP, err := parseFirstV4Prefix(ifaceCfg.Address)
+	// Parse server Address to get server IP (for exclusion during allocation)
+	_, serverIP, err := iputil.ParseFirstV4Prefix(ifaceCfg.Address)
 	if err != nil {
 		return nil, errors.WithCode(code.ErrValidation, "invalid server interface address: %v", err)
 	}
 
-	used, err := w.collectUsedIPs(ctx, prefix, string(raw))
+	// Extract client IP allocation pool from AllowedIPs in [Peer] blocks
+	// AllowedIPs represents networks that clients can access, and we allocate client IPs from the first IPv4 subnet
+	allowedIPsList := wgfile.ExtractAllowedIPs(string(raw))
+	if len(allowedIPsList) == 0 {
+		return nil, errors.WithCode(code.ErrValidation, "no AllowedIPs found in server config. At least one AllowedIPs entry is required for client IP allocation")
+	}
+
+	// Use the first AllowedIPs entry (comma-separated list) to find allocation pool
+	var allocationPrefix netip.Prefix
+	for _, allowedIPsRaw := range allowedIPsList {
+		prefix, err := ipalloc.ParseFirstV4PrefixFromAllowedIPs(allowedIPsRaw)
+		if err != nil {
+			continue
+		}
+		allocationPrefix = prefix
+		break
+	}
+
+	if allocationPrefix == (netip.Prefix{}) {
+		return nil, errors.WithCode(code.ErrValidation, "no valid IPv4 prefix found in AllowedIPs for client IP allocation")
+	}
+
+	// Validate prefix: must have enough bits for allocation
+	// /32 = single host (1 IP), /31 = point-to-point (2 IPs), /30 = 4 IPs (2 usable), /29 = 8 IPs (6 usable)
+	// We need at least /29 to have enough IPs for clients
+	if allocationPrefix.Bits() >= 30 {
+		maxHosts := 1 << (32 - allocationPrefix.Bits())
+		usableHosts := maxHosts - 2 // subtract network and broadcast
+		if allocationPrefix.Bits() == 32 {
+			usableHosts = 0 // /32 has no usable hosts for allocation
+		}
+		return nil, errors.WithCode(code.ErrValidation,
+			"AllowedIPs prefix too small (%s): only %d usable host(s), need at least /29 (e.g., 100.100.100.0/24) for client IP allocation",
+			allocationPrefix.String(), usableHosts)
+	}
+
+	// Collect used IPs from database
+	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
 	if err != nil {
 		return nil, err
 	}
+	usedIPs := ipalloc.CollectUsedIPsFromPeers(peers, allocationPrefix)
 
-	clientAddr, err := allocateIPv4(prefix, serverIP, used)
+	// Create allocator and allocate IP
+	allocator := ipalloc.NewAllocator(allocationPrefix, serverIP, usedIPs)
+	clientAddr, err := allocator.Allocate()
 	if err != nil {
-		return nil, errors.WithCode(code.ErrValidation, "no available ip in %s", prefix.String())
+		return nil, errors.WithCode(code.ErrValidation, "failed to allocate IP: %v", err)
 	}
 	clientCIDR := clientAddr.String() + "/32"
 
-	clientPriv, err := wgGenKey(ctx)
-	if err != nil {
-		return nil, err
+	// Use provided private key or generate one
+	var clientPriv string
+	if req.PrivateKey != nil && strings.TrimSpace(*req.PrivateKey) != "" {
+		clientPriv = strings.TrimSpace(*req.PrivateKey)
+		// Validate the private key by trying to generate public key from it
+		if _, err := wgPubKey(ctx, clientPriv); err != nil {
+			return nil, errors.WithCode(code.ErrValidation, "invalid private key: %v", err)
+		}
+	} else {
+		// Auto-generate private key
+		clientPriv, err = wgGenKey(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	clientPub, err := wgPubKey(ctx, clientPriv)
 	if err != nil {
 		return nil, err
@@ -106,7 +167,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 
 	// 1) Write user files first (derived artifacts)
-	if err := w.writeUserFiles(ctx, owner.Username, peer, clientPriv, serverPub, ifaceCfg.MTU); err != nil {
+	if err := w.writeUserFiles(ctx, owner.Username, peer, clientPriv, serverPub, ifaceCfg.MTU, endpoint); err != nil {
 		return nil, err
 	}
 
@@ -196,7 +257,7 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
 		return err
 	}
-	if err := w.writeUserFiles(ctx, user.Username, peer, clientPriv, serverPub, ifaceCfg.MTU); err != nil {
+	if err := w.writeUserFiles(ctx, user.Username, peer, clientPriv, serverPub, ifaceCfg.MTU, cfg.WireGuard.Endpoint); err != nil {
 		return err
 	}
 	// Lock already held, use unlocked version
@@ -220,23 +281,27 @@ func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) err
 	}
 	defer func() { _ = lock.Release() }()
 
-	peer.Status = model.WGPeerStatusRevoked
-	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+	// Delete database record (hard delete)
+	if err := w.storeSvc.store.WGPeers().Delete(ctx, peerID); err != nil {
 		return err
 	}
+
+	// Delete configuration files (hard delete)
+	user, uErr := w.storeSvc.store.Users().GetUser(ctx, userID)
+	if uErr == nil {
+		_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peerID))
+	}
+
+	// Sync server config to remove peer from server configuration
 	// Lock already held, use unlocked version
 	if err := w.syncServerConfigUnlocked(ctx); err != nil {
 		return err
 	}
-	// Best-effort cleanup of derived artifacts.
-	user, uErr := w.storeSvc.store.Users().GetUser(ctx, userID)
-	if uErr == nil {
-		_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peer.ID))
-	}
+
 	return nil
 }
 
-func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model.WGPeer, clientPriv string, serverPub string, mtu string) error {
+func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model.WGPeer, clientPriv string, serverPub string, mtu string, endpoint string) error {
 	cfg := config.Get()
 	if cfg == nil || cfg.WireGuard == nil {
 		return errors.WithCode(code.ErrUnknown, "wireguard config is not initialized")
@@ -256,14 +321,22 @@ func (w *wgSrv) writeUserFiles(ctx context.Context, username string, peer *model
 	}
 
 	// Client config
-	conf := renderClientConfig(cfg.WireGuard.Endpoint, cfg.WireGuard.DNS, cfg.WireGuard.DefaultAllowedIPs, serverPub, peer.ClientIP, clientPriv, peer.PersistentKeepalive, mtu)
+	// 优先使用 peer.AllowedIPs（用户在前端填写的值），如果为空则使用默认值
+	clientAllowedIPs := strings.TrimSpace(peer.AllowedIPs)
+	if clientAllowedIPs == "" {
+		clientAllowedIPs = strings.TrimSpace(cfg.WireGuard.DefaultAllowedIPs)
+		if clientAllowedIPs == "" {
+			clientAllowedIPs = "0.0.0.0/0,::/0" // 最终默认值
+		}
+	}
+	conf := renderClientConfig(endpoint, cfg.WireGuard.DNS, clientAllowedIPs, serverPub, peer.ClientIP, clientPriv, peer.PersistentKeepalive, mtu)
 	if err := os.WriteFile(filepath.Join(baseDir, "peer.conf"), []byte(conf), 0600); err != nil {
 		return errors.WithCode(code.ErrUnknown, "failed to write peer.conf: %v", err)
 	}
 
 	// meta.json (minimal)
 	meta := fmt.Sprintf("{\"peer_id\":\"%s\",\"user\":\"%s\",\"device_name\":\"%s\",\"client_ip\":\"%s\",\"endpoint\":\"%s\",\"generated_at\":\"%s\"}\n",
-		peer.ID, username, peer.DeviceName, peer.ClientIP, cfg.WireGuard.Endpoint, time.Now().Format(time.RFC3339))
+		peer.ID, username, peer.DeviceName, peer.ClientIP, endpoint, time.Now().Format(time.RFC3339))
 	_ = os.WriteFile(filepath.Join(baseDir, "meta.json"), []byte(meta), 0600)
 
 	return nil
@@ -294,7 +367,7 @@ func renderClientConfig(endpoint, dns, defaultAllowed, serverPub, clientCIDR, cl
 	b.WriteString("\n")
 	allowed := strings.TrimSpace(defaultAllowed)
 	if allowed == "" {
-		allowed = "0.0.0.0/0"
+		allowed = "0.0.0.0/0,::/0" // 默认值：允许所有 IPv4 和 IPv6 流量
 	}
 	b.WriteString("AllowedIPs = ")
 	b.WriteString(allowed)
@@ -309,119 +382,6 @@ func renderClientConfig(endpoint, dns, defaultAllowed, serverPub, clientCIDR, cl
 	}
 	b.WriteString("\n")
 	return b.String()
-}
-
-func parseFirstV4Prefix(addressLine string) (netip.Prefix, netip.Addr, error) {
-	// Address may be comma-separated.
-	parts := strings.Split(addressLine, ",")
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		prefix, err := netip.ParsePrefix(p)
-		if err != nil {
-			continue
-		}
-		if prefix.Addr().Is4() {
-			return prefix.Masked(), prefix.Addr(), nil
-		}
-	}
-	return netip.Prefix{}, netip.Addr{}, fmt.Errorf("no ipv4 prefix found")
-}
-
-func (w *wgSrv) collectUsedIPs(ctx context.Context, prefix netip.Prefix, serverConf string) (map[netip.Addr]struct{}, error) {
-	used := make(map[netip.Addr]struct{})
-
-	// From DB
-	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
-	if err != nil {
-		return nil, err
-	}
-	for _, p := range peers {
-		if p == nil {
-			continue
-		}
-		cidr := strings.TrimSpace(p.ClientIP)
-		if cidr == "" {
-			continue
-		}
-		pr, err := netip.ParsePrefix(cidr)
-		if err != nil {
-			continue
-		}
-		if pr.Addr().Is4() && prefix.Contains(pr.Addr()) {
-			used[pr.Addr()] = struct{}{}
-		}
-	}
-
-	// From existing config file (including non-managed blocks)
-	for _, raw := range wgfile.ExtractAllowedIPs(serverConf) {
-		for _, cidr := range splitCSV(raw) {
-			pr, err := netip.ParsePrefix(cidr)
-			if err != nil {
-				continue
-			}
-			if pr.Addr().Is4() && prefix.Contains(pr.Addr()) {
-				used[pr.Addr()] = struct{}{}
-			}
-		}
-	}
-
-	return used, nil
-}
-
-func allocateIPv4(prefix netip.Prefix, serverIP netip.Addr, used map[netip.Addr]struct{}) (netip.Addr, error) {
-	// Iterate hosts in prefix. For typical /24 this is fine.
-	start := prefix.Masked().Addr()
-	last := lastIPv4(prefix)
-	for ip := start; prefix.Contains(ip); ip = ip.Next() {
-		if !ip.Is4() {
-			continue
-		}
-		// skip network addr
-		if ip == start {
-			continue
-		}
-		// skip broadcast addr
-		if ip == last {
-			continue
-		}
-		// skip server ip
-		if ip == serverIP {
-			continue
-		}
-		if _, ok := used[ip]; ok {
-			continue
-		}
-		return ip, nil
-	}
-	return netip.Addr{}, fmt.Errorf("no available ip")
-}
-
-func lastIPv4(prefix netip.Prefix) netip.Addr {
-	p := prefix.Masked()
-	if !p.Addr().Is4() {
-		return netip.Addr{}
-	}
-	base := p.Addr().As4()
-	ones := p.Bits()
-	hostBits := 32 - ones
-	var n uint32
-	n |= uint32(base[0]) << 24
-	n |= uint32(base[1]) << 16
-	n |= uint32(base[2]) << 8
-	n |= uint32(base[3])
-	if hostBits >= 32 {
-		n |= ^uint32(0)
-	} else if hostBits > 0 {
-		n |= (uint32(1) << hostBits) - 1
-	}
-	b0 := byte(n >> 24)
-	b1 := byte(n >> 16)
-	b2 := byte(n >> 8)
-	b3 := byte(n)
-	return netip.AddrFrom4([4]byte{b0, b1, b2, b3})
 }
 
 func wgGenKey(ctx context.Context) (string, error) {

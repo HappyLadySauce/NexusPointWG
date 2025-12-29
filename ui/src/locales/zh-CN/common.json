@@ -41,11 +41,17 @@
         "revoke": "撤销",
         "confirmRotate": "确定要重新生成密钥吗？客户端将需要重新下载配置。",
         "confirmRevoke": "确定要撤销此配置吗？客户端将无法连接。",
+        "endpoint": "Endpoint",
+        "privateKey": "PrivateKey",
         "tip": {
-            "allowedIPs": "可选，覆盖服务器默认配置。例如：10.10.0.0/24"
+            "allowedIPs": "可选，覆盖服务器默认配置。例如：10.10.0.0/24",
+            "endpoint": "可选，覆盖配置文件中的默认 endpoint。例如：127.0.0.1:51820",
+            "privateKey": "可选，如果留空将自动生成。WireGuard 私钥（base64 编码）"
         },
         "placeholder": {
-            "username": "请输入用户名"
+            "username": "请输入用户名",
+            "endpoint": "例如：127.0.0.1:51820",
+            "privateKey": "留空将自动生成"
         },
         "keepalive": "PersistentKeepalive (秒)"
     },
@@ -158,6 +164,8 @@
         "urlsafe": "只能包含字母、数字、下划线和连字符",
         "nochinese": "不能包含中文字符",
         "emaildomain": "邮箱仅支持常见邮箱域名（{{domains}}）",
+        "cidr": "必须是有效的 CIDR 格式（例如：100.100.100.0/24）",
+        "endpoint": "必须是有效的 Endpoint 格式（例如：127.0.0.1:51820）",
         "invalid": "校验失败（{{tag}}）"
     }
 }

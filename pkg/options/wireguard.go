@@ -56,6 +56,9 @@ func (o *WireGuardOptions) Validate() []error {
 	if strings.TrimSpace(o.Interface) == "" {
 		errs = append(errs, fmt.Errorf("wireguard.interface is required"))
 	}
+	if strings.TrimSpace(o.Endpoint) == "" {
+		errs = append(errs, fmt.Errorf("wireguard.endpoint is required"))
+	}
 	switch strings.ToLower(strings.TrimSpace(o.ApplyMethod)) {
 	case "", "systemctl":
 		// default

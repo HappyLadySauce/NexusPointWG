@@ -1,8 +1,10 @@
 package validator
 
 import (
+	"net/netip"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin/binding"
@@ -49,6 +51,16 @@ func RegisterCustomValidators(v *v10.Validate) error {
 
 	// Register emaildomain validator: only allows common email provider domains
 	if err := v.RegisterValidation("emaildomain", validateEmailDomain); err != nil {
+		return err
+	}
+
+	// Register cidr validator: validates CIDR format (supports comma-separated multiple CIDRs)
+	if err := v.RegisterValidation("cidr", validateCIDR); err != nil {
+		return err
+	}
+
+	// Register endpoint validator: validates Endpoint format (host:port)
+	if err := v.RegisterValidation("endpoint", validateEndpoint); err != nil {
 		return err
 	}
 
@@ -132,4 +144,58 @@ func IsURLSafe(s string) bool {
 	encoded := url.PathEscape(s)
 	// If encoding changes the string, it contains unsafe characters
 	return encoded == s || len(encoded) == len(s)
+}
+
+// validateCIDR 验证 CIDR 格式（支持逗号分隔的多个 CIDR）
+func validateCIDR(fl v10.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "" {
+		return true // empty values are handled by required tag
+	}
+
+	// 支持逗号分隔的多个 CIDR
+	parts := strings.Split(value, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		_, err := netip.ParsePrefix(part)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// validateEndpoint 验证 Endpoint 格式（host:port）
+func validateEndpoint(fl v10.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "" {
+		return true // empty values are handled by required tag
+	}
+
+	// 格式：host:port
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 {
+		return false
+	}
+
+	host := strings.TrimSpace(parts[0])
+	port := strings.TrimSpace(parts[1])
+
+	if host == "" || port == "" {
+		return false
+	}
+
+	// 验证端口号
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return false
+	}
+	if portNum < 1 || portNum > 65535 {
+		return false
+	}
+
+	return true
 }

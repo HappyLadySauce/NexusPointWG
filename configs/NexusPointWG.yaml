@@ -9,3 +9,11 @@ logs:
     log-compress: ${NEXUS_POINT_WG_LOGS_LOG_COMPRESS}
 sqlite:
     data-source-name: ${NEXUS_POINT_WG_SQLITE_DATA_SOURCE_NAME}
+wireguard:
+    root-dir: ${NEXUS_POINT_WG_WIREGUARD_ROOT_DIR:-/etc/wireguard}
+    interface: ${NEXUS_POINT_WG_WIREGUARD_INTERFACE:-wg0}
+    user-dir: ${NEXUS_POINT_WG_WIREGUARD_USER_DIR:-user}
+    endpoint: ${NEXUS_POINT_WG_WIREGUARD_ENDPOINT}
+    dns: ${NEXUS_POINT_WG_WIREGUARD_DNS:-}
+    default-allowed-ips: ${NEXUS_POINT_WG_WIREGUARD_DEFAULT_ALLOWED_IPS:-0.0.0.0/0,::/0}
+    apply-method: ${NEXUS_POINT_WG_WIREGUARD_APPLY_METHOD:-systemctl}

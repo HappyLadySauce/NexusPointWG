@@ -22,6 +22,8 @@ export interface CreateWGPeerRequest {
     deviceName: string;
     allowedIPs?: string;
     persistentKeepalive?: number;
+    endpoint?: string;
+    privateKey?: string;
 }
 
 export interface UpdateWGPeerRequest {

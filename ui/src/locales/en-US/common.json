@@ -41,11 +41,17 @@
         "revoke": "Revoke",
         "confirmRotate": "Are you sure to rotate key? Client will need to re-download config.",
         "confirmRevoke": "Are you sure to revoke this config? Client will lose access.",
+        "endpoint": "Endpoint",
+        "privateKey": "PrivateKey",
         "tip": {
-            "allowedIPs": "Optional, overrides server default. e.g. 10.10.0.0/24"
+            "allowedIPs": "Optional, overrides server default. e.g. 10.10.0.0/24",
+            "endpoint": "Optional, overrides default endpoint from config. e.g. 127.0.0.1:51820",
+            "privateKey": "Optional, will be auto-generated if left empty. WireGuard private key (base64 encoded)"
         },
         "placeholder": {
-            "username": "Enter username"
+            "username": "Enter username",
+            "endpoint": "e.g. 127.0.0.1:51820",
+            "privateKey": "Leave empty to auto-generate"
         },
         "keepalive": "PersistentKeepalive (seconds)"
     },
@@ -158,6 +164,8 @@
         "urlsafe": "must contain only letters, numbers, underscores, and hyphens",
         "nochinese": "must not contain Chinese characters",
         "emaildomain": "must use a common email provider domain ({{domains}})",
+        "cidr": "must be a valid CIDR format (e.g., 100.100.100.0/24)",
+        "endpoint": "must be a valid Endpoint format (e.g., 127.0.0.1:51820)",
         "invalid": "validation failed ({{tag}})"
     }
 }

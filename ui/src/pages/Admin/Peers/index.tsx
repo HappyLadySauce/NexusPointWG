@@ -120,6 +120,12 @@ const Peers: React.FC = () => {
                 if (values.persistent_keepalive !== undefined && values.persistent_keepalive !== null) {
                     createData.persistentKeepalive = Number(values.persistent_keepalive);
                 }
+                if (values.endpoint) {
+                    createData.endpoint = values.endpoint;
+                }
+                if (values.private_key) {
+                    createData.privateKey = values.private_key;
+                }
                 await createPeer(createData);
             }
             message.success(t('common.success'));
@@ -127,8 +133,51 @@ const Peers: React.FC = () => {
             setEditingPeer(null);
             form.resetFields();
             fetchData();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+
+            // Handle validation errors with field-level messages
+            if (error?.response?.data?.details) {
+                const details = error.response.data.details;
+                // Show field-specific errors (supports backend validation token format: "validation.xxx|k=v")
+                Object.keys(details).forEach((field) => {
+                    const fieldName = field === 'allowedIPs' ? t('wg.allowedIPs') :
+                        field === 'endpoint' ? t('wg.endpoint') :
+                            field === 'privateKey' ? t('wg.privateKey') :
+                                field === 'deviceName' ? t('wg.device') :
+                                    field === 'username' ? t('user.username') :
+                                        field === 'persistentKeepalive' ? t('wg.keepalive') : field;
+
+                    const rawMsg: string = details[field];
+                    if (typeof rawMsg === 'string' && rawMsg.startsWith('validation.')) {
+                        const [key, ...kvPairs] = rawMsg.split('|');
+                        const params: Record<string, string> = {};
+                        kvPairs.forEach((pair) => {
+                            const idx = pair.indexOf('=');
+                            if (idx === -1) return;
+                            const k = pair.slice(0, idx).trim();
+                            const v = pair.slice(idx + 1).trim();
+                            if (k) params[k] = v;
+                        });
+                        message.error(`${fieldName}: ${t(key as any, params as any)}`);
+                        // Set form field error
+                        const formFieldName = field === 'allowedIPs' ? 'allowed_ips' :
+                            field === 'deviceName' ? 'device_name' :
+                                field === 'privateKey' ? 'private_key' :
+                                    field === 'persistentKeepalive' ? 'persistent_keepalive' : field;
+                        form.setFields([{
+                            name: formFieldName,
+                            errors: [t(key as any, params as any)]
+                        }]);
+                        return;
+                    }
+
+                    // Fallback (legacy backend messages)
+                    message.error(`${fieldName}: ${rawMsg}`);
+                });
+            } else if (error?.response?.data?.message) {
+                message.error(error.response.data.message);
+            }
         }
     };
 
@@ -273,6 +322,27 @@ const Peers: React.FC = () => {
                     >
                         <InputNumber style={{ width: '100%' }} min={0} max={3600} step={1} precision={0} placeholder="25" />
                     </Form.Item>
+                    {!editingPeer && (
+                        <>
+                            <Form.Item
+                                name="endpoint"
+                                label={t('wg.endpoint')}
+                                tooltip={t('wg.tip.endpoint')}
+                            >
+                                <Input placeholder={t('wg.placeholder.endpoint')} />
+                            </Form.Item>
+                            <Form.Item
+                                name="private_key"
+                                label={t('wg.privateKey')}
+                                tooltip={t('wg.tip.privateKey')}
+                            >
+                                <Input.TextArea
+                                    rows={3}
+                                    placeholder={t('wg.placeholder.privateKey')}
+                                />
+                            </Form.Item>
+                        </>
+                    )}
                     {editingPeer && (
                         <Form.Item
                             name="status"
