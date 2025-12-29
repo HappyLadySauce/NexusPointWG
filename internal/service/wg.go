@@ -43,13 +43,13 @@ type WGSrv interface {
 }
 
 type wgSrv struct {
-	storeSvc *service
+	store store.Factory
 }
 
 var _ WGSrv = (*wgSrv)(nil)
 
 func newWG(s *service) *wgSrv {
-	return &wgSrv{storeSvc: s}
+	return &wgSrv{store: s.store}
 }
 
 func (w *wgSrv) SyncServerConfig(ctx context.Context) error {
@@ -114,7 +114,7 @@ func (w *wgSrv) syncServerConfigUnlocked(ctx context.Context) error {
 
 func (w *wgSrv) loadAllPeers(ctx context.Context) ([]*model.WGPeer, error) {
 	// Load all peers; filter disabled at render stage.
-	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{
+	peers, _, err := w.store.WGPeers().List(ctx, store.WGPeerListOptions{
 		Offset: 0,
 		Limit:  10000,
 	})

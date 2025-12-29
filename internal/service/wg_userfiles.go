@@ -47,7 +47,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 	defer func() { _ = lock.Release() }()
 
-	owner, err := w.storeSvc.store.Users().GetUserByUsername(ctx, req.Username)
+	owner, err := w.store.Users().GetUserByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 
 	// Collect used IPs from database
-	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
+	peers, _, err := w.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 	}
 
 	// 2) Store peer (source of truth)
-	if err := w.storeSvc.store.WGPeers().Create(ctx, peer); err != nil {
+	if err := w.store.WGPeers().Create(ctx, peer); err != nil {
 		// best-effort cleanup of derived artifacts
 		_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), owner.Username, peer.ID))
 		return nil, err
@@ -192,14 +192,14 @@ func (w *wgSrv) AdminCreatePeer(ctx context.Context, req v1.CreateWGPeerRequest)
 }
 
 func (w *wgSrv) UserDownloadConfig(ctx context.Context, userID, peerID string) (string, []byte, error) {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
+	peer, err := w.store.WGPeers().Get(ctx, peerID)
 	if err != nil {
 		return "", nil, err
 	}
 	if peer.UserID != userID {
 		return "", nil, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied))
 	}
-	user, err := w.storeSvc.store.Users().GetUser(ctx, userID)
+	user, err := w.store.Users().GetUser(ctx, userID)
 	if err != nil {
 		return "", nil, err
 	}
@@ -217,7 +217,7 @@ func (w *wgSrv) UserDownloadConfig(ctx context.Context, userID, peerID string) (
 }
 
 func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) error {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
+	peer, err := w.store.WGPeers().Get(ctx, peerID)
 	if err != nil {
 		return err
 	}
@@ -253,13 +253,13 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 		return err
 	}
 
-	user, err := w.storeSvc.store.Users().GetUser(ctx, userID)
+	user, err := w.store.Users().GetUser(ctx, userID)
 	if err != nil {
 		return err
 	}
 
 	peer.ClientPublicKey = clientPub
-	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+	if err := w.store.WGPeers().Update(ctx, peer); err != nil {
 		return err
 	}
 	if err := w.writeUserFiles(ctx, user.Username, peer, clientPriv, serverPub, ifaceCfg.MTU, cfg.WireGuard.Endpoint); err != nil {
@@ -270,7 +270,7 @@ func (w *wgSrv) UserRotateConfig(ctx context.Context, userID, peerID string) err
 }
 
 func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req v1.UserUpdateConfigRequest) error {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
+	peer, err := w.store.WGPeers().Get(ctx, peerID)
 	if err != nil {
 		return err
 	}
@@ -312,13 +312,13 @@ func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req
 	}
 
 	// Save to database
-	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+	if err := w.store.WGPeers().Update(ctx, peer); err != nil {
 		return err
 	}
 
 	// Regenerate user files if needed
 	if regenerateUserFiles {
-		user, uErr := w.storeSvc.store.Users().GetUser(ctx, userID)
+		user, uErr := w.store.Users().GetUser(ctx, userID)
 		if uErr != nil {
 			return uErr
 		}
@@ -364,7 +364,7 @@ func (w *wgSrv) UserUpdateConfig(ctx context.Context, userID, peerID string, req
 }
 
 func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) error {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, peerID)
+	peer, err := w.store.WGPeers().Get(ctx, peerID)
 	if err != nil {
 		return err
 	}
@@ -381,12 +381,12 @@ func (w *wgSrv) UserRevokeConfig(ctx context.Context, userID, peerID string) err
 	defer func() { _ = lock.Release() }()
 
 	// Delete database record (hard delete)
-	if err := w.storeSvc.store.WGPeers().Delete(ctx, peerID); err != nil {
+	if err := w.store.WGPeers().Delete(ctx, peerID); err != nil {
 		return err
 	}
 
 	// Delete configuration files (hard delete)
-	user, uErr := w.storeSvc.store.Users().GetUser(ctx, userID)
+	user, uErr := w.store.Users().GetUser(ctx, userID)
 	if uErr == nil {
 		_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peerID))
 	}

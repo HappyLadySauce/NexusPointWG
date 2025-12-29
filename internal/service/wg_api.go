@@ -20,11 +20,11 @@ import (
 )
 
 func (w *wgSrv) AdminListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error) {
-	return w.storeSvc.store.WGPeers().List(ctx, opt)
+	return w.store.WGPeers().List(ctx, opt)
 }
 
 func (w *wgSrv) AdminGetPeer(ctx context.Context, id string) (*model.WGPeer, error) {
-	return w.storeSvc.store.WGPeers().Get(ctx, id)
+	return w.store.WGPeers().Get(ctx, id)
 }
 
 // validateClientIPUpdate 验证 ClientIP 更新是否有效
@@ -86,7 +86,7 @@ func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, 
 	}
 
 	// 3. 收集已使用的 IP（排除当前 peer）
-	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
+	peers, _, err := w.store.WGPeers().List(ctx, store.WGPeerListOptions{Limit: 10000})
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (w *wgSrv) validateClientIPUpdate(ctx context.Context, newClientIP string, 
 }
 
 func (w *wgSrv) AdminUpdatePeer(ctx context.Context, id string, req v1.UpdateWGPeerRequest) (*model.WGPeer, error) {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, id)
+	peer, err := w.store.WGPeers().Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (w *wgSrv) AdminUpdatePeer(ctx context.Context, id string, req v1.UpdateWGP
 	}
 
 	// Save to database
-	if err := w.storeSvc.store.WGPeers().Update(ctx, peer); err != nil {
+	if err := w.store.WGPeers().Update(ctx, peer); err != nil {
 		return nil, err
 	}
 
@@ -187,7 +187,7 @@ func (w *wgSrv) AdminUpdatePeer(ctx context.Context, id string, req v1.UpdateWGP
 	if regenerateUserFiles {
 		cfg := config.Get()
 		if cfg != nil && cfg.WireGuard != nil {
-			user, uErr := w.storeSvc.store.Users().GetUser(ctx, peer.UserID)
+			user, uErr := w.store.Users().GetUser(ctx, peer.UserID)
 			if uErr == nil {
 				// Read server config to get server public key and MTU
 				serverConfPath := cfg.WireGuard.ServerConfigPath()
@@ -238,20 +238,20 @@ func (w *wgSrv) AdminUpdatePeer(ctx context.Context, id string, req v1.UpdateWGP
 }
 
 func (w *wgSrv) AdminRevokePeer(ctx context.Context, id string) error {
-	peer, err := w.storeSvc.store.WGPeers().Get(ctx, id)
+	peer, err := w.store.WGPeers().Get(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	// Delete database record (hard delete)
-	if err := w.storeSvc.store.WGPeers().Delete(ctx, id); err != nil {
+	if err := w.store.WGPeers().Delete(ctx, id); err != nil {
 		return err
 	}
 
 	// Delete configuration files (hard delete)
 	cfg := config.Get()
 	if cfg != nil && cfg.WireGuard != nil {
-		user, uErr := w.storeSvc.store.Users().GetUser(ctx, peer.UserID)
+		user, uErr := w.store.Users().GetUser(ctx, peer.UserID)
 		if uErr == nil {
 			_ = os.RemoveAll(filepath.Join(cfg.WireGuard.ResolvedUserDir(), user.Username, peer.ID))
 		}
@@ -266,7 +266,7 @@ func (w *wgSrv) AdminRevokePeer(ctx context.Context, id string) error {
 }
 
 func (w *wgSrv) UserListPeers(ctx context.Context, userID string) ([]*model.WGPeer, error) {
-	peers, _, err := w.storeSvc.store.WGPeers().List(ctx, store.WGPeerListOptions{
+	peers, _, err := w.store.WGPeers().List(ctx, store.WGPeerListOptions{
 		UserID: userID,
 		Offset: 0,
 		Limit:  10000,
@@ -278,7 +278,7 @@ func (w *wgSrv) ToWGPeerResponse(ctx context.Context, peer *model.WGPeer) (*v1.W
 	if peer == nil {
 		return nil, errors.WithCode(code.ErrWGPeerNil, "")
 	}
-	user, err := w.storeSvc.store.Users().GetUser(ctx, peer.UserID)
+	user, err := w.store.Users().GetUser(ctx, peer.UserID)
 	if err != nil {
 		return nil, err
 	}
