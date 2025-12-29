@@ -1,11 +1,19 @@
 # Admin: full control on all supported resources (self/any scopes).
 p, admin, user:any, *
 p, admin, user:self, *
+p, admin, wg_peer:any, *
+p, admin, wg_peer:self, *
+p, admin, wg_config:any, *
+p, admin, wg_config:self, *
 
 # Regular user: self-scoped only.
 p, user, user:self, user:update_basic
 p, user, user:self, user:soft_delete
 p, user, user:self, user:change_password
+p, user, wg_peer:self, wg_peer:list
+p, user, wg_config:self, wg_config:download
+p, user, wg_config:self, wg_config:rotate
+p, user, wg_config:self, wg_config:revoke
 
 # Grouping policies:
 # If you choose to pass r.sub as a role string directly (recommended initially), g lines are not required.

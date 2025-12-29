@@ -15,6 +15,7 @@ type Options struct {
 	Sqlite          *options.SqliteOptions          `mapstructure:"sqlite"`
 	JWT             *options.JWTOptions             `mapstructure:"jwt"`
 	Log             *options.LogOptions             `mapstructure:"logs"`
+	WireGuard       *options.WireGuardOptions       `mapstructure:"wireguard"`
 }
 
 func NewOptions() *Options {
@@ -23,6 +24,7 @@ func NewOptions() *Options {
 		Sqlite:          options.NewSqliteOptions(),
 		JWT:             options.NewJWTOptions(),
 		Log:             options.NewLogOptions(),
+		WireGuard:       options.NewWireGuardOptions(),
 	}
 }
 
@@ -49,6 +51,10 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) *flag.NamedFlagSets {
 	// add JWT flags
 	jwtFS := nfs.FlagSet("JWT")
 	o.JWT.AddFlags(jwtFS)
+
+	// add WireGuard flags
+	wgFS := nfs.FlagSet("WireGuard")
+	o.WireGuard.AddFlags(wgFS)
 
 	// add the flags to the main Command
 	for _, name := range nfs.Order {

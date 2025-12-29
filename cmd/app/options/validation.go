@@ -7,6 +7,7 @@ func (o *Options) Validate() []error {
 	errs = append(errs, o.Log.Validate()...)
 	errs = append(errs, o.Sqlite.Validate()...)
 	errs = append(errs, o.JWT.Validate()...)
+	errs = append(errs, o.WireGuard.Validate()...)
 
 	return errs
 }

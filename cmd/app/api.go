@@ -18,6 +18,7 @@ import (
 
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
+	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/wg"
 )
 
 const (
@@ -81,6 +82,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		Sqlite:          opts.Sqlite,
 		Log:             opts.Log,
 		JWT:             opts.JWT,
+		WireGuard:       opts.WireGuard,
 	})
 
 	serve(opts)

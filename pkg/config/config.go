@@ -13,6 +13,7 @@ type Config struct {
 	Sqlite          *options.SqliteOptions
 	Log             *options.LogOptions
 	JWT             *options.JWTOptions
+	WireGuard       *options.WireGuardOptions
 }
 
 var (
