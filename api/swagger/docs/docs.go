@@ -444,6 +444,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/wg/configs/{id}": {
+            "put": {
+                "description": "User can update AllowedIPs, DNS, PersistentKeepalive, Endpoint. Cannot update PrivateKey, DeviceName, Status, ClientIP.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wg"
+                ],
+                "summary": "Update WireGuard config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update config payload",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.UserUpdateConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Config updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/core.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input or forbidden fields",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/wg/configs/{id}/download": {
             "get": {
                 "produces": [
@@ -516,7 +581,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Revoked successfully",
+                        "description": "Deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/core.SuccessResponse"
                         }
@@ -619,7 +684,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by status (active/revoked)",
+                        "description": "Filter by status (active/disabled)",
                         "name": "status",
                         "in": "query"
                     },
@@ -858,7 +923,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Peer revoked successfully",
+                        "description": "Peer deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/core.SuccessResponse"
                         }
@@ -1006,6 +1071,11 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 1
                 },
+                "dns": {
+                    "description": "DNS optionally overrides the default DNS from config.",
+                    "type": "string",
+                    "maxLength": 255
+                },
                 "endpoint": {
                     "description": "Endpoint optionally overrides the default endpoint from config.",
                     "type": "string",
@@ -1112,16 +1182,39 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 512
                 },
+                "clientIP": {
+                    "description": "ClientIP is the client IP address in CIDR format (e.g., 100.100.100.5/32).",
+                    "type": "string"
+                },
+                "deviceName": {
+                    "description": "DeviceName is a human friendly device name.",
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 1
+                },
+                "dns": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "endpoint": {
+                    "description": "Endpoint optionally overrides the default endpoint from config.",
+                    "type": "string",
+                    "maxLength": 255
+                },
                 "persistentKeepalive": {
                     "type": "integer",
                     "maximum": 3600,
                     "minimum": 0
                 },
+                "privateKey": {
+                    "description": "PrivateKey is an optional client private key. If provided, public key will be auto-generated.",
+                    "type": "string"
+                },
                 "status": {
                     "type": "string",
                     "enum": [
                         "active",
-                        "revoked"
+                        "disabled"
                     ]
                 }
             }
@@ -1154,6 +1247,32 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.UserUpdateConfigRequest": {
+            "type": "object",
+            "properties": {
+                "allowedIPs": {
+                    "description": "AllowedIPs: IP ranges that the client is allowed to access.",
+                    "type": "string",
+                    "maxLength": 512
+                },
+                "dns": {
+                    "description": "DNS: DNS server address.",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "endpoint": {
+                    "description": "Endpoint: server endpoint address.",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "persistentKeepalive": {
+                    "description": "PersistentKeepalive: keepalive interval in seconds.",
+                    "type": "integer",
+                    "maximum": 3600,
+                    "minimum": 0
+                }
+            }
+        },
         "v1.WGPeerListResponse": {
             "type": "object",
             "properties": {
@@ -1181,6 +1300,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "device_name": {
+                    "type": "string"
+                },
+                "dns": {
                     "type": "string"
                 },
                 "id": {
