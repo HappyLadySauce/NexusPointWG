@@ -59,11 +59,6 @@ export function Login() {
                 required
               />
             </div>
-            <div className="bg-blue-50 p-3 rounded text-xs text-blue-700">
-                <p>Default credentials (Mock Mode):</p>
-                <p>Admin: admin / admin</p>
-                <p>User: user / user</p>
-            </div>
           </CardContent>
           <CardFooter>
             <Button className="w-full" type="submit" disabled={loading}>

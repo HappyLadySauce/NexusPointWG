@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, User } from "../services/api";
+import { api, UserResponse } from "../services/api";
 import {
   Table,
   TableBody,
@@ -13,14 +13,14 @@ import { toast } from "sonner";
 import { Shield, User as UserIcon } from "lucide-react";
 
 export function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsers = async () => {
         try {
-            const data = await api.users.list();
-            setUsers(data);
+            const response = await api.users.list();
+            setUsers(response.items || []);
         } catch (e) {
             toast.error("Failed to load users");
         } finally {
@@ -48,22 +48,21 @@ export function UsersPage() {
                     <TableCell colSpan={3} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
             ) : (
-                users.map((user) => (
-                <TableRow key={user.id}>
+                users.map((user, index) => (
+                <TableRow key={user.username || index}>
                     <TableCell className="font-medium flex items-center gap-2">
                         <div className="bg-slate-100 p-2 rounded-full">
                             <UserIcon className="h-4 w-4 text-slate-500" />
                         </div>
-                        {user.username}
+                        <div>
+                            <div>{user.username}</div>
+                            {user.nickname && user.nickname !== user.username && (
+                                <div className="text-xs text-muted-foreground">{user.nickname}</div>
+                            )}
+                        </div>
                     </TableCell>
                     <TableCell>
-                        {user.role === 'admin' ? (
-                            <Badge className="bg-purple-500 hover:bg-purple-600">
-                                <Shield className="w-3 h-3 mr-1" /> Admin
-                            </Badge>
-                        ) : (
-                            <Badge variant="secondary">User</Badge>
-                        )}
+                        <Badge variant="secondary">User</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                         <span className="text-emerald-600 text-sm font-medium">Active</span>

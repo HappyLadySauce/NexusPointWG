@@ -1,5 +1,7 @@
+import { Database } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { api, IPPool } from "../services/api";
+import { toast } from "sonner";
+import { Badge } from "../components/ui/badge";
 import {
   Table,
   TableBody,
@@ -8,24 +10,22 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { Progress } from "../components/ui/progress";
-import { toast } from "sonner";
-import { Database } from "lucide-react";
+import { api, IPPoolResponse } from "../services/api";
 
 export function IPPools() {
-  const [pools, setPools] = useState<IPPool[]>([]);
+  const [pools, setPools] = useState<IPPoolResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPools = async () => {
-        try {
-            const data = await api.wg.listIPPools();
-            setPools(data);
-        } catch (e) {
-            toast.error("Failed to load IP pools");
-        } finally {
-            setLoading(false);
-        }
+      try {
+        const response = await api.wg.listIPPools();
+        setPools(response.items || []);
+      } catch (e) {
+        toast.error("Failed to load IP pools");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchPools();
   }, []);
@@ -37,44 +37,59 @@ export function IPPools() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Name</TableHead>
               <TableHead>CIDR</TableHead>
-              <TableHead>Usage</TableHead>
-              <TableHead>Available</TableHead>
-              <TableHead>Total</TableHead>
+              <TableHead>Server IP</TableHead>
+              <TableHead>Gateway</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-                 <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">Loading...</TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : pools.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  No IP pools found
+                </TableCell>
+              </TableRow>
             ) : (
-                pools.map((pool) => {
-                const percentage = (pool.used_ips / pool.total_ips) * 100;
-                return (
-                    <TableRow key={pool.id}>
-                    <TableCell className="font-medium flex items-center gap-2">
-                         <Database className="h-4 w-4 text-blue-500" />
-                        {pool.cidr}
-                    </TableCell>
-                    <TableCell className="w-[300px]">
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>{percentage.toFixed(1)}% Used</span>
-                                <span>{pool.used_ips} IPs</span>
-                            </div>
-                            <Progress value={percentage} className="h-2" />
-                        </div>
-                    </TableCell>
-                    <TableCell>{pool.available_ips}</TableCell>
-                    <TableCell>{pool.total_ips}</TableCell>
-                    </TableRow>
-                );
-                })
+              pools.map((pool) => (
+                <TableRow key={pool.id}>
+                  <TableCell className="font-medium flex items-center gap-2">
+                    <Database className="h-4 w-4 text-blue-500" />
+                    {pool.name}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">{pool.cidr}</TableCell>
+                  <TableCell className="font-mono text-sm">{pool.server_ip}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {pool.gateway || "N/A"}
+                  </TableCell>
+                  <TableCell>
+                    {pool.status === "active" ? (
+                      <Badge variant="default">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary">Disabled</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
       </div>
+      {pools.length > 0 && (
+        <div className="text-sm text-muted-foreground">
+          <p>
+            Total pools: {pools.length} | Active:{" "}
+            {pools.filter((p) => p.status === "active").length}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

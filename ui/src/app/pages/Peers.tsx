@@ -1,6 +1,27 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Download, Edit, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { api, Peer } from "../services/api";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -11,47 +32,26 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../components/ui/dialog";
-import { Badge } from "../components/ui/badge";
-import { Download, MoreHorizontal, Plus, Search, Trash2, Edit } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { toast } from "sonner";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { api, CreateWGPeerRequest, WGPeerResponse } from "../services/api";
 
 const peerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  device_name: z.string().min(1, "Device name is required"),
 });
 
 export function Peers() {
-  const [peers, setPeers] = useState<Peer[]>([]);
+  const [peers, setPeers] = useState<WGPeerResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ name: string }>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ device_name: string }>({
     resolver: zodResolver(peerSchema),
   });
 
   const fetchPeers = async () => {
     try {
-      const data = await api.wg.listPeers();
-      setPeers(data);
+      const response = await api.wg.listPeers();
+      setPeers(response.items || []);
     } catch (error) {
       toast.error("Failed to fetch peers");
     } finally {
@@ -63,9 +63,12 @@ export function Peers() {
     fetchPeers();
   }, []);
 
-  const onSubmit = async (data: { name: string }) => {
+  const onSubmit = async (data: { device_name: string }) => {
     try {
-      await api.wg.createPeer(data);
+      const request: CreateWGPeerRequest = {
+        device_name: data.device_name,
+      };
+      await api.wg.createPeer(request);
       toast.success("Peer created successfully");
       setIsCreateOpen(false);
       reset();
@@ -88,39 +91,40 @@ export function Peers() {
   };
 
   const handleDownloadConfig = async (id: string) => {
-      try {
-        toast.info("Downloading configuration...");
-        const configText = await api.wg.downloadConfig(id);
-        
-        // Find peer to create a good filename
-        const peer = peers.find(p => p.id === id);
-        const filename = peer 
-            ? `${peer.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.conf` 
-            : `wg-peer-${id}.conf`;
+    try {
+      toast.info("Downloading configuration...");
+      const configText = await api.wg.downloadConfig(id);
 
-        const blob = new Blob([configText], { type: "text/plain" });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        toast.success("Config downloaded successfully");
-      } catch (error) {
-          toast.error("Failed to download config");
-          console.error(error);
-      }
+      // Find peer to create a good filename
+      const peer = peers.find(p => p.id === id);
+      const filename = peer
+        ? `${peer.device_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.conf`
+        : `wg-peer-${id}.conf`;
+
+      const blob = new Blob([configText], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Config downloaded successfully");
+    } catch (error) {
+      toast.error("Failed to download config");
+      console.error(error);
+    }
   };
 
-  const filteredPeers = peers.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.public_key.includes(search) ||
-    p.allowed_ips.some(ip => ip.includes(search))
+  const filteredPeers = peers.filter(p =>
+    p.device_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.client_public_key.includes(search) ||
+    p.client_ip.includes(search) ||
+    p.allowed_ips.includes(search)
   );
 
   return (
@@ -142,9 +146,9 @@ export function Peers() {
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Device Name</Label>
-                <Input id="name" placeholder="e.g. My iPhone" {...register("name")} />
-                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                <Label htmlFor="device_name">Device Name</Label>
+                <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
+                {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
@@ -158,13 +162,13 @@ export function Peers() {
 
       <div className="flex items-center space-x-2">
         <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-                placeholder="Search peers..." 
-                className="pl-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-            />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search peers..."
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </div>
 
@@ -182,41 +186,38 @@ export function Peers() {
           </TableHeader>
           <TableBody>
             {loading ? (
-               <TableRow>
-                 <TableCell colSpan={6} className="text-center py-8">Loading peers...</TableCell>
-               </TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">Loading peers...</TableCell>
+              </TableRow>
             ) : filteredPeers.length === 0 ? (
-                <TableRow>
-                 <TableCell colSpan={6} className="text-center py-8">No peers found.</TableCell>
-               </TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">No peers found.</TableCell>
+              </TableRow>
             ) : (
               filteredPeers.map((peer) => (
                 <TableRow key={peer.id}>
                   <TableCell className="font-medium">
                     <div className="flex flex-col">
-                        <span>{peer.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono">{peer.public_key.substring(0, 10)}...</span>
+                      <span>{peer.device_name}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{peer.client_public_key.substring(0, 10)}...</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                      {peer.allowed_ips.map(ip => (
-                          <div key={ip} className="text-sm">{ip}</div>
-                      ))}
+                    <div className="text-sm">{peer.client_ip}</div>
+                    {peer.allowed_ips && (
+                      <div className="text-xs text-muted-foreground">{peer.allowed_ips}</div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{peer.endpoint || "N/A"}</TableCell>
                   <TableCell>
-                      {peer.latest_handshake ? (
-                          <span title={peer.latest_handshake}>{new Date(peer.latest_handshake).toLocaleString()}</span>
-                      ) : (
-                          <span className="text-muted-foreground">Never</span>
-                      )}
+                    <span className="text-muted-foreground">N/A</span>
                   </TableCell>
                   <TableCell>
-                      {peer.status === 'active' ? (
-                           <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
-                      ) : (
-                           <Badge variant="secondary">Inactive</Badge>
-                      )}
+                    {peer.status === 'active' ? (
+                      <Badge variant="default">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary">Inactive</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
