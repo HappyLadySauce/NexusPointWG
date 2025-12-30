@@ -8,10 +8,12 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/local"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	ipalloc "github.com/HappyLadySauce/NexusPointWG/internal/pkg/ipalloc"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	wgfile "github.com/HappyLadySauce/NexusPointWG/internal/pkg/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/errors"
+	"k8s.io/klog/v2"
 )
 
 // extractServerInfo extracts server information from the server configuration.
@@ -44,21 +46,76 @@ func (w *wgSrv) extractServerInfo(ctx context.Context) (publicKey, serverIP, mtu
 	// Extract MTU
 	mtu = strings.TrimSpace(serverConfig.Interface.MTU)
 
-	// Extract Address and parse it to get server IP and allocation prefix
+	// Extract Address to get server IP
 	address := strings.TrimSpace(serverConfig.Interface.Address)
 	if address == "" {
 		return "", "", "", netip.Prefix{}, errors.WithCode(code.ErrWGServerAddressInvalid, "server config has no Address")
 	}
 
-	prefix, err := netip.ParsePrefix(address)
+	addressPrefix, err := netip.ParsePrefix(address)
 	if err != nil {
 		return "", "", "", netip.Prefix{}, errors.WithCode(code.ErrWGServerAddressInvalid, "invalid Address format: %v", err)
 	}
 
-	// Server IP is the first IP in the prefix
-	serverIP = prefix.Addr().String()
+	// Server IP is the first IP in the address prefix
+	serverIP = addressPrefix.Addr().String()
 
-	return publicKey, serverIP, mtu, prefix, nil
+	// Extract allocation prefix from Peer AllowedIPs
+	// AllowedIPs in server config represents the network segments that the server can reach clients through
+	allocationPrefix, err = w.extractAllocationPrefix(serverConfig, addressPrefix)
+	if err != nil {
+		return "", "", "", netip.Prefix{}, err
+	}
+
+	return publicKey, serverIP, mtu, allocationPrefix, nil
+}
+
+// extractAllocationPrefix extracts the IPv4 allocation prefix from server configuration.
+// It first tries to extract from Peer AllowedIPs, then falls back to Interface.Address if it's large enough.
+func (w *wgSrv) extractAllocationPrefix(serverConfig *wgfile.ServerConfig, addressPrefix netip.Prefix) (netip.Prefix, error) {
+	// Strategy 1: Try to extract from Peer AllowedIPs
+	// Priority: non-managed peers first (manually configured, more reliable)
+	// Then managed peers if no non-managed peers exist
+	var nonManagedPeers []*wgfile.PeerBlock
+	var managedPeers []*wgfile.PeerBlock
+
+	for _, peer := range serverConfig.Peers {
+		if peer == nil {
+			continue
+		}
+		if !peer.IsManaged {
+			nonManagedPeers = append(nonManagedPeers, peer)
+		} else {
+			managedPeers = append(managedPeers, peer)
+		}
+	}
+
+	// Try non-managed peers first
+	peersToTry := append(nonManagedPeers, managedPeers...)
+	for _, peer := range peersToTry {
+		if peer.AllowedIPs == "" {
+			continue
+		}
+		prefix, err := ipalloc.ParseFirstV4PrefixFromAllowedIPs(peer.AllowedIPs)
+		if err != nil {
+			continue
+		}
+		// Check if prefix is large enough for allocation (bits < 30)
+		if prefix.Bits() < 30 {
+			klog.V(1).InfoS("extracted allocation prefix from peer AllowedIPs", "prefix", prefix, "peer_comment", peer.Comment)
+			return prefix, nil
+		}
+	}
+
+	// Strategy 2: Fall back to Interface.Address if it's large enough
+	if addressPrefix.Bits() < 30 {
+		klog.V(1).InfoS("using Interface.Address as allocation prefix", "prefix", addressPrefix)
+		return addressPrefix, nil
+	}
+
+	// Strategy 3: No suitable prefix found
+	return netip.Prefix{}, errors.WithCode(code.ErrWGIPv4PrefixNotFound,
+		"no suitable IPv4 prefix found for client IP allocation. Please ensure at least one Peer has AllowedIPs with an IPv4 prefix (e.g., 100.100.100.0/24) or configure Interface.Address with a prefix larger than /29")
 }
 
 // writeUserFiles writes user configuration files using structured rendering.
