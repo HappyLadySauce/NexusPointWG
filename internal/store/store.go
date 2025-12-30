@@ -7,7 +7,6 @@ var (
 // Factory defines the iam platform storage interface.
 type Factory interface {
 	Users() UserStore
-	WGPeers() WGPeerStore
 	Close() error
 }
 
