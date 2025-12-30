@@ -37,13 +37,32 @@ import { api, CreateUserRequest, UserResponse } from "../services/api";
 
 // Form schema for creating user
 const createUserSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters").max(32, "Username must be at most 32 characters"),
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(32, "Username must be at most 32 characters")
+    .refine((val) => /^[a-zA-Z0-9_-]+$/.test(val), {
+      message: "Username can only contain letters, numbers, underscores, and hyphens",
+    })
+    .refine((val) => !/[\u4e00-\u9fa5]/.test(val), {
+      message: "Username cannot contain Chinese characters",
+    }),
   nickname: z.string().max(32, "Nickname must be at most 32 characters").optional().or(z.literal("")),
-  email: z.string().email("Invalid email address"),
+  email: z.string()
+    .email("Invalid email address")
+    .max(255, "Email must be at most 255 characters")
+    .refine((val) => {
+      const allowedDomains = ["qq.com", "163.com", "gmail.com", "outlook.com"];
+      const parts = val.split("@");
+      if (parts.length !== 2) return false;
+      const domain = parts[1]?.toLowerCase();
+      return allowedDomains.includes(domain);
+    }, {
+      message: "Email must use one of the allowed domains: qq.com, 163.com, gmail.com, outlook.com",
+    }),
   password: z.string().min(8, "Password must be at least 8 characters").max(32, "Password must be at most 32 characters"),
   confirmPassword: z.string(),
   role: z.enum(["user", "admin"]).optional(),
-  status: z.enum(["active", "inactive", "deleted"]).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -95,11 +114,12 @@ export function UsersPage() {
       };
 
       // Only include role and status if user is admin
+      // Ensure status is never "deleted" when creating a user
       if (isAdmin) {
         if (data.role) {
           request.role = data.role;
         }
-        if (data.status) {
+        if (data.status && data.status !== "deleted") {
           request.status = data.status;
         }
       }
@@ -222,7 +242,7 @@ export function UsersPage() {
                       <Label htmlFor="status">Status</Label>
                       <Select
                         value={watch("status") || "active"}
-                        onValueChange={(value) => setValue("status", value as "active" | "inactive" | "deleted")}
+                        onValueChange={(value) => setValue("status", value as "active" | "inactive")}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -230,7 +250,6 @@ export function UsersPage() {
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="inactive">Inactive</SelectItem>
-                          <SelectItem value="deleted">Deleted</SelectItem>
                         </SelectContent>
                       </Select>
                       {errors.status && (
