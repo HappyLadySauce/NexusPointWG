@@ -5,9 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	"github.com/HappyLadySauce/NexusPointWG/internal/service"
+	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
+	"github.com/HappyLadySauce/errors"
 )
 
 // Keep swagger type references resolvable by swag.
@@ -32,16 +36,24 @@ func (w *WGController) ListMyConfigs(c *gin.Context) {
 		core.WriteResponse(c, err, nil)
 		return
 	}
-	peers, err := w.srv.WG().UserListPeers(context.Background(), userID)
+	peers, total, err := w.srv.WG().ListPeers(context.Background(), store.WGPeerListOptions{
+		UserID: userID,
+		Offset: 0,
+		Limit:  10000,
+	})
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
-	resp, err := w.srv.WG().ToWGPeerListResponse(context.Background(), peers, int64(len(peers)))
-	if err != nil {
-		core.WriteResponse(c, err, nil)
-		return
+
+	// Build user map for response mapping
+	userMap := make(map[string]string)
+	user, err := w.srv.Users().GetUser(context.Background(), userID)
+	if err == nil {
+		userMap[userID] = user.Username
 	}
+
+	resp := toWGPeerListResponse(peers, total, userMap)
 	core.WriteResponse(c, nil, resp)
 }
 
@@ -67,7 +79,18 @@ func (w *WGController) DownloadConfig(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	filename, content, err := w.srv.WG().UserDownloadConfig(context.Background(), userID, id)
+	// Verify ownership - service layer will handle this through GetPeer
+	peer, err := w.srv.WG().GetPeer(context.Background(), id)
+	if err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if peer.UserID != userID {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+		return
+	}
+
+	filename, content, err := w.srv.WG().DownloadConfig(context.Background(), id)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
@@ -84,6 +107,7 @@ func (w *WGController) DownloadConfig(c *gin.Context) {
 // @Success 200 {object} core.SuccessResponse "Rotated successfully"
 // @Failure 401 {object} core.ErrResponse "Unauthorized"
 // @Failure 403 {object} core.ErrResponse "Forbidden"
+// @Failure 404 {object} core.ErrResponse "Not found"
 // @Failure 500 {object} core.ErrResponse "Internal server error"
 // @Router /api/v1/wg/configs/{id}/rotate [post]
 func (w *WGController) RotateConfig(c *gin.Context) {
@@ -97,7 +121,18 @@ func (w *WGController) RotateConfig(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	if err := w.srv.WG().UserRotateConfig(context.Background(), userID, id); err != nil {
+	// Verify ownership
+	peer, err := w.srv.WG().GetPeer(context.Background(), id)
+	if err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if peer.UserID != userID {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+		return
+	}
+
+	if err := w.srv.WG().RotateConfig(context.Background(), id); err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
@@ -136,7 +171,27 @@ func (w *WGController) UpdateConfig(c *gin.Context) {
 	}
 
 	id := c.Param("id")
-	if err := w.srv.WG().UserUpdateConfig(context.Background(), userID, id, req); err != nil {
+	// Verify ownership
+	peer, err := w.srv.WG().GetPeer(context.Background(), id)
+	if err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if peer.UserID != userID {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+		return
+	}
+
+	// Convert UserUpdateConfigRequest to service layer params
+	params := service.UpdatePeerParams{
+		AllowedIPs:          req.AllowedIPs,
+		PersistentKeepalive: req.PersistentKeepalive,
+		DNS:                 req.DNS,
+		Endpoint:            req.Endpoint,
+		// Note: UserUpdateConfigRequest doesn't allow PrivateKey, DeviceName, Status, ClientIP
+	}
+
+	if _, err := w.srv.WG().UpdatePeer(context.Background(), id, params); err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
@@ -151,6 +206,7 @@ func (w *WGController) UpdateConfig(c *gin.Context) {
 // @Success 200 {object} core.SuccessResponse "Deleted successfully"
 // @Failure 401 {object} core.ErrResponse "Unauthorized"
 // @Failure 403 {object} core.ErrResponse "Forbidden"
+// @Failure 404 {object} core.ErrResponse "Not found"
 // @Failure 500 {object} core.ErrResponse "Internal server error"
 // @Router /api/v1/wg/configs/{id}/revoke [post]
 func (w *WGController) RevokeConfig(c *gin.Context) {
@@ -164,7 +220,18 @@ func (w *WGController) RevokeConfig(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	if err := w.srv.WG().UserRevokeConfig(context.Background(), userID, id); err != nil {
+	// Verify ownership
+	peer, err := w.srv.WG().GetPeer(context.Background(), id)
+	if err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if peer.UserID != userID {
+		core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+		return
+	}
+
+	if err := w.srv.WG().DeletePeer(context.Background(), id); err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}

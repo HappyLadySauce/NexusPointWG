@@ -14,3 +14,12 @@ type UserStore interface {
 	DeleteUser(ctx context.Context, id string) error
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*model.User, int64, error)
 }
+
+type UserListOptions struct {
+	Username string
+	Email    string
+	Role     string
+	Status   string
+	Offset   int
+	Limit    int
+}

@@ -9,6 +9,9 @@ const (
 	// ErrWGServerConfigNotFound - 500: Server WireGuard config not found or unreadable.
 	ErrWGServerConfigNotFound
 
+	// ErrWGServerConfigParseFailed - 500: Failed to parse server WireGuard config.
+	ErrWGServerConfigParseFailed
+
 	// ErrWGWriteServerConfigFailed - 500: Failed to write server WireGuard config.
 	ErrWGWriteServerConfigFailed
 

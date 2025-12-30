@@ -598,6 +598,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
@@ -640,6 +646,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -772,6 +784,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }

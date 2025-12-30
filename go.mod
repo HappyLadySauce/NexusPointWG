@@ -5,6 +5,7 @@ go 1.25.3
 require (
 	github.com/HappyLadySauce/errors v0.0.0-20251208053748-926a88042146
 	github.com/bwmarrin/snowflake v0.3.0
+	github.com/casbin/casbin/v3 v3.4.1
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0
@@ -34,7 +35,6 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/casbin/casbin/v3 v3.4.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect

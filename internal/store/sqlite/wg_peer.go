@@ -84,9 +84,6 @@ func (s *wgPeers) List(ctx context.Context, opt store.WGPeerListOptions) ([]*mod
 	if strings.TrimSpace(opt.DeviceName) != "" {
 		dbq = dbq.Where("device_name LIKE ?", "%"+opt.DeviceName+"%")
 	}
-	if strings.TrimSpace(opt.ClientIP) != "" {
-		dbq = dbq.Where("client_ip = ?", opt.ClientIP)
-	}
 	if strings.TrimSpace(opt.Status) != "" {
 		dbq = dbq.Where("status = ?", opt.Status)
 	}

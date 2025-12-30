@@ -9,6 +9,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	"github.com/HappyLadySauce/NexusPointWG/internal/service"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 )
@@ -38,10 +39,9 @@ func (w *WGController) ListPeers(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	peers, total, err := w.srv.WG().AdminListPeers(context.Background(), store.WGPeerListOptions{
+	peers, total, err := w.srv.WG().ListPeers(context.Background(), store.WGPeerListOptions{
 		UserID:     c.Query("user_id"),
 		DeviceName: c.Query("device_name"),
-		ClientIP:   c.Query("client_ip"),
 		Status:     c.Query("status"),
 		Offset:     offset,
 		Limit:      limit,
@@ -52,11 +52,21 @@ func (w *WGController) ListPeers(c *gin.Context) {
 		return
 	}
 
-	resp, err := w.srv.WG().ToWGPeerListResponse(context.Background(), peers, total)
-	if err != nil {
-		core.WriteResponse(c, err, nil)
-		return
+	// Build user map for response mapping
+	userMap := make(map[string]string)
+	for _, p := range peers {
+		if p != nil {
+			if _, ok := userMap[p.UserID]; !ok {
+				// Fetch user to get username
+				user, err := w.srv.Users().GetUser(context.Background(), p.UserID)
+				if err == nil {
+					userMap[p.UserID] = user.Username
+				}
+			}
+		}
 	}
+
+	resp := toWGPeerListResponse(peers, total, userMap)
 	core.WriteResponse(c, nil, resp)
 }
 
@@ -71,6 +81,7 @@ func (w *WGController) ListPeers(c *gin.Context) {
 // @Failure 400 {object} core.ErrResponse "Bad request"
 // @Failure 401 {object} core.ErrResponse "Unauthorized"
 // @Failure 403 {object} core.ErrResponse "Forbidden"
+// @Failure 404 {object} core.ErrResponse "User not found"
 // @Failure 500 {object} core.ErrResponse "Internal server error"
 // @Router /api/v1/wg/peers [post]
 func (w *WGController) CreatePeer(c *gin.Context) {
@@ -85,17 +96,31 @@ func (w *WGController) CreatePeer(c *gin.Context) {
 		return
 	}
 
-	peer, err := w.srv.WG().AdminCreatePeer(context.Background(), req)
+	// Convert v1 request to service layer params
+	params := service.CreatePeerParams{
+		Username:            req.Username,
+		DeviceName:          req.DeviceName,
+		AllowedIPs:          req.AllowedIPs,
+		PersistentKeepalive: req.PersistentKeepalive,
+		Endpoint:            req.Endpoint,
+		DNS:                 req.DNS,
+		PrivateKey:          req.PrivateKey,
+	}
+
+	peer, err := w.srv.WG().CreatePeer(context.Background(), params)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
 
-	resp, err := w.srv.WG().ToWGPeerResponse(context.Background(), peer)
+	// Get user for response mapping
+	user, err := w.srv.Users().GetUser(context.Background(), peer.UserID)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
+
+	resp := toWGPeerResponse(peer, user.Username)
 	core.WriteResponse(c, nil, resp)
 }
 
@@ -116,16 +141,20 @@ func (w *WGController) GetPeer(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	peer, err := w.srv.WG().AdminGetPeer(context.Background(), id)
+	peer, err := w.srv.WG().GetPeer(context.Background(), id)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
-	resp, err := w.srv.WG().ToWGPeerResponse(context.Background(), peer)
+
+	// Get user for response mapping
+	user, err := w.srv.Users().GetUser(context.Background(), peer.UserID)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
+
+	resp := toWGPeerResponse(peer, user.Username)
 	core.WriteResponse(c, nil, resp)
 }
 
@@ -156,16 +185,32 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 	}
 	id := c.Param("id")
 
-	peer, err := w.srv.WG().AdminUpdatePeer(context.Background(), id, req)
+	// Convert v1 request to service layer params
+	params := service.UpdatePeerParams{
+		AllowedIPs:          req.AllowedIPs,
+		PersistentKeepalive: req.PersistentKeepalive,
+		DNS:                 req.DNS,
+		Status:              req.Status,
+		PrivateKey:          req.PrivateKey,
+		Endpoint:            req.Endpoint,
+		DeviceName:          req.DeviceName,
+		ClientIP:            req.ClientIP,
+	}
+
+	peer, err := w.srv.WG().UpdatePeer(context.Background(), id, params)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
-	resp, err := w.srv.WG().ToWGPeerResponse(context.Background(), peer)
+
+	// Get user for response mapping
+	user, err := w.srv.Users().GetUser(context.Background(), peer.UserID)
 	if err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}
+
+	resp := toWGPeerResponse(peer, user.Username)
 	core.WriteResponse(c, nil, resp)
 }
 
@@ -186,7 +231,7 @@ func (w *WGController) DeletePeer(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	if err := w.srv.WG().AdminRevokePeer(context.Background(), id); err != nil {
+	if err := w.srv.WG().DeletePeer(context.Background(), id); err != nil {
 		core.WriteResponse(c, err, nil)
 		return
 	}

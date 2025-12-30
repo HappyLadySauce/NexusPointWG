@@ -19,7 +19,6 @@ type WGPeerStore interface {
 type WGPeerListOptions struct {
 	UserID     string
 	DeviceName string
-	ClientIP   string
 	Status     string
 
 	// Pagination

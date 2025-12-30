@@ -7,6 +7,7 @@ func init() {
 	register(ErrUserNotActive, 403, "User account is not active")
 	register(ErrWGPeerNotFound, 404, "WireGuard peer not found")
 	register(ErrWGServerConfigNotFound, 500, "WireGuard server config not found")
+	register(ErrWGServerConfigParseFailed, 500, "Failed to parse WireGuard server config")
 	register(ErrWGWriteServerConfigFailed, 500, "Failed to write WireGuard server config")
 	register(ErrWGApplyFailed, 500, "Failed to apply WireGuard configuration")
 	register(ErrIPNotIPv4, 400, "IP is not IPv4")
