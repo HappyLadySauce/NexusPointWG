@@ -64,6 +64,11 @@ func RegisterCustomValidators(v *v10.Validate) error {
 		return err
 	}
 
+	// Register ipv4 validator: validates IPv4 address format (without CIDR)
+	if err := v.RegisterValidation("ipv4", validateIPv4); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -198,4 +203,21 @@ func validateEndpoint(fl v10.FieldLevel) bool {
 	}
 
 	return true
+}
+
+// validateIPv4 validates that the string is a valid IPv4 address (without CIDR notation).
+func validateIPv4(fl v10.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "" {
+		return true // empty values are handled by required tag
+	}
+
+	// Parse as IP address
+	ip, err := netip.ParseAddr(value)
+	if err != nil {
+		return false
+	}
+
+	// Check if it's IPv4
+	return ip.Is4()
 }

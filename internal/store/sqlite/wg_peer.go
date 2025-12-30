@@ -1,0 +1,120 @@
+package sqlite
+
+import (
+	"context"
+	"strings"
+
+	"gorm.io/gorm"
+
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
+	"github.com/HappyLadySauce/NexusPointWG/internal/store"
+	"github.com/HappyLadySauce/errors"
+)
+
+type wgPeers struct {
+	db *gorm.DB
+}
+
+func newWGPeers(ds *datastore) *wgPeers {
+	return &wgPeers{ds.db}
+}
+
+func (w *wgPeers) CreatePeer(ctx context.Context, peer *model.WGPeer) error {
+	err := w.db.WithContext(ctx).Create(peer).Error
+	if err != nil {
+		if isUniqueConstraintError(err) {
+			return errors.WithCode(code.ErrIPAlreadyInUse, "peer with this public key already exists")
+		}
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return nil
+}
+
+func (w *wgPeers) GetPeer(ctx context.Context, id string) (*model.WGPeer, error) {
+	var peer model.WGPeer
+	err := w.db.WithContext(ctx).Where("id = ?", id).First(&peer).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.WithCode(code.ErrWGPeerNotFound, "%s", err.Error())
+		}
+		return nil, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return &peer, nil
+}
+
+func (w *wgPeers) GetPeerByPublicKey(ctx context.Context, publicKey string) (*model.WGPeer, error) {
+	var peer model.WGPeer
+	err := w.db.WithContext(ctx).Where("client_public_key = ?", publicKey).First(&peer).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.WithCode(code.ErrWGPeerNotFound, "%s", err.Error())
+		}
+		return nil, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return &peer, nil
+}
+
+func (w *wgPeers) UpdatePeer(ctx context.Context, peer *model.WGPeer) error {
+	err := w.db.WithContext(ctx).Save(peer).Error
+	if err != nil {
+		if isUniqueConstraintError(err) {
+			return errors.WithCode(code.ErrIPAlreadyInUse, "peer with this public key already exists")
+		}
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return nil
+}
+
+func (w *wgPeers) DeletePeer(ctx context.Context, id string) error {
+	err := w.db.WithContext(ctx).Where("id = ?", id).Delete(&model.WGPeer{}).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // Idempotent delete
+		}
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return nil
+}
+
+func (w *wgPeers) ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error) {
+	var (
+		peers []*model.WGPeer
+		total int64
+	)
+
+	dbq := w.db.WithContext(ctx).Model(&model.WGPeer{})
+	if strings.TrimSpace(opt.UserID) != "" {
+		dbq = dbq.Where("user_id = ?", opt.UserID)
+	}
+	if strings.TrimSpace(opt.Status) != "" {
+		dbq = dbq.Where("status = ?", opt.Status)
+	}
+	if strings.TrimSpace(opt.IPPoolID) != "" {
+		dbq = dbq.Where("ip_pool_id = ?", opt.IPPoolID)
+	}
+	if strings.TrimSpace(opt.DeviceName) != "" {
+		dbq = dbq.Where("device_name LIKE ?", "%"+opt.DeviceName+"%")
+	}
+
+	if err := dbq.Count(&total).Error; err != nil {
+		return nil, 0, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+
+	limit := opt.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	offset := opt.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	if err := dbq.Order("created_at DESC").Offset(offset).Limit(limit).Find(&peers).Error; err != nil {
+		return nil, 0, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return peers, total, nil
+}

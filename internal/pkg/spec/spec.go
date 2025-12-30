@@ -8,6 +8,9 @@ type Resource string
 
 const (
 	ResourceUser     Resource = "user"
+	ResourceWGPeer   Resource = "wg_peer"
+	ResourceWGConfig Resource = "wg_config"
+	ResourceIPPool   Resource = "ip_pool"
 )
 
 // Scope represents ownership scope of a resource.
@@ -42,4 +45,34 @@ const (
 	ActionUserChangePassword Action = "user:change_password"
 	// List: list users (admin-only via policy)
 	ActionUserList Action = "user:list"
+
+	// ---- WireGuard peer ----
+	// Create: create a new WireGuard peer
+	ActionWGPeerCreate Action = "wg_peer:create"
+	// Update: update an existing WireGuard peer
+	ActionWGPeerUpdate Action = "wg_peer:update"
+	// Delete: delete a WireGuard peer
+	ActionWGPeerDelete Action = "wg_peer:delete"
+	// List: list WireGuard peers
+	ActionWGPeerList Action = "wg_peer:list"
+
+	// ---- WireGuard config ----
+	// Download: download WireGuard client configuration
+	ActionWGConfigDownload Action = "wg_config:download"
+	// Rotate: rotate WireGuard peer keys
+	ActionWGConfigRotate Action = "wg_config:rotate"
+	// Revoke: revoke WireGuard peer configuration
+	ActionWGConfigRevoke Action = "wg_config:revoke"
+	// Update: update WireGuard peer configuration
+	ActionWGConfigUpdate Action = "wg_config:update"
+
+	// ---- IP pool (admin-only) ----
+	// Create: create a new IP pool
+	ActionIPPoolCreate Action = "ip_pool:create"
+	// Update: update an existing IP pool
+	ActionIPPoolUpdate Action = "ip_pool:update"
+	// Delete: delete an IP pool
+	ActionIPPoolDelete Action = "ip_pool:delete"
+	// List: list IP pools
+	ActionIPPoolList Action = "ip_pool:list"
 )

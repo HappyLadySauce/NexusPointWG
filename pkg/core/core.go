@@ -97,6 +97,8 @@ func FormatValidationError(err error) map[string]string {
 				message = toToken("cidr", nil)
 			case "endpoint":
 				message = toToken("endpoint", nil)
+			case "ipv4":
+				message = toToken("ipv4", nil)
 			default:
 				message = toToken("invalid", map[string]string{"tag": fieldError.Tag()})
 			}

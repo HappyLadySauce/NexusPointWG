@@ -27,4 +27,53 @@ func init() {
 	register(ErrEncodingYaml, 500, "Server error: Yaml data could not be encoded")
 	register(ErrDecodingYaml, 500, "Server error: Yaml data could not be decoded")
 	register(ErrStoreNotInitialized, 500, "Server error: Store not initialized")
+
+	// WireGuard: basic errors
+	register(ErrWGPeerNotFound, 404, "WireGuard peer not found")
+	register(ErrWGServerConfigNotFound, 500, "WireGuard server configuration file not found")
+	register(ErrWGWriteServerConfigFailed, 500, "Failed to write WireGuard server configuration")
+	register(ErrWGApplyFailed, 500, "Failed to apply WireGuard configuration")
+
+	// WireGuard: IP address validation errors
+	register(ErrIPNotIPv4, 400, "IP address is not IPv4")
+	register(ErrIPOutOfRange, 400, "IP address is out of allocation prefix range")
+	register(ErrIPIsNetworkAddress, 400, "IP address is a network address")
+	register(ErrIPIsBroadcastAddress, 400, "IP address is a broadcast address")
+	register(ErrIPIsServerIP, 400, "IP address is the server IP")
+	register(ErrIPAlreadyInUse, 400, "IP address is already in use")
+
+	// WireGuard: configuration errors
+	register(ErrWGConfigNotInitialized, 500, "WireGuard configuration is not initialized")
+	register(ErrWGLockAcquireFailed, 500, "Failed to acquire WireGuard lock")
+	register(ErrWGServerPrivateKeyMissing, 500, "Server configuration missing Interface.PrivateKey")
+	register(ErrWGServerAddressInvalid, 400, "Invalid server interface address")
+	register(ErrWGAllowedIPsNotFound, 400, "AllowedIPs not found in server configuration")
+	register(ErrWGIPv4PrefixNotFound, 400, "No valid IPv4 prefix found")
+	register(ErrWGPrefixTooSmall, 400, "AllowedIPs prefix is too small to allocate client IP")
+	register(ErrWGEndpointRequired, 400, "WireGuard endpoint is required")
+	register(ErrWGIPAllocationFailed, 400, "IP address allocation failed")
+
+	// WireGuard: key errors
+	register(ErrWGPrivateKeyInvalid, 400, "Invalid WireGuard private key")
+	register(ErrWGKeyGenerationFailed, 500, "Failed to generate WireGuard key")
+	register(ErrWGPublicKeyGenerationFailed, 500, "Failed to generate public key from private key")
+
+	// WireGuard: file operation errors
+	register(ErrWGUserConfigNotFound, 404, "User WireGuard configuration not found")
+	register(ErrWGPrivateKeyReadFailed, 500, "Failed to read private key file")
+	register(ErrWGUserDirCreateFailed, 500, "Failed to create user directory")
+	register(ErrWGPrivateKeyWriteFailed, 500, "Failed to write private key file")
+	register(ErrWGPublicKeyWriteFailed, 500, "Failed to write public key file")
+	register(ErrWGConfigWriteFailed, 500, "Failed to write WireGuard configuration file")
+
+	// WireGuard: data errors
+	register(ErrWGPeerIDGenerationFailed, 500, "Failed to generate peer ID")
+	register(ErrWGPeerNil, 400, "Peer is nil")
+
+	// WireGuard: IP pool errors
+	register(ErrIPPoolNotFound, 404, "IP pool not found")
+	register(ErrIPPoolAlreadyExists, 400, "IP pool with the same CIDR already exists")
+	register(ErrIPPoolInvalidCIDR, 400, "Invalid CIDR format for IP pool")
+	register(ErrIPPoolInUse, 400, "IP pool is in use and cannot be deleted")
+	register(ErrIPPoolDisabled, 400, "IP pool is disabled")
 }

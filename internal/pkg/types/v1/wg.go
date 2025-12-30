@@ -1,0 +1,126 @@
+package v1
+
+// CreateWGPeerRequest represents a request to create a WireGuard peer.
+// swagger:model
+type CreateWGPeerRequest struct {
+	// UserID is the ID of the user who owns this peer (admin can specify, regular user uses their own ID)
+	UserID string `json:"user_id,omitempty" binding:"omitempty"`
+	// DeviceName is the name of the device (e.g., "My Laptop", "iPhone")
+	DeviceName string `json:"device_name" binding:"required,min=1,max=64"`
+	// ClientIP is the IP address to assign to the client (optional, will be auto-allocated if not provided)
+	// Format: IPv4 address without CIDR (e.g., "100.100.100.2")
+	ClientIP string `json:"client_ip,omitempty" binding:"omitempty,ipv4"`
+	// IPPoolID is the ID of the IP pool to allocate from (required if ClientIP is not provided)
+	IPPoolID string `json:"ip_pool_id,omitempty" binding:"omitempty"`
+	// AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs, optional, uses server default if not provided)
+	AllowedIPs string `json:"allowed_ips,omitempty" binding:"omitempty,cidr"`
+	// DNS is the DNS server(s) for the client (comma-separated, optional, uses server default if not provided)
+	DNS string `json:"dns,omitempty" binding:"omitempty"`
+	// Endpoint is the server endpoint (optional, uses server default if not provided)
+	Endpoint string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
+	// PersistentKeepalive is the keepalive interval in seconds (optional, default 25)
+	PersistentKeepalive *int `json:"persistent_keepalive,omitempty" binding:"omitempty,min=0,max=65535"`
+	// ClientPrivateKey is the WireGuard private key (optional, will be auto-generated if not provided)
+	ClientPrivateKey string `json:"client_private_key,omitempty" binding:"omitempty"`
+}
+
+// UpdateWGPeerRequest represents a request to update a WireGuard peer.
+// swagger:model
+type UpdateWGPeerRequest struct {
+	// DeviceName is the name of the device
+	DeviceName *string `json:"device_name,omitempty" binding:"omitempty,min=1,max=64"`
+	// AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs)
+	AllowedIPs *string `json:"allowed_ips,omitempty" binding:"omitempty,cidr"`
+	// DNS is the DNS server(s) for the client (comma-separated)
+	DNS *string `json:"dns,omitempty" binding:"omitempty"`
+	// Endpoint is the server endpoint
+	Endpoint *string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
+	// PersistentKeepalive is the keepalive interval in seconds
+	PersistentKeepalive *int `json:"persistent_keepalive,omitempty" binding:"omitempty,min=0,max=65535"`
+	// Status is the peer status (active/disabled)
+	Status *string `json:"status,omitempty" binding:"omitempty,oneof=active disabled"`
+}
+
+// WGPeerResponse represents a WireGuard peer response.
+// swagger:model
+type WGPeerResponse struct {
+	ID                  string `json:"id"`
+	UserID              string `json:"user_id"`
+	Username            string `json:"username,omitempty"` // Populated when listing peers
+	DeviceName          string `json:"device_name"`
+	ClientPublicKey     string `json:"client_public_key"`
+	ClientIP            string `json:"client_ip"`
+	AllowedIPs          string `json:"allowed_ips"`
+	DNS                 string `json:"dns,omitempty"`
+	Endpoint            string `json:"endpoint,omitempty"`
+	PersistentKeepalive int    `json:"persistent_keepalive"`
+	Status              string `json:"status"`
+	IPPoolID            string `json:"ip_pool_id,omitempty"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
+}
+
+// WGPeerListResponse represents a paginated list of WireGuard peers.
+// swagger:model
+type WGPeerListResponse struct {
+	Total int64            `json:"total"`
+	Items []WGPeerResponse `json:"items"`
+}
+
+// CreateIPPoolRequest represents a request to create an IP pool.
+// swagger:model
+type CreateIPPoolRequest struct {
+	// Name is the name of the IP pool
+	Name string `json:"name" binding:"required,min=1,max=64"`
+	// CIDR is the CIDR range for the IP pool (e.g., "100.100.100.0/24")
+	CIDR string `json:"cidr" binding:"required,cidr"`
+	// ServerIP is the server IP address in CIDR format (e.g., "100.100.100.1/32")
+	ServerIP string `json:"server_ip" binding:"required,cidr"`
+	// Gateway is the gateway address (optional)
+	Gateway string `json:"gateway,omitempty" binding:"omitempty"`
+	// Description is a description of the IP pool
+	Description string `json:"description,omitempty" binding:"omitempty,max=255"`
+}
+
+// UpdateIPPoolRequest represents a request to update an IP pool.
+// swagger:model
+type UpdateIPPoolRequest struct {
+	// Name is the name of the IP pool
+	Name *string `json:"name,omitempty" binding:"omitempty,min=1,max=64"`
+	// Gateway is the gateway address
+	Gateway *string `json:"gateway,omitempty" binding:"omitempty"`
+	// Description is a description of the IP pool
+	Description *string `json:"description,omitempty" binding:"omitempty,max=255"`
+	// Status is the pool status (active/disabled)
+	Status *string `json:"status,omitempty" binding:"omitempty,oneof=active disabled"`
+}
+
+// IPPoolResponse represents an IP pool response.
+// swagger:model
+type IPPoolResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	CIDR        string `json:"cidr"`
+	ServerIP    string `json:"server_ip"`
+	Gateway     string `json:"gateway,omitempty"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// IPPoolListResponse represents a paginated list of IP pools.
+// swagger:model
+type IPPoolListResponse struct {
+	Total int64            `json:"total"`
+	Items []IPPoolResponse `json:"items"`
+}
+
+// AvailableIPsResponse represents a response containing available IP addresses.
+// swagger:model
+type AvailableIPsResponse struct {
+	IPPoolID string   `json:"ip_pool_id"`
+	CIDR     string   `json:"cidr"`
+	IPs      []string `json:"ips"`
+	Total    int      `json:"total"`
+}

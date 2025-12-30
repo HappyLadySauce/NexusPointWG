@@ -134,16 +134,16 @@
 - `120009`：IP 是服务器 IP（ErrIPIsServerIP）
 - `120010`：IP 已被使用（ErrIPAlreadyInUse）
 
-#### WireGuard 配置错误（120010-120019）
-- `120010`：WireGuard 配置未初始化（ErrWGConfigNotInitialized）
-- `120011`：获取 WireGuard 锁失败（ErrWGLockAcquireFailed）
-- `120012`：服务器配置缺少 Interface.PrivateKey（ErrWGServerPrivateKeyMissing）
-- `120013`：无效的服务器接口地址（ErrWGServerAddressInvalid）
-- `120014`：服务器配置中未找到 AllowedIPs（ErrWGAllowedIPsNotFound）
-- `120015`：未找到有效的 IPv4 前缀（ErrWGIPv4PrefixNotFound）
-- `120016`：AllowedIPs 前缀太小，无法分配客户端 IP（ErrWGPrefixTooSmall）
-- `120017`：WireGuard endpoint 是必需的（ErrWGEndpointRequired）
-- `120018`：IP 地址分配失败（ErrWGIPAllocationFailed）
+#### WireGuard 配置错误（120011-120019）
+- `120011`：WireGuard 配置未初始化（ErrWGConfigNotInitialized）
+- `120012`：获取 WireGuard 锁失败（ErrWGLockAcquireFailed）
+- `120013`：服务器配置缺少 Interface.PrivateKey（ErrWGServerPrivateKeyMissing）
+- `120014`：无效的服务器接口地址（ErrWGServerAddressInvalid）
+- `120015`：服务器配置中未找到 AllowedIPs（ErrWGAllowedIPsNotFound）
+- `120016`：未找到有效的 IPv4 前缀（ErrWGIPv4PrefixNotFound）
+- `120017`：AllowedIPs 前缀太小，无法分配客户端 IP（ErrWGPrefixTooSmall）
+- `120018`：WireGuard endpoint 是必需的（ErrWGEndpointRequired）
+- `120019`：IP 地址分配失败（ErrWGIPAllocationFailed）
 
 #### WireGuard 密钥错误（120020-120022）
 - `120020`：无效的私钥（ErrWGPrivateKeyInvalid）
@@ -370,14 +370,15 @@ Swagger 文件：`api/swagger/docs/swagger.json`
 | 120008 | ErrIPIsBroadcastAddress | 400 | `error.ipIsBroadcastAddress` | IP 是广播地址 |
 | 120009 | ErrIPIsServerIP | 400 | `error.ipIsServerIP` | IP 是服务器 IP |
 | 120010 | ErrIPAlreadyInUse | 400 | `error.ipAlreadyInUse` | IP 已被使用 |
-| 120011 | ErrWGLockAcquireFailed | 500 | `error.wgLockAcquireFailed` | 获取锁失败 |
-| 120012 | ErrWGServerPrivateKeyMissing | 500 | `error.wgServerPrivateKeyMissing` | 服务器私钥缺失 |
-| 120013 | ErrWGServerAddressInvalid | 400 | `error.wgServerAddressInvalid` | 服务器地址无效 |
-| 120014 | ErrWGAllowedIPsNotFound | 400 | `error.wgAllowedIPsNotFound` | 未找到 AllowedIPs |
-| 120015 | ErrWGIPv4PrefixNotFound | 400 | `error.wgIPv4PrefixNotFound` | 未找到 IPv4 前缀 |
-| 120016 | ErrWGPrefixTooSmall | 400 | `error.wgPrefixTooSmall` | 前缀太小 |
-| 120017 | ErrWGEndpointRequired | 400 | `error.wgEndpointRequired` | Endpoint 必需 |
-| 120018 | ErrWGIPAllocationFailed | 400 | `error.wgIPAllocationFailed` | IP 分配失败 |
+| 120011 | ErrWGConfigNotInitialized | 500 | `error.wgConfigNotInitialized` | WireGuard 配置未初始化 |
+| 120012 | ErrWGLockAcquireFailed | 500 | `error.wgLockAcquireFailed` | 获取锁失败 |
+| 120013 | ErrWGServerPrivateKeyMissing | 500 | `error.wgServerPrivateKeyMissing` | 服务器私钥缺失 |
+| 120014 | ErrWGServerAddressInvalid | 400 | `error.wgServerAddressInvalid` | 服务器地址无效 |
+| 120015 | ErrWGAllowedIPsNotFound | 400 | `error.wgAllowedIPsNotFound` | 未找到 AllowedIPs |
+| 120016 | ErrWGIPv4PrefixNotFound | 400 | `error.wgIPv4PrefixNotFound` | 未找到 IPv4 前缀 |
+| 120017 | ErrWGPrefixTooSmall | 400 | `error.wgPrefixTooSmall` | 前缀太小 |
+| 120018 | ErrWGEndpointRequired | 400 | `error.wgEndpointRequired` | Endpoint 必需 |
+| 120019 | ErrWGIPAllocationFailed | 400 | `error.wgIPAllocationFailed` | IP 分配失败 |
 | 120020 | ErrWGPrivateKeyInvalid | 400 | `error.wgPrivateKeyInvalid` | 无效的私钥 |
 | 120021 | ErrWGKeyGenerationFailed | 500 | `error.wgKeyGenerationFailed` | 密钥生成失败 |
 | 120022 | ErrWGPublicKeyGenerationFailed | 500 | `error.wgPublicKeyGenerationFailed` | 公钥生成失败 |
