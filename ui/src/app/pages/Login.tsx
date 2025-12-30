@@ -1,0 +1,77 @@
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Shield } from "lucide-react";
+
+export function Login() {
+  const { login } = useAuth();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login(username, password);
+    } catch (e) {
+      // Error handled in context
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-100">
+      <Card className="w-[400px]">
+        <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+                <div className="bg-primary/10 p-3 rounded-full">
+                    <Shield className="h-8 w-8 text-primary" />
+                </div>
+            </div>
+          <CardTitle>NexusPointWG</CardTitle>
+          <CardDescription>Enter your credentials to access the admin panel.</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input 
+                id="username" 
+                placeholder="admin" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="admin" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="bg-blue-50 p-3 rounded text-xs text-blue-700">
+                <p>Default credentials (Mock Mode):</p>
+                <p>Admin: admin / admin</p>
+                <p>User: user / user</p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full" type="submit" disabled={loading}>
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
