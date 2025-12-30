@@ -86,6 +86,17 @@ func (i *ipAllocations) DeleteIPAllocation(ctx context.Context, id string) error
 	return nil
 }
 
+func (i *ipAllocations) DeleteIPAllocationByPeerID(ctx context.Context, peerID string) error {
+	err := i.db.WithContext(ctx).Where("peer_id = ?", peerID).Delete(&model.IPAllocation{}).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // Idempotent delete
+		}
+		return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return nil
+}
+
 func (i *ipAllocations) ListIPAllocations(ctx context.Context, opt store.IPAllocationListOptions) ([]*model.IPAllocation, int64, error) {
 	var (
 		allocations []*model.IPAllocation

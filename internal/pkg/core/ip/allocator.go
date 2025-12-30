@@ -52,8 +52,8 @@ func (a *Allocator) AllocateIP(ctx context.Context, poolID, preferredIP string) 
 		return "", errors.WithCode(code.ErrIPPoolInvalidCIDR, "invalid CIDR format: %s", pool.CIDR)
 	}
 
-	// Extract server IP
-	serverIPStr, _ := ExtractIPFromCIDR(pool.ServerIP)
+	// Extract server IP from endpoint
+	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
 
 	// If preferred IP is provided, validate and use it
 	if preferredIP != "" {
@@ -163,8 +163,8 @@ func (a *Allocator) ValidateAndAllocateIP(ctx context.Context, poolID, ipStr str
 		return errors.WithCode(code.ErrIPPoolDisabled, "IP pool %s is disabled", poolID)
 	}
 
-	// Extract server IP
-	serverIPStr, _ := ExtractIPFromCIDR(pool.ServerIP)
+	// Extract server IP from endpoint
+	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
 
 	// Validate IP
 	if err := ValidateIPv4(ipStr); err != nil {
@@ -216,8 +216,8 @@ func (a *Allocator) GetAvailableIPs(ctx context.Context, poolID string, limit in
 		return nil, errors.WithCode(code.ErrIPPoolInvalidCIDR, "invalid CIDR format: %s", pool.CIDR)
 	}
 
-	// Extract server IP
-	serverIPStr, _ := ExtractIPFromCIDR(pool.ServerIP)
+	// Extract server IP from endpoint
+	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
 
 	// Generate available IPs
 	var availableIPs []string
@@ -293,4 +293,3 @@ func (a *Allocator) ReleaseIP(ctx context.Context, peerID string) error {
 
 	return nil
 }
-

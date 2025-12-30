@@ -8,6 +8,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
 	"github.com/HappyLadySauce/errors"
@@ -71,18 +72,16 @@ func (w *WGController) DeletePeer(c *gin.Context) {
 		return
 	}
 
-	// Delete peer (IP allocation release should be handled in Service layer)
-	// TODO: Add ReleaseIP method to Service layer
-	if err := w.srv.WGPeers().DeletePeer(context.Background(), peerID); err != nil {
+	// Determine if this is a hard delete (admin only)
+	isHardDelete := requesterRole == model.UserRoleAdmin
+
+	// Delete peer (IP allocation release/delete is handled in Service layer)
+	if err := w.srv.WGPeers().DeletePeer(context.Background(), peerID, isHardDelete); err != nil {
 		klog.V(1).InfoS("failed to delete peer", "peerID", peerID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
 	}
 
-	// TODO: Release IP allocation in Service layer
-	// TODO: Update server config file
-	// TODO: Apply server config
-
-	klog.V(1).InfoS("wireguard peer deleted successfully", "peerID", peerID)
+	klog.V(1).InfoS("wireguard peer deleted successfully", "peerID", peerID, "hardDelete", isHardDelete)
 	core.WriteResponse(c, nil, nil)
 }

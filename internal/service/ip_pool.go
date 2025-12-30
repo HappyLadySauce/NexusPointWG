@@ -17,6 +17,7 @@ type IPPoolSrv interface {
 	DeleteIPPool(ctx context.Context, id string) error
 	ListIPPools(ctx context.Context, opt store.IPPoolListOptions) ([]*model.IPPool, int64, error)
 	GetAvailableIPs(ctx context.Context, poolID string, limit int) ([]string, error)
+	HasAllocatedIPs(ctx context.Context, poolID string) (bool, error)
 }
 
 type ipPoolSrv struct {
@@ -48,6 +49,15 @@ func (i *ipPoolSrv) UpdateIPPool(ctx context.Context, pool *model.IPPool) error 
 
 func (i *ipPoolSrv) DeleteIPPool(ctx context.Context, id string) error {
 	return i.store.IPPools().DeleteIPPool(ctx, id)
+}
+
+// HasAllocatedIPs checks if an IP pool has any allocated IPs.
+func (i *ipPoolSrv) HasAllocatedIPs(ctx context.Context, poolID string) (bool, error) {
+	allocatedIPs, err := i.store.IPAllocations().GetAllocatedIPsByPoolID(ctx, poolID)
+	if err != nil {
+		return false, err
+	}
+	return len(allocatedIPs) > 0, nil
 }
 
 func (i *ipPoolSrv) ListIPPools(ctx context.Context, opt store.IPPoolListOptions) ([]*model.IPPool, int64, error) {

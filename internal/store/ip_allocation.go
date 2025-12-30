@@ -26,6 +26,9 @@ type IPAllocationStore interface {
 	// DeleteIPAllocation deletes an IP allocation by ID.
 	DeleteIPAllocation(ctx context.Context, id string) error
 
+	// DeleteIPAllocationByPeerID deletes an IP allocation by peer ID (hard delete).
+	DeleteIPAllocationByPeerID(ctx context.Context, peerID string) error
+
 	// ListIPAllocations lists IP allocations with optional filters and pagination.
 	ListIPAllocations(ctx context.Context, opt IPAllocationListOptions) ([]*model.IPAllocation, int64, error)
 

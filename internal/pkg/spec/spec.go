@@ -33,6 +33,8 @@ type Action string
 
 const (
 	// ---- user ----
+	// Create: create a new user (admin-only when authenticated, public registration when not authenticated)
+	ActionUserCreate Action = "user:create"
 	// UpdateBasic: username/nickname/avatar/email
 	ActionUserUpdateBasic Action = "user:update_basic"
 	// UpdateSensitive: password/status/role (admin-only)

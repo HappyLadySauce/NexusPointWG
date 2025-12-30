@@ -22,7 +22,7 @@ type WGPeerSrv interface {
 	GetPeer(ctx context.Context, id string) (*model.WGPeer, error)
 	GetPeerByPublicKey(ctx context.Context, publicKey string) (*model.WGPeer, error)
 	UpdatePeer(ctx context.Context, peer *model.WGPeer) error
-	DeletePeer(ctx context.Context, id string) error
+	DeletePeer(ctx context.Context, id string, isHardDelete bool) error
 	ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error)
 	ReleaseIP(ctx context.Context, peerID string) error
 }
@@ -57,6 +57,7 @@ func newWGPeers(s *service) *wgPeerSrv {
 
 func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID, clientIP, allowedIPs, dns, endpoint, clientPrivateKey string, persistentKeepalive *int) (*model.WGPeer, error) {
 	// Get default IP pool if not specified
+	var pool *model.IPPool
 	if ipPoolID == "" {
 		pools, _, err := w.store.IPPools().ListIPPools(ctx, store.IPPoolListOptions{
 			Status: model.IPPoolStatusActive,
@@ -65,7 +66,27 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 		if err != nil || len(pools) == 0 {
 			return nil, errors.WithCode(code.ErrIPPoolNotFound, "no active IP pool found")
 		}
-		ipPoolID = pools[0].ID
+		pool = pools[0]
+		ipPoolID = pool.ID
+	} else {
+		// Get IP pool to use its configuration
+		var err error
+		pool, err = w.store.IPPools().GetIPPool(ctx, ipPoolID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Use IP pool configuration if peer fields are not specified
+	// Priority: Peer specified > IP Pool config > Global config
+	if allowedIPs == "" && pool.Routes != "" {
+		allowedIPs = pool.Routes
+	}
+	if dns == "" && pool.DNS != "" {
+		dns = pool.DNS
+	}
+	if endpoint == "" && pool.Endpoint != "" {
+		endpoint = pool.Endpoint
 	}
 
 	// Allocate IP address
@@ -250,11 +271,11 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer) error {
 	return nil
 }
 
-func (w *wgPeerSrv) DeletePeer(ctx context.Context, id string) error {
+func (w *wgPeerSrv) DeletePeer(ctx context.Context, id string, isHardDelete bool) error {
 	// Get peer before deletion to remove from server config
 	peer, err := w.store.WGPeers().GetPeer(ctx, id)
 	if err != nil {
-		// If peer not found, still try to release IP and continue
+		// If peer not found, still try to release/delete IP and continue
 		klog.V(1).InfoS("peer not found, continuing with deletion", "peerID", id, "error", err)
 	} else if w.configManager != nil {
 		// Remove peer from server config
@@ -270,10 +291,19 @@ func (w *wgPeerSrv) DeletePeer(ctx context.Context, id string) error {
 		}
 	}
 
-	// Release IP allocation before deleting peer
-	if err := w.ReleaseIP(ctx, id); err != nil {
-		// Log error but continue with deletion
-		klog.V(1).InfoS("failed to release IP allocation", "peerID", id, "error", err)
+	// Handle IP allocation: hard delete for admin, soft delete for regular users
+	if isHardDelete {
+		// Hard delete: remove IP allocation record completely
+		if err := w.store.IPAllocations().DeleteIPAllocationByPeerID(ctx, id); err != nil {
+			// Log error but continue with deletion
+			klog.V(1).InfoS("failed to hard delete IP allocation", "peerID", id, "error", err)
+		}
+	} else {
+		// Soft delete: mark IP allocation as released
+		if err := w.ReleaseIP(ctx, id); err != nil {
+			// Log error but continue with deletion
+			klog.V(1).InfoS("failed to release IP allocation", "peerID", id, "error", err)
+		}
 	}
 
 	return w.store.WGPeers().DeletePeer(ctx, id)
@@ -308,18 +338,39 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 		}
 	}
 
+	// Get IP pool configuration if peer has IPPoolID
+	var pool *model.IPPool
+	if peer.IPPoolID != "" {
+		var err error
+		pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+		if err != nil {
+			klog.V(1).InfoS("failed to get IP pool", "poolID", peer.IPPoolID, "error", err)
+			// Continue without pool config
+		}
+	}
+
 	// Use defaults if peer fields are empty
+	// Priority: Peer specified > IP Pool config > Global config
 	dns := peer.DNS
+	if dns == "" && pool != nil && pool.DNS != "" {
+		dns = pool.DNS
+	}
 	if dns == "" {
 		dns = wgOpts.DNS
 	}
 
 	endpoint := peer.Endpoint
+	if endpoint == "" && pool != nil && pool.Endpoint != "" {
+		endpoint = pool.Endpoint
+	}
 	if endpoint == "" {
 		endpoint = wgOpts.Endpoint
 	}
 
 	allowedIPs := peer.AllowedIPs
+	if allowedIPs == "" && pool != nil && pool.Routes != "" {
+		allowedIPs = pool.Routes
+	}
 	if allowedIPs == "" {
 		allowedIPs = wgOpts.DefaultAllowedIPs
 	}

@@ -13,6 +13,10 @@ type CreateUserRequest struct {
 	Email string `json:"email" binding:"required,email,emaildomain,max=255"`
 	// Password is the user's password (8-32 characters, will be hashed and not returned in response)
 	Password string `json:"password" binding:"required,min=8,max=32"`
+	// Role is the user role (user/admin). Only available for authenticated admin users. If not provided, defaults to "user".
+	Role *string `json:"role,omitempty" binding:"omitempty,oneof=user admin"`
+	// Status is the user status (active/inactive/deleted). Only available for authenticated admin users. If not provided, defaults to "active".
+	Status *string `json:"status,omitempty" binding:"omitempty,oneof=active inactive deleted"`
 }
 
 // UpdateUserRequest represents a user update request.

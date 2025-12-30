@@ -11,6 +11,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
@@ -107,18 +108,39 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 		}
 	}
 
+	// Get IP pool configuration if peer has IPPoolID
+	var pool *model.IPPool
+	if peer.IPPoolID != "" {
+		var err error
+		pool, err = w.srv.IPPools().GetIPPool(context.Background(), peer.IPPoolID)
+		if err != nil {
+			klog.V(1).InfoS("failed to get IP pool", "poolID", peer.IPPoolID, "error", err)
+			// Continue without pool config
+		}
+	}
+
 	// Use defaults if peer fields are empty
+	// Priority: Peer specified > IP Pool config > Global config
 	dns := peer.DNS
+	if dns == "" && pool != nil && pool.DNS != "" {
+		dns = pool.DNS
+	}
 	if dns == "" {
 		dns = wgOpts.DNS
 	}
 
 	endpoint := peer.Endpoint
+	if endpoint == "" && pool != nil && pool.Endpoint != "" {
+		endpoint = pool.Endpoint
+	}
 	if endpoint == "" {
 		endpoint = wgOpts.Endpoint
 	}
 
 	allowedIPs := peer.AllowedIPs
+	if allowedIPs == "" && pool != nil && pool.Routes != "" {
+		allowedIPs = pool.Routes
+	}
 	if allowedIPs == "" {
 		allowedIPs = wgOpts.DefaultAllowedIPs
 	}

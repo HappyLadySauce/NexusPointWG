@@ -3,7 +3,6 @@ package ip
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/errors"
@@ -77,7 +76,7 @@ func ValidateIPNotReserved(ipStr, cidrStr, serverIPStr string) error {
 
 	// Check if IP is server IP
 	if serverIPStr != "" {
-		serverIP := net.ParseIP(strings.TrimSuffix(serverIPStr, "/32"))
+		serverIP := net.ParseIP(serverIPStr)
 		if serverIP != nil && ip.Equal(serverIP) {
 			return errors.WithCode(code.ErrIPIsServerIP, "IP address %s is the server IP", ipStr)
 		}
@@ -105,4 +104,20 @@ func FormatIPAsCIDR(ipStr string) (string, error) {
 		return "", errors.WithCode(code.ErrIPNotIPv4, "IP address is not IPv4: %s", ipStr)
 	}
 	return fmt.Sprintf("%s/32", ipStr), nil
+}
+
+// ExtractIPFromEndpoint extracts the IP address from an endpoint string (e.g., "118.24.41.142:51820" -> "118.24.41.142").
+func ExtractIPFromEndpoint(endpoint string) (string, error) {
+	if endpoint == "" {
+		return "", nil
+	}
+	host, _, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		// If SplitHostPort fails, try parsing as IP only
+		if net.ParseIP(endpoint) != nil {
+			return endpoint, nil
+		}
+		return "", errors.WithCode(code.ErrIPPoolInvalidCIDR, "invalid endpoint format: %s", endpoint)
+	}
+	return host, nil
 }

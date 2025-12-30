@@ -74,10 +74,12 @@ type CreateIPPoolRequest struct {
 	Name string `json:"name" binding:"required,min=1,max=64"`
 	// CIDR is the CIDR range for the IP pool (e.g., "100.100.100.0/24")
 	CIDR string `json:"cidr" binding:"required,cidr"`
-	// ServerIP is the server IP address in CIDR format (e.g., "100.100.100.1/32")
-	ServerIP string `json:"server_ip" binding:"required,cidr"`
-	// Gateway is the gateway address (optional)
-	Gateway string `json:"gateway,omitempty" binding:"omitempty"`
+	// Routes is the routes (comma-separated CIDRs) for client AllowedIPs (optional)
+	Routes string `json:"routes,omitempty" binding:"omitempty,cidr"`
+	// DNS is the DNS servers (comma-separated) for client config (optional)
+	DNS string `json:"dns,omitempty" binding:"omitempty,dnslist"`
+	// Endpoint is the server endpoint (e.g., "118.24.41.142:51820") (optional)
+	Endpoint string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
 	// Description is a description of the IP pool
 	Description string `json:"description,omitempty" binding:"omitempty,max=255"`
 }
@@ -87,8 +89,15 @@ type CreateIPPoolRequest struct {
 type UpdateIPPoolRequest struct {
 	// Name is the name of the IP pool
 	Name *string `json:"name,omitempty" binding:"omitempty,min=1,max=64"`
-	// Gateway is the gateway address
-	Gateway *string `json:"gateway,omitempty" binding:"omitempty"`
+	// CIDR is the CIDR range for the IP pool (e.g., "100.100.100.0/24")
+	// Can only be modified when no IPs are allocated from this pool
+	CIDR *string `json:"cidr,omitempty" binding:"omitempty,cidr"`
+	// Routes is the routes (comma-separated CIDRs) for client AllowedIPs
+	Routes *string `json:"routes,omitempty" binding:"omitempty,cidr"`
+	// DNS is the DNS servers (comma-separated) for client config
+	DNS *string `json:"dns,omitempty" binding:"omitempty,dnslist"`
+	// Endpoint is the server endpoint (e.g., "118.24.41.142:51820")
+	Endpoint *string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
 	// Description is a description of the IP pool
 	Description *string `json:"description,omitempty" binding:"omitempty,max=255"`
 	// Status is the pool status (active/disabled)
@@ -101,8 +110,9 @@ type IPPoolResponse struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	CIDR        string `json:"cidr"`
-	ServerIP    string `json:"server_ip"`
-	Gateway     string `json:"gateway,omitempty"`
+	Routes      string `json:"routes,omitempty"`
+	DNS         string `json:"dns,omitempty"`
+	Endpoint    string `json:"endpoint,omitempty"`
 	Description string `json:"description,omitempty"`
 	Status      string `json:"status"`
 	CreatedAt   string `json:"created_at"`

@@ -7,6 +7,9 @@ p, admin, wg_config:any, *
 p, admin, wg_config:self, *
 p, admin, ip_pool:any, *
 
+# Explicit permission for admin to create users (for clarity)
+p, admin, user:any, user:create
+
 # Regular user: self-scoped only.
 p, user, user:self, user:update_basic
 p, user, user:self, user:soft_delete

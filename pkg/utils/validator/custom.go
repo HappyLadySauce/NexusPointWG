@@ -69,6 +69,11 @@ func RegisterCustomValidators(v *v10.Validate) error {
 		return err
 	}
 
+	// Register dnslist validator: validates comma-separated IP addresses (IPv4 or IPv6)
+	if err := v.RegisterValidation("dnslist", validateDNSList); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -220,4 +225,27 @@ func validateIPv4(fl v10.FieldLevel) bool {
 
 	// Check if it's IPv4
 	return ip.Is4()
+}
+
+// validateDNSList validates that the string is a comma-separated list of valid IP addresses (IPv4 or IPv6).
+func validateDNSList(fl v10.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "" {
+		return true // empty values are handled by required tag
+	}
+
+	// Support comma-separated multiple IP addresses
+	parts := strings.Split(value, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue // Skip empty parts
+		}
+		// Parse as IP address (IPv4 or IPv6)
+		_, err := netip.ParseAddr(part)
+		if err != nil {
+			return false
+		}
+	}
+	return true
 }

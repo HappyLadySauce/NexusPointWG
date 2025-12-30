@@ -29,6 +29,8 @@ export interface CreateUserRequest {
   avatar?: string;
   email: string;
   password: string;
+  role?: "user" | "admin";
+  status?: "active" | "inactive" | "deleted";
 }
 
 export interface UpdateUserRequest {
@@ -90,8 +92,9 @@ export interface IPPoolResponse {
   id: string;
   name: string;
   cidr: string;
-  server_ip: string;
-  gateway?: string;
+  routes?: string;
+  dns?: string;
+  endpoint?: string;
   description?: string;
   status: string;
   created_at: string;
@@ -101,14 +104,17 @@ export interface IPPoolResponse {
 export interface CreateIPPoolRequest {
   name: string;
   cidr: string;
-  server_ip: string;
-  gateway?: string;
+  routes?: string;
+  dns?: string;
+  endpoint?: string;
   description?: string;
 }
 
 export interface UpdateIPPoolRequest {
   name?: string;
-  gateway?: string;
+  routes?: string;
+  dns?: string;
+  endpoint?: string;
   description?: string;
   status?: "active" | "disabled";
 }
@@ -200,8 +206,9 @@ let mockIPPools: IPPoolResponse[] = [
     id: "pool-1",
     name: "Main Pool",
     cidr: "10.0.0.0/24",
-    server_ip: "10.0.0.1/32",
-    gateway: "10.0.0.1",
+    routes: "10.0.0.0/24, 192.168.1.0/24",
+    dns: "1.1.1.1, 223.5.5.5",
+    endpoint: "118.24.41.142:51820",
     description: "Main IP pool",
     status: "active",
     created_at: new Date().toISOString(),
@@ -488,8 +495,9 @@ export const api = {
           id: `pool-${Date.now()}`,
           name: data.name,
           cidr: data.cidr,
-          server_ip: data.server_ip,
-          gateway: data.gateway,
+          routes: data.routes,
+          dns: data.dns,
+          endpoint: data.endpoint,
           description: data.description,
           status: "active",
           created_at: new Date().toISOString(),
@@ -505,6 +513,58 @@ export const api = {
         body: JSON.stringify(data),
       });
       return handleResponse(res);
+    },
+
+    updateIPPool: async (poolID: string, data: UpdateIPPoolRequest): Promise<IPPoolResponse> => {
+      if (USE_MOCK) {
+        await delay(400);
+        const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
+        if (poolIndex === -1) throw new Error("IP pool not found");
+
+        const updatedPool: IPPoolResponse = {
+          ...mockIPPools[poolIndex],
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.routes !== undefined && { routes: data.routes }),
+          ...(data.dns !== undefined && { dns: data.dns }),
+          ...(data.endpoint !== undefined && { endpoint: data.endpoint }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.status !== undefined && { status: data.status }),
+          updated_at: new Date().toISOString(),
+        };
+        mockIPPools[poolIndex] = updatedPool;
+        return updatedPool;
+      }
+
+      const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    deleteIPPool: async (poolID: string): Promise<void> => {
+      if (USE_MOCK) {
+        await delay(300);
+        const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
+        if (poolIndex === -1) throw new Error("IP pool not found");
+        mockIPPools.splice(poolIndex, 1);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.message || json.error || res.statusText);
+        } catch {
+          throw new Error(text || res.statusText);
+        }
+      }
     },
 
     getAvailableIPs: async (poolID: string, limit?: number): Promise<AvailableIPsResponse> => {
