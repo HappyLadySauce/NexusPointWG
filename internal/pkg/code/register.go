@@ -5,46 +5,6 @@ func init() {
 	register(ErrEmailAlreadyExist, 400, "Email already exists")
 	register(ErrUserNotFound, 404, "User not found")
 	register(ErrUserNotActive, 403, "User account is not active")
-	register(ErrWGPeerNotFound, 404, "WireGuard peer not found")
-	register(ErrWGServerConfigNotFound, 500, "WireGuard server config not found")
-	register(ErrWGServerConfigParseFailed, 500, "Failed to parse WireGuard server config")
-	register(ErrWGWriteServerConfigFailed, 500, "Failed to write WireGuard server config")
-	register(ErrWGApplyFailed, 500, "Failed to apply WireGuard configuration")
-	register(ErrIPNotIPv4, 400, "IP is not IPv4")
-	register(ErrIPOutOfRange, 400, "IP is not within allocation prefix")
-	register(ErrIPIsNetworkAddress, 400, "IP is the network address")
-	register(ErrIPIsBroadcastAddress, 400, "IP is the broadcast address")
-	register(ErrIPIsServerIP, 400, "IP is the server IP")
-	register(ErrIPAlreadyInUse, 400, "IP is already in use")
-
-	// WireGuard 配置相关错误
-	register(ErrWGConfigNotInitialized, 500, "WireGuard config is not initialized")
-	register(ErrWGLockAcquireFailed, 500, "Failed to acquire WireGuard lock")
-	register(ErrWGServerPrivateKeyMissing, 500, "Server config missing Interface.PrivateKey")
-	register(ErrWGServerAddressInvalid, 400, "Invalid server interface address")
-	register(ErrWGAllowedIPsNotFound, 400, "No AllowedIPs found in server config")
-	register(ErrWGIPv4PrefixNotFound, 400, "No valid IPv4 prefix found in AllowedIPs")
-	register(ErrWGPrefixTooSmall, 400, "AllowedIPs prefix too small for client IP allocation")
-	register(ErrWGEndpointRequired, 400, "WireGuard endpoint is required")
-	register(ErrWGIPAllocationFailed, 400, "Failed to allocate IP address")
-
-	// WireGuard 密钥相关错误
-	register(ErrWGPrivateKeyInvalid, 400, "Invalid private key")
-	register(ErrWGKeyGenerationFailed, 500, "Failed to generate WireGuard key")
-	register(ErrWGPublicKeyGenerationFailed, 500, "Failed to generate public key from private key")
-
-	// WireGuard 文件操作错误
-	register(ErrWGUserConfigNotFound, 404, "User WireGuard config not found")
-	register(ErrWGPrivateKeyReadFailed, 500, "Failed to read private key file")
-	register(ErrWGUserDirCreateFailed, 500, "Failed to create user directory")
-	register(ErrWGPrivateKeyWriteFailed, 500, "Failed to write private key file")
-	register(ErrWGPublicKeyWriteFailed, 500, "Failed to write public key file")
-	register(ErrWGConfigWriteFailed, 500, "Failed to write WireGuard config file")
-
-	// WireGuard 数据相关错误
-	register(ErrWGPeerIDGenerationFailed, 500, "Failed to generate peer ID")
-	register(ErrWGPeerNil, 400, "Peer is nil")
-
 	register(ErrSuccess, 200, "OK")
 	register(ErrUnknown, 500, "Server error: Unknown server error")
 	register(ErrBind, 400, "Error occurred while binding the request body to the struct")

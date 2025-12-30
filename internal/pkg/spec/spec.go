@@ -8,8 +8,6 @@ type Resource string
 
 const (
 	ResourceUser     Resource = "user"
-	ResourceWGPeer   Resource = "wg_peer"
-	ResourceWGConfig Resource = "wg_config"
 )
 
 // Scope represents ownership scope of a resource.
@@ -44,17 +42,4 @@ const (
 	ActionUserChangePassword Action = "user:change_password"
 	// List: list users (admin-only via policy)
 	ActionUserList Action = "user:list"
-
-	// ---- wg_peer ----
-	ActionWGPeerList   Action = "wg_peer:list"
-	ActionWGPeerRead   Action = "wg_peer:read"
-	ActionWGPeerCreate Action = "wg_peer:create"
-	ActionWGPeerUpdate Action = "wg_peer:update"
-	ActionWGPeerDelete Action = "wg_peer:delete"
-
-	// ---- wg_config ----
-	ActionWGConfigDownload Action = "wg_config:download"
-	ActionWGConfigRotate   Action = "wg_config:rotate"
-	ActionWGConfigRevoke   Action = "wg_config:revoke"
-	ActionWGConfigUpdate   Action = "wg_config:update"
 )
