@@ -2,14 +2,18 @@ package service
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/ip"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
+	"k8s.io/klog/v2"
 )
 
 // WGPeerSrv defines the interface for WireGuard peer business logic.
@@ -20,17 +24,35 @@ type WGPeerSrv interface {
 	UpdatePeer(ctx context.Context, peer *model.WGPeer) error
 	DeletePeer(ctx context.Context, id string) error
 	ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error)
+	ReleaseIP(ctx context.Context, peerID string) error
 }
 
 type wgPeerSrv struct {
-	store store.Factory
+	store         store.Factory
+	configManager *wireguard.ServerConfigManager
 }
 
 // WGPeerSrv if implemented, then wgPeerSrv implements WGPeerSrv interface.
 var _ WGPeerSrv = (*wgPeerSrv)(nil)
 
 func newWGPeers(s *service) *wgPeerSrv {
-	return &wgPeerSrv{store: s.store}
+	cfg := config.Get()
+	if cfg == nil || cfg.WireGuard == nil {
+		klog.V(1).InfoS("WireGuard config not available, config manager will be nil")
+		return &wgPeerSrv{
+			store:         s.store,
+			configManager: nil,
+		}
+	}
+
+	wgOpts := cfg.WireGuard
+	configPath := wgOpts.ServerConfigPath()
+	configManager := wireguard.NewServerConfigManager(configPath, wgOpts.ApplyMethod)
+
+	return &wgPeerSrv{
+		store:         s.store,
+		configManager: configManager,
+	}
 }
 
 func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID, clientIP, allowedIPs, dns, endpoint, clientPrivateKey string, persistentKeepalive *int) (*model.WGPeer, error) {
@@ -141,6 +163,26 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 		return nil, err
 	}
 
+	// Generate and save client config file
+	if err := w.generateAndSaveClientConfig(ctx, peer); err != nil {
+		klog.V(1).InfoS("failed to generate client config", "peerID", peerID, "error", err)
+		// Continue anyway, config file generation is not critical
+	}
+
+	// Update server config file
+	if w.configManager != nil {
+		if err := w.updateServerConfigForPeer(peer, true); err != nil {
+			klog.V(1).InfoS("failed to update server config", "peerID", peerID, "error", err)
+			// Continue anyway, server config update failure is logged but doesn't block
+		} else {
+			// Apply server config
+			if err := w.configManager.ApplyConfig(); err != nil {
+				klog.V(1).InfoS("failed to apply server config", "peerID", peerID, "error", err)
+				// Continue anyway
+			}
+		}
+	}
+
 	return peer, nil
 }
 
@@ -153,13 +195,184 @@ func (w *wgPeerSrv) GetPeerByPublicKey(ctx context.Context, publicKey string) (*
 }
 
 func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer) error {
-	return w.store.WGPeers().UpdatePeer(ctx, peer)
+	// Get existing peer to check what changed
+	existingPeer, err := w.store.WGPeers().GetPeer(ctx, peer.ID)
+	if err != nil {
+		return err
+	}
+
+	// Update database
+	if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
+		return err
+	}
+
+	// Update server config if status or AllowedIPs changed
+	if w.configManager != nil {
+		statusChanged := existingPeer.Status != peer.Status
+		allowedIPsChanged := existingPeer.AllowedIPs != peer.AllowedIPs
+		persistentKeepaliveChanged := existingPeer.PersistentKeepalive != peer.PersistentKeepalive
+
+		if statusChanged || allowedIPsChanged || persistentKeepaliveChanged {
+			// Only update if peer is active
+			if peer.Status == model.WGPeerStatusActive {
+				if err := w.updateServerConfigForPeer(peer, false); err != nil {
+					klog.V(1).InfoS("failed to update server config", "peerID", peer.ID, "error", err)
+					// Continue anyway
+				} else {
+					// Apply server config
+					if err := w.configManager.ApplyConfig(); err != nil {
+						klog.V(1).InfoS("failed to apply server config", "peerID", peer.ID, "error", err)
+						// Continue anyway
+					}
+				}
+			} else {
+				// Peer is disabled, remove from server config
+				if err := w.configManager.RemovePeer(peer.ClientPublicKey); err != nil {
+					klog.V(1).InfoS("failed to remove peer from server config", "peerID", peer.ID, "error", err)
+					// Continue anyway
+				} else {
+					// Apply server config
+					if err := w.configManager.ApplyConfig(); err != nil {
+						klog.V(1).InfoS("failed to apply server config", "peerID", peer.ID, "error", err)
+						// Continue anyway
+					}
+				}
+			}
+		}
+	}
+
+	// Regenerate client config if needed
+	if err := w.generateAndSaveClientConfig(ctx, peer); err != nil {
+		klog.V(1).InfoS("failed to regenerate client config", "peerID", peer.ID, "error", err)
+		// Continue anyway
+	}
+
+	return nil
 }
 
 func (w *wgPeerSrv) DeletePeer(ctx context.Context, id string) error {
+	// Get peer before deletion to remove from server config
+	peer, err := w.store.WGPeers().GetPeer(ctx, id)
+	if err != nil {
+		// If peer not found, still try to release IP and continue
+		klog.V(1).InfoS("peer not found, continuing with deletion", "peerID", id, "error", err)
+	} else if w.configManager != nil {
+		// Remove peer from server config
+		if err := w.configManager.RemovePeer(peer.ClientPublicKey); err != nil {
+			klog.V(1).InfoS("failed to remove peer from server config", "peerID", id, "error", err)
+			// Continue anyway
+		} else {
+			// Apply server config
+			if err := w.configManager.ApplyConfig(); err != nil {
+				klog.V(1).InfoS("failed to apply server config", "peerID", id, "error", err)
+				// Continue anyway
+			}
+		}
+	}
+
+	// Release IP allocation before deleting peer
+	if err := w.ReleaseIP(ctx, id); err != nil {
+		// Log error but continue with deletion
+		klog.V(1).InfoS("failed to release IP allocation", "peerID", id, "error", err)
+	}
+
 	return w.store.WGPeers().DeletePeer(ctx, id)
+}
+
+// ReleaseIP releases the IP allocation for a peer.
+func (w *wgPeerSrv) ReleaseIP(ctx context.Context, peerID string) error {
+	allocator := ip.NewAllocator(w.store)
+	return allocator.ReleaseIP(ctx, peerID)
 }
 
 func (w *wgPeerSrv) ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error) {
 	return w.store.WGPeers().ListPeers(ctx, opt)
+}
+
+// generateAndSaveClientConfig generates and saves the client configuration file.
+func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model.WGPeer) error {
+	cfg := config.Get()
+	if cfg == nil || cfg.WireGuard == nil {
+		return errors.WithCode(code.ErrWGConfigNotInitialized, "WireGuard config not initialized")
+	}
+
+	wgOpts := cfg.WireGuard
+
+	// Get server public key
+	var serverPublicKey string
+	if w.configManager != nil {
+		var err error
+		serverPublicKey, err = w.configManager.GetServerPublicKey()
+		if err != nil {
+			return errors.Wrap(err, "failed to get server public key")
+		}
+	}
+
+	// Use defaults if peer fields are empty
+	dns := peer.DNS
+	if dns == "" {
+		dns = wgOpts.DNS
+	}
+
+	endpoint := peer.Endpoint
+	if endpoint == "" {
+		endpoint = wgOpts.Endpoint
+	}
+
+	allowedIPs := peer.AllowedIPs
+	if allowedIPs == "" {
+		allowedIPs = wgOpts.DefaultAllowedIPs
+	}
+
+	// Generate client config
+	clientConfig := &wireguard.ClientConfig{
+		PrivateKey:          peer.ClientPrivateKey,
+		Address:             peer.ClientIP,
+		DNS:                 dns,
+		Endpoint:            endpoint,
+		PublicKey:           serverPublicKey,
+		AllowedIPs:          allowedIPs,
+		PersistentKeepalive: peer.PersistentKeepalive,
+	}
+
+	configContent := wireguard.GenerateClientConfig(clientConfig)
+
+	// Save to file
+	userDir := wgOpts.ResolvedUserDir()
+	if err := os.MkdirAll(userDir, 0755); err != nil {
+		return errors.WithCode(code.ErrWGUserDirCreateFailed, "failed to create user directory: %s", err.Error())
+	}
+
+	// Use peer ID as filename
+	configPath := filepath.Join(userDir, peer.ID+".conf")
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		return errors.WithCode(code.ErrWGConfigWriteFailed, "failed to write client config file: %s", err.Error())
+	}
+
+	klog.V(2).InfoS("client config file saved", "peerID", peer.ID, "path", configPath)
+	return nil
+}
+
+// updateServerConfigForPeer updates the server configuration for a peer.
+func (w *wgPeerSrv) updateServerConfigForPeer(peer *model.WGPeer, isNew bool) error {
+	if w.configManager == nil {
+		return errors.WithCode(code.ErrWGConfigNotInitialized, "config manager not initialized")
+	}
+
+	// Only update if peer is active
+	if peer.Status != model.WGPeerStatusActive {
+		return nil
+	}
+
+	serverPeer := &wireguard.ServerPeerConfig{
+		PublicKey:           peer.ClientPublicKey,
+		AllowedIPs:          peer.ClientIP, // Use ClientIP as AllowedIPs in server config
+		PersistentKeepalive: peer.PersistentKeepalive,
+		Comment:             peer.DeviceName,
+	}
+
+	if isNew {
+		return w.configManager.AddPeer(serverPeer)
+	}
+	return w.configManager.UpdatePeer(peer.ClientPublicKey, serverPeer)
 }

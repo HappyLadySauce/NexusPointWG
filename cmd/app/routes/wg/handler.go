@@ -15,7 +15,9 @@ func init() {
 	authed.POST("/wg/peers", wgController.CreatePeer)
 	authed.GET("/wg/peers", wgController.ListPeers)
 	authed.GET("/wg/peers/:id", wgController.GetPeer)
+	authed.PUT("/wg/peers/:id", wgController.UpdatePeer)
 	authed.DELETE("/wg/peers/:id", wgController.DeletePeer)
+	authed.GET("/wg/peers/:id/config", wgController.DownloadPeerConfig)
 
 	// IP pool management routes (admin only, enforced in controller)
 	authed.POST("/wg/ip-pools", wgController.CreateIPPool)

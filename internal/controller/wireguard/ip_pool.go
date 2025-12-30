@@ -249,11 +249,13 @@ func (w *WGController) GetAvailableIPs(c *gin.Context) {
 		}
 	}
 
-	// Get available IPs
-	// TODO: Add GetAvailableIPs method to Service layer
-	// For now, return empty list (limit is used when service method is implemented)
-	availableIPs := []string{}
-	_ = limit // Suppress unused variable warning
+	// Get available IPs from Service layer
+	availableIPs, err := w.srv.IPPools().GetAvailableIPs(context.Background(), poolID, limit)
+	if err != nil {
+		klog.V(1).InfoS("failed to get available IPs", "poolID", poolID, "error", err)
+		core.WriteResponse(c, err, nil)
+		return
+	}
 
 	resp := v1.AvailableIPsResponse{
 		IPPoolID: poolID,

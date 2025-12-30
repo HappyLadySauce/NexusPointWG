@@ -407,30 +407,57 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wg/configs": {
+        "/api/v1/wg/ip-pools": {
             "get": {
+                "description": "List IP pools with optional filters and pagination. Admin only.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
-                "summary": "List my WireGuard configs",
+                "summary": "List IP pools",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (active/disabled)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit for pagination (default: 20, max: 200)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Configs listed successfully",
+                        "description": "IP pools listed successfully",
                         "schema": {
-                            "$ref": "#/definitions/v1.WGPeerListResponse"
+                            "$ref": "#/definitions/v1.IPPoolListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -442,11 +469,9 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/wg/configs/{id}": {
-            "put": {
-                "description": "User can update AllowedIPs, DNS, PersistentKeepalive, Endpoint. Cannot update PrivateKey, DeviceName, Status, ClientIP.",
+            },
+            "post": {
+                "description": "Create a new IP pool for WireGuard peer IP allocation. Admin only.",
                 "consumes": [
                     "application/json"
                 ],
@@ -454,42 +479,35 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
-                "summary": "Update WireGuard config",
+                "summary": "Create IP pool",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Peer ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Update config payload",
-                        "name": "config",
+                        "description": "IP pool information",
+                        "name": "pool",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.UserUpdateConfigRequest"
+                            "$ref": "#/definitions/v1.CreateIPPoolRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Config updated successfully",
+                        "description": "IP pool created successfully",
                         "schema": {
-                            "$ref": "#/definitions/core.SuccessResponse"
+                            "$ref": "#/definitions/v1.IPPoolResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid input or forbidden fields",
+                        "description": "Bad request - invalid input or validation failed",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -509,149 +527,58 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wg/configs/{id}/download": {
+        "/api/v1/wg/ip-pools/{id}/available-ips": {
             "get": {
-                "produces": [
-                    "application/octet-stream"
-                ],
-                "tags": [
-                    "wg"
-                ],
-                "summary": "Download WireGuard config",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Peer ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "WireGuard config file",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not found",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/wg/configs/{id}/revoke": {
-            "post": {
+                "description": "Get a list of available IP addresses from an IP pool. Admin only.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
-                "summary": "Revoke WireGuard config",
+                "summary": "Get available IPs",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Peer ID",
+                        "description": "IP Pool ID",
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit the number of IPs to return (default: 50, max: 200)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Deleted successfully",
+                        "description": "Available IPs retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/core.SuccessResponse"
+                            "$ref": "#/definitions/v1.AvailableIPsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "404": {
-                        "description": "Not found",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/wg/configs/{id}/rotate": {
-            "post": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "wg"
-                ],
-                "summary": "Rotate WireGuard config",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Peer ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Rotated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/core.SuccessResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not found",
+                        "description": "Not found - IP pool not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -667,31 +594,19 @@ const docTemplate = `{
         },
         "/api/v1/wg/peers": {
             "get": {
-                "description": "Admin: list all peers",
+                "description": "List WireGuard peers with optional filters and pagination. Admin can see all peers, regular users can only see their own peers.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
                 "summary": "List WireGuard peers",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by user id",
+                        "description": "Filter by user ID",
                         "name": "user_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by device name (contains)",
-                        "name": "device_name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by client ip (exact)",
-                        "name": "client_ip",
                         "in": "query"
                     },
                     {
@@ -701,14 +616,26 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter by IP pool ID",
+                        "name": "ip_pool_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by device name (partial match)",
+                        "name": "device_name",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
-                        "description": "Offset",
+                        "description": "Offset for pagination (default: 0)",
                         "name": "offset",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Limit",
+                        "description": "Limit for pagination (default: 20, max: 200)",
                         "name": "limit",
                         "in": "query"
                     }
@@ -720,14 +647,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/v1.WGPeerListResponse"
                         }
                     },
+                    "400": {
+                        "description": "Bad request - invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -741,7 +674,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Admin: create peer (auto generate keys/ip, write files, apply)",
+                "description": "Create a new WireGuard peer for a user. Admin can create peers for any user, regular users can only create peers for themselves.",
                 "consumes": [
                     "application/json"
                 ],
@@ -749,12 +682,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
                 "summary": "Create WireGuard peer",
                 "parameters": [
                     {
-                        "description": "Create peer payload",
+                        "description": "Peer information",
                         "name": "peer",
                         "in": "body",
                         "required": true,
@@ -771,25 +704,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad request",
+                        "description": "Bad request - invalid input or validation failed",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/core.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -805,11 +732,12 @@ const docTemplate = `{
         },
         "/api/v1/wg/peers/{id}": {
             "get": {
+                "description": "Get a WireGuard peer by ID. Admin can get any peer, regular users can only get their own peers.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
                 "summary": "Get WireGuard peer",
                 "parameters": [
@@ -828,20 +756,26 @@ const docTemplate = `{
                             "$ref": "#/definitions/v1.WGPeerResponse"
                         }
                     },
+                    "400": {
+                        "description": "Bad request - invalid peer ID",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "404": {
-                        "description": "Not found",
+                        "description": "Not found - peer not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -855,6 +789,7 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "description": "Update a WireGuard peer by ID. Admin can update any peer, regular users can only update their own peers.",
                 "consumes": [
                     "application/json"
                 ],
@@ -862,7 +797,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
                 "summary": "Update WireGuard peer",
                 "parameters": [
@@ -874,7 +809,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Update peer payload",
+                        "description": "Peer update information",
                         "name": "peer",
                         "in": "body",
                         "required": true,
@@ -891,25 +826,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad request",
+                        "description": "Bad request - invalid input or validation failed",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "404": {
-                        "description": "Not found",
+                        "description": "Not found - peer not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -923,13 +858,14 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "description": "Delete a WireGuard peer by ID. Admin can delete any peer, regular users can only delete their own peers.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wg"
+                    "wireguard"
                 ],
-                "summary": "Delete (revoke) WireGuard peer",
+                "summary": "Delete WireGuard peer",
                 "parameters": [
                     {
                         "type": "string",
@@ -946,20 +882,85 @@ const docTemplate = `{
                             "$ref": "#/definitions/core.SuccessResponse"
                         }
                     },
+                    "400": {
+                        "description": "Bad request - invalid peer ID",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - invalid or expired token",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden - permission denied",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
                     },
                     "404": {
-                        "description": "Not found",
+                        "description": "Not found - peer not found",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/wg/peers/{id}/config": {
+            "get": {
+                "description": "Download the WireGuard client configuration file for a peer. Admin can download any peer's config, regular users can only download their own peer configs.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "wireguard"
+                ],
+                "summary": "Download WireGuard peer configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configuration file content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid peer ID",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - peer not found or config file not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -1012,6 +1013,26 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.AvailableIPsResponse": {
+            "type": "object",
+            "properties": {
+                "cidr": {
+                    "type": "string"
+                },
+                "ip_pool_id": {
+                    "type": "string"
+                },
+                "ips": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "v1.ChangePwdRequest": {
             "type": "object",
             "required": [
@@ -1030,6 +1051,39 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 8
+                }
+            }
+        },
+        "v1.CreateIPPoolRequest": {
+            "type": "object",
+            "required": [
+                "cidr",
+                "name",
+                "server_ip"
+            ],
+            "properties": {
+                "cidr": {
+                    "description": "CIDR is the CIDR range for the IP pool (e.g., \"100.100.100.0/24\")",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description is a description of the IP pool",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "gateway": {
+                    "description": "Gateway is the gateway address (optional)",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the name of the IP pool",
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 1
+                },
+                "server_ip": {
+                    "description": "ServerIP is the server IP address in CIDR format (e.g., \"100.100.100.1/32\")",
+                    "type": "string"
                 }
             }
         },
@@ -1074,46 +1128,94 @@ const docTemplate = `{
         "v1.CreateWGPeerRequest": {
             "type": "object",
             "required": [
-                "deviceName",
-                "username"
+                "device_name"
             ],
             "properties": {
-                "allowedIPs": {
-                    "description": "AllowedIPs optionally overrides server-side AllowedIPs for this peer.",
-                    "type": "string",
-                    "maxLength": 512
+                "allowed_ips": {
+                    "description": "AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs, optional, uses server default if not provided)",
+                    "type": "string"
                 },
-                "deviceName": {
-                    "description": "DeviceName is a human friendly device name.",
+                "client_ip": {
+                    "description": "ClientIP is the IP address to assign to the client (optional, will be auto-allocated if not provided)\nFormat: IPv4 address without CIDR (e.g., \"100.100.100.2\")",
+                    "type": "string"
+                },
+                "client_private_key": {
+                    "description": "ClientPrivateKey is the WireGuard private key (optional, will be auto-generated if not provided)",
+                    "type": "string"
+                },
+                "device_name": {
+                    "description": "DeviceName is the name of the device (e.g., \"My Laptop\", \"iPhone\")",
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 1
                 },
                 "dns": {
-                    "description": "DNS optionally overrides the default DNS from config.",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "endpoint": {
-                    "description": "Endpoint optionally overrides the default endpoint from config.",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "persistentKeepalive": {
-                    "description": "PersistentKeepalive is optional keepalive in seconds (0 means unset).",
-                    "type": "integer",
-                    "maximum": 3600,
-                    "minimum": 0
-                },
-                "privateKey": {
-                    "description": "PrivateKey is an optional client private key. If not provided, one will be auto-generated.",
+                    "description": "DNS is the DNS server(s) for the client (comma-separated, optional, uses server default if not provided)",
                     "type": "string"
                 },
-                "username": {
-                    "description": "Username is the owner username.",
-                    "type": "string",
-                    "maxLength": 32,
-                    "minLength": 3
+                "endpoint": {
+                    "description": "Endpoint is the server endpoint (optional, uses server default if not provided)",
+                    "type": "string"
+                },
+                "ip_pool_id": {
+                    "description": "IPPoolID is the ID of the IP pool to allocate from (required if ClientIP is not provided)",
+                    "type": "string"
+                },
+                "persistent_keepalive": {
+                    "description": "PersistentKeepalive is the keepalive interval in seconds (optional, default 25)",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 0
+                },
+                "user_id": {
+                    "description": "UserID is the ID of the user who owns this peer (admin can specify, regular user uses their own ID)",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.IPPoolListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.IPPoolResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.IPPoolResponse": {
+            "type": "object",
+            "properties": {
+                "cidr": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "gateway": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "server_ip": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -1196,39 +1298,32 @@ const docTemplate = `{
         "v1.UpdateWGPeerRequest": {
             "type": "object",
             "properties": {
-                "allowedIPs": {
-                    "type": "string",
-                    "maxLength": 512
-                },
-                "clientIP": {
-                    "description": "ClientIP is the client IP address in CIDR format (e.g., 100.100.100.5/32).",
+                "allowed_ips": {
+                    "description": "AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs)",
                     "type": "string"
                 },
-                "deviceName": {
-                    "description": "DeviceName is a human friendly device name.",
+                "device_name": {
+                    "description": "DeviceName is the name of the device",
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 1
                 },
                 "dns": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "endpoint": {
-                    "description": "Endpoint optionally overrides the default endpoint from config.",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "persistentKeepalive": {
-                    "type": "integer",
-                    "maximum": 3600,
-                    "minimum": 0
-                },
-                "privateKey": {
-                    "description": "PrivateKey is an optional client private key. If provided, public key will be auto-generated.",
+                    "description": "DNS is the DNS server(s) for the client (comma-separated)",
                     "type": "string"
                 },
+                "endpoint": {
+                    "description": "Endpoint is the server endpoint",
+                    "type": "string"
+                },
+                "persistent_keepalive": {
+                    "description": "PersistentKeepalive is the keepalive interval in seconds",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 0
+                },
                 "status": {
+                    "description": "Status is the peer status (active/disabled)",
                     "type": "string",
                     "enum": [
                         "active",
@@ -1265,32 +1360,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.UserUpdateConfigRequest": {
-            "type": "object",
-            "properties": {
-                "allowedIPs": {
-                    "description": "AllowedIPs: IP ranges that the client is allowed to access.",
-                    "type": "string",
-                    "maxLength": 512
-                },
-                "dns": {
-                    "description": "DNS: DNS server address.",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "endpoint": {
-                    "description": "Endpoint: server endpoint address.",
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "persistentKeepalive": {
-                    "description": "PersistentKeepalive: keepalive interval in seconds.",
-                    "type": "integer",
-                    "maximum": 3600,
-                    "minimum": 0
-                }
-            }
-        },
         "v1.WGPeerListResponse": {
             "type": "object",
             "properties": {
@@ -1317,13 +1386,22 @@ const docTemplate = `{
                 "client_public_key": {
                     "type": "string"
                 },
+                "created_at": {
+                    "type": "string"
+                },
                 "device_name": {
                     "type": "string"
                 },
                 "dns": {
                     "type": "string"
                 },
+                "endpoint": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "ip_pool_id": {
                     "type": "string"
                 },
                 "persistent_keepalive": {
@@ -1332,10 +1410,14 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "updated_at": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "string"
                 },
                 "username": {
+                    "description": "Populated when listing peers",
                     "type": "string"
                 }
             }
