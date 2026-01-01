@@ -14,6 +14,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/options"
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/router"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/ip"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 
 	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
@@ -84,6 +85,14 @@ func run(ctx context.Context, opts *options.Options) error {
 		JWT:             opts.JWT,
 		WireGuard:       opts.WireGuard,
 	})
+
+	// Sync all peers and IP allocations from config files on startup
+	// This runs asynchronously to avoid blocking server startup
+	go func() {
+		if err := ip.SyncAllFromConfigFiles(ctx, router.StoreIns); err != nil {
+			klog.V(1).InfoS("Failed to sync from config files", "error", err)
+		}
+	}()
 
 	serve(opts)
 	<-ctx.Done()

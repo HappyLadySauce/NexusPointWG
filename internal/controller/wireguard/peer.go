@@ -54,13 +54,24 @@ func (w *WGController) CreatePeer(c *gin.Context) {
 
 	// Determine target user ID
 	targetUserID := requesterID
-	if requesterRole == model.UserRoleAdmin && req.UserID != "" {
+	if requesterRole == model.UserRoleAdmin {
+		if req.Username != "" {
+			// Look up user by username
+			user, err := w.srv.Users().GetUserByUsername(context.Background(), req.Username)
+			if err != nil {
+				core.WriteResponse(c, errors.WithCode(code.ErrUserNotFound, "user not found: %s", req.Username), nil)
+				return
+			}
+			targetUserID = user.ID
+		} else if req.UserID != "" {
+			// Backward compatibility: support UserID
 		targetUserID = req.UserID
+		}
 	}
 
 	// --- Authorization (Casbin) ---
 	scope := spec.ScopeSelf
-	if requesterRole == model.UserRoleAdmin && req.UserID != "" && req.UserID != requesterID {
+	if requesterRole == model.UserRoleAdmin && targetUserID != requesterID {
 		scope = spec.ScopeAny
 	}
 	obj := spec.Obj(spec.ResourceWGPeer, scope)

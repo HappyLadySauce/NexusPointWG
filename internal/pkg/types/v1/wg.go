@@ -3,7 +3,10 @@ package v1
 // CreateWGPeerRequest represents a request to create a WireGuard peer.
 // swagger:model
 type CreateWGPeerRequest struct {
-	// UserID is the ID of the user who owns this peer (admin can specify, regular user uses their own ID)
+	// Username is the username of the user who owns this peer (admin can specify, regular user uses their own username)
+	// If provided, UserID will be ignored and looked up by username
+	Username string `json:"username,omitempty" binding:"omitempty"`
+	// UserID is the ID of the user who owns this peer (deprecated, use Username instead)
 	UserID string `json:"user_id,omitempty" binding:"omitempty"`
 	// DeviceName is the name of the device (e.g., "My Laptop", "iPhone")
 	DeviceName string `json:"device_name" binding:"required,min=1,max=64"`

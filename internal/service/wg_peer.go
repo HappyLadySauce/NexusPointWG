@@ -225,7 +225,7 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer) error {
 	// Update database
 	if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
 		return err
-	}
+}
 
 	// Update server config if status or AllowedIPs changed
 	if w.configManager != nil {

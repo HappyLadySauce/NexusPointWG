@@ -25,6 +25,17 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
+  RadioGroup,
+  RadioGroupItem,
+} from "../components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -32,21 +43,76 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { api, CreateWGPeerRequest, WGPeerResponse } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { api, CreateWGPeerRequest, IPPoolResponse, UserResponse, WGPeerResponse } from "../services/api";
 
+// Enhanced form schema
 const peerSchema = z.object({
-  device_name: z.string().min(1, "Device name is required"),
+  username: z.string().optional(), // Admin can specify
+  device_name: z.string().min(1, "Device name is required").max(64, "Device name must be at most 64 characters"),
+  config_mode: z.enum(["pool", "manual"]),
+  ip_pool_id: z.string().optional(),
+  client_ip: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^(\d{1,3}\.){3}\d{1,3}$/.test(val);
+  }, "Invalid IPv4 address format"),
+  allowed_ips: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^((\d{1,3}\.){3}\d{1,3}\/\d{1,2})(,\s*((\d{1,3}\.){3}\d{1,3}\/\d{1,2}))*$/.test(val);
+  }, "Invalid CIDR list format (e.g., 0.0.0.0/0, 192.168.1.0/24)"),
+  dns: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^((\d{1,3}\.){3}\d{1,3})(,\s*((\d{1,3}\.){3}\d{1,3}))*$/.test(val);
+  }, "Invalid DNS IP format (e.g., 1.1.1.1, 8.8.8.8)"),
+  endpoint: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(val);
+  }, "Invalid Endpoint format (e.g., 118.24.41.142:51820)"),
+  persistent_keepalive: z.number().min(0).max(65535).optional(),
+}).refine((data) => {
+  // Pool mode requires ip_pool_id
+  if (data.config_mode === "pool" && !data.ip_pool_id) {
+    return false;
+  }
+  return true;
+}, {
+  message: "IP Pool is required in Pool mode",
+  path: ["ip_pool_id"],
+}).refine((data) => {
+  // Manual mode requires allowed_ips
+  if (data.config_mode === "manual" && !data.allowed_ips) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Allowed IPs is required in Manual mode",
+  path: ["allowed_ips"],
 });
 
+type PeerFormValues = z.infer<typeof peerSchema>;
+
 export function Peers() {
+  const { user: currentUser } = useAuth();
   const [peers, setPeers] = useState<WGPeerResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ device_name: string }>({
+  // Enhanced state management
+  const [pools, setPools] = useState<IPPoolResponse[]>([]);
+  const [users, setUsers] = useState<UserResponse[]>([]);
+  const [selectedPool, setSelectedPool] = useState<string>("");
+
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, watch, setValue } = useForm<PeerFormValues>({
     resolver: zodResolver(peerSchema),
+    defaultValues: {
+      config_mode: "pool",
+      persistent_keepalive: 25,
+    },
   });
+
+  const isAdmin = currentUser?.role === "admin";
+  const configMode = watch("config_mode");
 
   const fetchPeers = async () => {
     try {
@@ -61,20 +127,90 @@ export function Peers() {
 
   useEffect(() => {
     fetchPeers();
-  }, []);
+    fetchPools();
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isAdmin]);
 
-  const onSubmit = async (data: { device_name: string }) => {
+  const fetchPools = async () => {
+    try {
+      const response = await api.wg.listIPPools({ status: "active" });
+      setPools(response.items || []);
+    } catch (error) {
+      toast.error("Failed to load IP pools");
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.users.list();
+      setUsers(response.items || []);
+    } catch (error) {
+      toast.error("Failed to load users");
+    }
+  };
+
+  const handlePoolChange = (poolID: string) => {
+    setSelectedPool(poolID);
+    setValue("ip_pool_id", poolID);
+
+    // Auto-fill Pool configuration
+    const pool = pools.find(p => p.id === poolID);
+    if (pool && configMode === "pool") {
+      if (pool.routes) setValue("allowed_ips", pool.routes);
+      if (pool.dns) setValue("dns", pool.dns);
+      if (pool.endpoint) setValue("endpoint", pool.endpoint);
+    }
+  };
+
+
+  const onSubmit = async (data: PeerFormValues) => {
+    // Admin must select user
+    if (isAdmin && !data.username) {
+      toast.error("User is required for admin");
+      return;
+    }
+
     try {
       const request: CreateWGPeerRequest = {
         device_name: data.device_name,
       };
+
+      // Admin can specify username
+      if (isAdmin && data.username) {
+        request.username = data.username;
+      }
+
+      // Pool mode
+      if (data.config_mode === "pool" && data.ip_pool_id) {
+        request.ip_pool_id = data.ip_pool_id;
+        // Use Pool config, but allow manual override
+        if (data.allowed_ips) request.allowed_ips = data.allowed_ips;
+        if (data.dns) request.dns = data.dns;
+        if (data.endpoint) request.endpoint = data.endpoint;
+      } else {
+        // Manual mode: all fields need to be manually filled
+        if (data.ip_pool_id) request.ip_pool_id = data.ip_pool_id;
+        if (data.allowed_ips) request.allowed_ips = data.allowed_ips;
+        if (data.dns) request.dns = data.dns;
+        if (data.endpoint) request.endpoint = data.endpoint;
+      }
+
+      // Optional fields
+      if (data.client_ip) request.client_ip = data.client_ip;
+      if (data.persistent_keepalive) {
+        request.persistent_keepalive = data.persistent_keepalive;
+      }
+
       await api.wg.createPeer(request);
       toast.success("Peer created successfully");
       setIsCreateOpen(false);
       reset();
+      setSelectedPool("");
       fetchPeers();
-    } catch (error) {
-      toast.error("Failed to create peer");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create peer");
     }
   };
 
@@ -137,20 +273,243 @@ export function Peers() {
               <Plus className="mr-2 h-4 w-4" /> Create Peer
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Peer</DialogTitle>
               <DialogDescription>
-                Add a new device to the WireGuard network. Keys and IPs will be generated automatically.
+                Add a new device to the WireGuard network. Choose between Pool auto-fill or manual configuration.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="device_name">Device Name</Label>
-                <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
-                {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="device_name">Device Name *</Label>
+                  <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
+                  {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
+                </div>
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="username">User *</Label>
+                    <Select
+                      value={watch("username") || ""}
+                      onValueChange={(value) => setValue("username", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.username} value={user.username}>
+                            {user.username} {user.nickname && `(${user.nickname})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+                  </div>
+                )}
+
+                {/* Configuration Mode */}
+                <div className="space-y-2">
+                  <Label>Configuration Mode</Label>
+                  <RadioGroup
+                    value={configMode}
+                    onValueChange={(value) => {
+                      setValue("config_mode", value as "pool" | "manual");
+                      // Reset fields when switching modes
+                      if (value === "manual") {
+                        setValue("allowed_ips", "");
+                        setValue("dns", "");
+                        setValue("endpoint", "");
+                      }
+                    }}
+                    className="flex gap-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="pool" id="pool" />
+                      <Label htmlFor="pool" className="font-normal cursor-pointer">Pool Auto-fill</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="manual" id="manual" />
+                      <Label htmlFor="manual" className="font-normal cursor-pointer">Manual Configuration</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </div>
+
+              {/* Pool Mode Fields */}
+              {configMode === "pool" && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ip_pool_id">IP Pool *</Label>
+                    <Select
+                      value={watch("ip_pool_id") || ""}
+                      onValueChange={handlePoolChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select IP Pool" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pools.map((pool) => (
+                          <SelectItem key={pool.id} value={pool.id}>
+                            {pool.name} ({pool.cidr})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.ip_pool_id && <p className="text-sm text-red-500">{errors.ip_pool_id.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="client_ip">Client IP (optional)</Label>
+                    <Input
+                      id="client_ip"
+                      placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
+                      {...register("client_ip")}
+                    />
+                    {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="allowed_ips">Allowed IPs (auto-filled, can override)</Label>
+                    <Input
+                      id="allowed_ips"
+                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                      {...register("allowed_ips")}
+                    />
+                    {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dns">DNS (auto-filled, can override)</Label>
+                    <Input
+                      id="dns"
+                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                      {...register("dns")}
+                    />
+                    {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="endpoint">Endpoint (auto-filled, can override)</Label>
+                    <Input
+                      id="endpoint"
+                      placeholder="e.g., 118.24.41.142:51820"
+                      {...register("endpoint")}
+                    />
+                    {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="persistent_keepalive">Persistent Keepalive (seconds)</Label>
+                    <Input
+                      id="persistent_keepalive"
+                      type="number"
+                      min="0"
+                      max="65535"
+                      placeholder="25"
+                      {...register("persistent_keepalive", { valueAsNumber: true })}
+                    />
+                    {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Mode Fields */}
+              {configMode === "manual" && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ip_pool_id_manual">IP Pool (optional, for IP allocation)</Label>
+                    <Select
+                      value={watch("ip_pool_id") || ""}
+                      onValueChange={(value) => {
+                        setValue("ip_pool_id", value);
+                        handlePoolChange(value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select IP Pool (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {pools.map((pool) => (
+                          <SelectItem key={pool.id} value={pool.id}>
+                            {pool.name} ({pool.cidr})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="client_ip_manual">Client IP (optional)</Label>
+                    <Input
+                      id="client_ip_manual"
+                      placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
+                      {...register("client_ip")}
+                    />
+                    {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="allowed_ips_manual">Allowed IPs *</Label>
+                    <Input
+                      id="allowed_ips_manual"
+                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                      {...register("allowed_ips")}
+                    />
+                    {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dns_manual">DNS (optional)</Label>
+                    <Input
+                      id="dns_manual"
+                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                      {...register("dns")}
+                    />
+                    {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="endpoint_manual">Endpoint (optional)</Label>
+                    <Input
+                      id="endpoint_manual"
+                      placeholder="e.g., 118.24.41.142:51820"
+                      {...register("endpoint")}
+                    />
+                    {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="persistent_keepalive_manual">Persistent Keepalive (seconds)</Label>
+                    <Input
+                      id="persistent_keepalive_manual"
+                      type="number"
+                      min="0"
+                      max="65535"
+                      placeholder="25"
+                      {...register("persistent_keepalive", { valueAsNumber: true })}
+                    />
+                    {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
+                  </div>
+                </div>
+              )}
+
               <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateOpen(false);
+                    reset();
+                    setSelectedPool("");
+                  }}
+                >
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create Peer"}
                 </Button>

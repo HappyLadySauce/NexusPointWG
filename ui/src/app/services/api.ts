@@ -67,7 +67,8 @@ export interface WGPeerResponse {
 }
 
 export interface CreateWGPeerRequest {
-  user_id?: string;
+  username?: string; // Admin can specify username, regular user uses their own
+  user_id?: string; // Deprecated, use username instead
   device_name: string;
   client_ip?: string;
   ip_pool_id?: string;
@@ -225,30 +226,30 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Helper for Auth Headers
 const getHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    "Authorization": token ? `Bearer ${token}` : "",
-  };
+    const token = localStorage.getItem("token");
+    return {
+        "Content-Type": "application/json",
+        "Authorization": token ? `Bearer ${token}` : "",
+    };
 };
 
 // Helper for handling responses
 const handleResponse = async (res: Response) => {
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    window.location.href = "/"; // Force login
-    throw new Error("Unauthorized");
-  }
-  if (!res.ok) {
-    const text = await res.text();
-    try {
-      const json = JSON.parse(text);
-      throw new Error(json.error || json.message || res.statusText);
-    } catch {
-      throw new Error(text || res.statusText);
+    if (res.status === 401) {
+        localStorage.removeItem("token");
+        window.location.href = "/"; // Force login
+        throw new Error("Unauthorized");
     }
-  }
-  return res.json();
+    if (!res.ok) {
+        const text = await res.text();
+        try {
+            const json = JSON.parse(text);
+            throw new Error(json.error || json.message || res.statusText);
+        } catch {
+            throw new Error(text || res.statusText);
+        }
+    }
+    return res.json();
 };
 
 // Helper to build query string from options
@@ -344,7 +345,7 @@ export const api = {
 
         if (options?.user_id) {
           filtered = filtered.filter((p) => p.user_id === options.user_id);
-        }
+      }
         if (options?.status) {
           filtered = filtered.filter((p) => p.status === options.status);
         }
@@ -441,31 +442,31 @@ export const api = {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/wg/peers/${id}`, {
-        method: "DELETE",
+       const res = await fetch(`${API_BASE}/wg/peers/${id}`, { 
+           method: "DELETE",
         headers: getHeaders(),
-      });
-      if (!res.ok) throw new Error("Failed to delete peer");
+       });
+       if (!res.ok) throw new Error("Failed to delete peer");
     },
 
     downloadConfig: async (id: string): Promise<string> => {
-      if (USE_MOCK) {
-        await delay(500);
-        return `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = 10.0.0.5/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = SERVER_PUBLIC_KEY\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0`;
-      }
+        if (USE_MOCK) {
+            await delay(500);
+            return `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = 10.0.0.5/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = SERVER_PUBLIC_KEY\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0`;
+        }
 
-      const res = await fetch(`${API_BASE}/wg/peers/${id}/config`, {
+        const res = await fetch(`${API_BASE}/wg/peers/${id}/config`, {
         headers: getHeaders(),
-      });
-      if (!res.ok) throw new Error("Failed to download config");
-      return res.text();
+        });
+        if (!res.ok) throw new Error("Failed to download config");
+        return res.text();
     },
 
     // ========================================================================
     // IP Pools
     // ========================================================================
     listIPPools: async (options?: IPPoolListOptions): Promise<ListResponse<IPPoolResponse>> => {
-      if (USE_MOCK) {
+       if (USE_MOCK) {
         await delay(300);
         let filtered = [...mockIPPools];
 
@@ -513,10 +514,10 @@ export const api = {
         body: JSON.stringify(data),
       });
       return handleResponse(res);
-    },
+  },
 
     updateIPPool: async (poolID: string, data: UpdateIPPoolRequest): Promise<IPPoolResponse> => {
-      if (USE_MOCK) {
+          if (USE_MOCK) {
         await delay(400);
         const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
         if (poolIndex === -1) throw new Error("IP pool not found");
@@ -533,28 +534,28 @@ export const api = {
         };
         mockIPPools[poolIndex] = updatedPool;
         return updatedPool;
-      }
+          }
 
       const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify(data),
-      });
-      return handleResponse(res);
-    },
+          });
+          return handleResponse(res);
+      },
 
     deleteIPPool: async (poolID: string): Promise<void> => {
-      if (USE_MOCK) {
+          if (USE_MOCK) {
         await delay(300);
         const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
         if (poolIndex === -1) throw new Error("IP pool not found");
         mockIPPools.splice(poolIndex, 1);
         return;
-      }
+          }
 
       const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
         method: "DELETE",
-        headers: getHeaders(),
+              headers: getHeaders(),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -601,8 +602,8 @@ export const api = {
   // ==========================================================================
   users: {
     list: async (options?: UserListOptions): Promise<ListResponse<UserResponse>> => {
-      if (USE_MOCK) {
-        await delay(300);
+          if (USE_MOCK) {
+              await delay(300);
         let filtered = mockUsers.map((u) => ({
           username: u.username,
           nickname: u.nickname || u.username,
@@ -705,8 +706,8 @@ export const api = {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify(data),
-      });
-      return handleResponse(res);
+          });
+          return handleResponse(res);
     },
 
     delete: async (username: string): Promise<void> => {

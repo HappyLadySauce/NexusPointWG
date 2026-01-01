@@ -184,7 +184,7 @@ func (u *UserController) CreateUser(c *gin.Context) {
 	if isAuthenticated {
 		klog.V(1).InfoS("user created successfully by admin", "username", httpUser.Username, "role", user.Role, "status", user.Status, "requesterID", requesterIDAny)
 	} else {
-		klog.V(1).Info("user registered successfully")
+	klog.V(1).Info("user registered successfully")
 	}
 	core.WriteResponse(c, nil, nil)
 }

@@ -16,9 +16,9 @@ export function Dashboard() {
         const response = await api.wg.listPeers();
         const peerList = response.items || [];
         setPeers(peerList);
-
+        
         const active = peerList.filter(p => p.status === 'active').length;
-
+        
         setStats({
           totalPeers: response.total || peerList.length,
           activePeers: active,
@@ -33,7 +33,7 @@ export function Dashboard() {
   return (
     <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
       <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-
+      
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -74,34 +74,34 @@ export function Dashboard() {
       </div>
 
       <Card>
-        <CardHeader>
+          <CardHeader>
           <CardTitle>Recent Peers</CardTitle>
-        </CardHeader>
-        <CardContent>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-4">
             {peers.slice(0, 10).map(peer => (
               <div className="flex items-center justify-between p-3 border rounded-lg" key={peer.id}>
-                <div className="space-y-1">
+                        <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">{peer.device_name}</p>
-                  <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">
                     {peer.client_ip} • {peer.username || 'N/A'}
-                  </p>
-                </div>
-                <div className="ml-auto font-medium text-sm">
-                  {peer.status === 'active' ? (
-                    <span className="text-emerald-600">Active</span>
-                  ) : (
-                    <span className="text-slate-400">Inactive</span>
-                  )}
-                </div>
-              </div>
-            ))}
+                            </p>
+                        </div>
+                        <div className="ml-auto font-medium text-sm">
+                            {peer.status === 'active' ? (
+                                <span className="text-emerald-600">Active</span>
+                            ) : (
+                                <span className="text-slate-400">Inactive</span>
+                            )}
+                        </div>
+                    </div>
+                ))}
             {peers.length === 0 && (
               <p className="text-center text-muted-foreground py-8">No peers found</p>
             )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
     </div>
   );
 }
