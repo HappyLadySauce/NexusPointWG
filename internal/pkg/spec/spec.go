@@ -11,6 +11,7 @@ const (
 	ResourceWGPeer   Resource = "wg_peer"
 	ResourceWGConfig Resource = "wg_config"
 	ResourceIPPool   Resource = "ip_pool"
+	ResourceWGServer Resource = "wg_server"
 )
 
 // Scope represents ownership scope of a resource.
@@ -77,4 +78,10 @@ const (
 	ActionIPPoolDelete Action = "ip_pool:delete"
 	// List: list IP pools
 	ActionIPPoolList Action = "ip_pool:list"
+
+	// ---- WireGuard server (admin-only) ----
+	// Get: get server configuration
+	ActionWGServerGet Action = "wg_server:get"
+	// Update: update server configuration
+	ActionWGServerUpdate Action = "wg_server:update"
 )

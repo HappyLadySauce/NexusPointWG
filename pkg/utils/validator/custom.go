@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin/binding"
 	v10 "github.com/go-playground/validator/v10"
+
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 )
 
 var (
@@ -71,6 +73,11 @@ func RegisterCustomValidators(v *v10.Validate) error {
 
 	// Register dnslist validator: validates comma-separated IP addresses (IPv4 or IPv6)
 	if err := v.RegisterValidation("dnslist", validateDNSList); err != nil {
+		return err
+	}
+
+	// Register wgprivatekey validator: validates WireGuard private key format
+	if err := v.RegisterValidation("wgprivatekey", validateWGPrivateKey); err != nil {
 		return err
 	}
 
@@ -248,4 +255,13 @@ func validateDNSList(fl v10.FieldLevel) bool {
 		}
 	}
 	return true
+}
+
+// validateWGPrivateKey validates that the string is a valid WireGuard private key format.
+func validateWGPrivateKey(fl v10.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "" {
+		return true // empty values are handled by required tag
+	}
+	return wireguard.ValidatePrivateKey(value) == nil
 }

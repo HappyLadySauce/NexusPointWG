@@ -9,6 +9,7 @@ type Service interface {
 	Auth() AuthSrv
 	WGPeers() WGPeerSrv
 	IPPools() IPPoolSrv
+	WGServer() WGServerSrv
 }
 
 type service struct {
@@ -33,4 +34,8 @@ func (s *service) WGPeers() WGPeerSrv {
 
 func (s *service) IPPools() IPPoolSrv {
 	return newIPPools(s)
+}
+
+func (s *service) WGServer() WGServerSrv {
+	return newWGServer(s)
 }

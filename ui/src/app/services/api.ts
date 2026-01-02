@@ -127,6 +127,26 @@ export interface AvailableIPsResponse {
   total: number;
 }
 
+// Server Configuration types
+export interface GetServerConfigResponse {
+  address: string;      // Server tunnel IP, e.g., "100.100.100.1/24"
+  listen_port: number;  // Listening port, e.g., 51820
+  private_key: string;  // Server private key (sensitive)
+  mtu: number;          // MTU, e.g., 1420
+  post_up: string;      // PostUp command
+  post_down: string;    // PostDown command
+  public_key: string;   // Server public key (calculated from private key)
+}
+
+export interface UpdateServerConfigRequest {
+  address?: string;
+  listen_port?: number;
+  private_key?: string;
+  mtu?: number;
+  post_up?: string;
+  post_down?: string;
+}
+
 // Pagination types
 export interface ListResponse<T> {
   total: number;
@@ -594,6 +614,51 @@ export const api = {
         headers: getHeaders(),
       });
       return handleResponse(res);
+    },
+
+    // ========================================================================
+    // Server Configuration
+    // ========================================================================
+    getServerConfig: async (): Promise<GetServerConfigResponse> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          address: "100.100.100.1/24",
+          listen_port: 51820,
+          private_key: "MOCK_PRIVATE_KEY",
+          mtu: 1420,
+          post_up: "iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE",
+          post_down: "iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE",
+          public_key: "MOCK_PUBLIC_KEY",
+        };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/server-config`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    updateServerConfig: async (data: UpdateServerConfigRequest): Promise<void> => {
+      if (USE_MOCK) {
+        await delay(400);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/wg/server-config`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.message || json.error || res.statusText);
+        } catch {
+          throw new Error(text || res.statusText);
+        }
+      }
     },
   },
 

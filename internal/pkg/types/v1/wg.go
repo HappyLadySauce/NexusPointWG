@@ -137,3 +137,39 @@ type AvailableIPsResponse struct {
 	IPs      []string `json:"ips"`
 	Total    int      `json:"total"`
 }
+
+// GetServerConfigResponse represents a response containing server configuration.
+// swagger:model
+type GetServerConfigResponse struct {
+	// Address is the server tunnel IP (e.g., "100.100.100.1/24")
+	Address string `json:"address"`
+	// ListenPort is the listening port (e.g., 51820)
+	ListenPort int `json:"listen_port"`
+	// PrivateKey is the server private key (sensitive information)
+	PrivateKey string `json:"private_key"`
+	// MTU is the Maximum Transmission Unit (e.g., 1420)
+	MTU int `json:"mtu"`
+	// PostUp is the PostUp command
+	PostUp string `json:"post_up"`
+	// PostDown is the PostDown command
+	PostDown string `json:"post_down"`
+	// PublicKey is the server public key (calculated from private key)
+	PublicKey string `json:"public_key"`
+}
+
+// UpdateServerConfigRequest represents a request to update server configuration.
+// swagger:model
+type UpdateServerConfigRequest struct {
+	// Address is the server tunnel IP (e.g., "100.100.100.1/24")
+	Address *string `json:"address,omitempty" binding:"omitempty,cidr"`
+	// ListenPort is the listening port
+	ListenPort *int `json:"listen_port,omitempty" binding:"omitempty,min=1,max=65535"`
+	// PrivateKey is the server private key
+	PrivateKey *string `json:"private_key,omitempty" binding:"omitempty,wgprivatekey"`
+	// MTU is the Maximum Transmission Unit
+	MTU *int `json:"mtu,omitempty" binding:"omitempty,min=68,max=65535"`
+	// PostUp is the PostUp command
+	PostUp *string `json:"post_up,omitempty" binding:"omitempty,max=1000"`
+	// PostDown is the PostDown command
+	PostDown *string `json:"post_down,omitempty" binding:"omitempty,max=1000"`
+}

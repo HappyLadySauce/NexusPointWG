@@ -25,4 +25,8 @@ func init() {
 	authed.PUT("/wg/ip-pools/:id", wgController.UpdateIPPool)
 	authed.DELETE("/wg/ip-pools/:id", wgController.DeleteIPPool)
 	authed.GET("/wg/ip-pools/:id/available-ips", wgController.GetAvailableIPs)
+
+	// Server configuration management routes (admin only, enforced in controller)
+	authed.GET("/wg/server-config", wgController.GetServerConfig)
+	authed.PUT("/wg/server-config", wgController.UpdateServerConfig)
 }

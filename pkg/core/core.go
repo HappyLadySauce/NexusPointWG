@@ -101,6 +101,8 @@ func FormatValidationError(err error) map[string]string {
 				message = toToken("ipv4", nil)
 			case "dnslist":
 				message = toToken("dnslist", nil)
+			case "wgprivatekey":
+				message = toToken("wgprivatekey", nil)
 			default:
 				message = toToken("invalid", map[string]string{"tag": fieldError.Tag()})
 			}

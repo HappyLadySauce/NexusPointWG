@@ -6,6 +6,7 @@ p, admin, wg_peer:self, *
 p, admin, wg_config:any, *
 p, admin, wg_config:self, *
 p, admin, ip_pool:any, *
+p, admin, wg_server:any, *
 
 # Explicit permission for admin to create users (for clarity)
 p, admin, user:any, user:create
