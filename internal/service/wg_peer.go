@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/network"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
 	"k8s.io/klog/v2"
@@ -21,7 +23,7 @@ type WGPeerSrv interface {
 	CreatePeer(ctx context.Context, userID, deviceName, ipPoolID, clientIP, allowedIPs, dns, endpoint, clientPrivateKey string, persistentKeepalive *int) (*model.WGPeer, error)
 	GetPeer(ctx context.Context, id string) (*model.WGPeer, error)
 	GetPeerByPublicKey(ctx context.Context, publicKey string) (*model.WGPeer, error)
-	UpdatePeer(ctx context.Context, peer *model.WGPeer) error
+	UpdatePeer(ctx context.Context, peer *model.WGPeer, newClientIP, newIPPoolID *string) error
 	DeletePeer(ctx context.Context, id string, isHardDelete bool) error
 	ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error)
 	ReleaseIP(ctx context.Context, peerID string) error
@@ -89,19 +91,32 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 		endpoint = pool.Endpoint
 	}
 
+	// Get server tunnel IP from server config Address
+	serverTunnelIP := ""
+	if w.configManager != nil {
+		serverConfig, err := w.configManager.ReadServerConfig()
+		if err == nil && serverConfig != nil && serverConfig.Interface != nil && serverConfig.Interface.Address != "" {
+			// Extract IP from Address (e.g., "100.100.100.1/24" -> "100.100.100.1")
+			extractedIP, err := ip.ExtractIPFromCIDR(serverConfig.Interface.Address)
+			if err == nil {
+				serverTunnelIP = extractedIP
+			}
+		}
+	}
+
 	// Allocate IP address
 	allocator := ip.NewAllocator(w.store)
 	var allocatedIP string
 	if clientIP != "" {
 		// Validate and use provided IP
-		if err := allocator.ValidateAndAllocateIP(ctx, ipPoolID, clientIP); err != nil {
+		if err := allocator.ValidateAndAllocateIP(ctx, ipPoolID, clientIP, serverTunnelIP); err != nil {
 			return nil, err
 		}
 		allocatedIP = clientIP
 	} else {
 		// Auto-allocate IP
 		var err error
-		allocatedIP, err = allocator.AllocateIP(ctx, ipPoolID, "")
+		allocatedIP, err = allocator.AllocateIP(ctx, ipPoolID, "", serverTunnelIP)
 		if err != nil {
 			return nil, err
 		}
@@ -215,17 +230,112 @@ func (w *wgPeerSrv) GetPeerByPublicKey(ctx context.Context, publicKey string) (*
 	return w.store.WGPeers().GetPeerByPublicKey(ctx, publicKey)
 }
 
-func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer) error {
+func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClientIP, newIPPoolID *string) error {
 	// Get existing peer to check what changed
 	existingPeer, err := w.store.WGPeers().GetPeer(ctx, peer.ID)
 	if err != nil {
 		return err
 	}
 
+	// Handle IP address change
+	if newClientIP != nil && *newClientIP != "" {
+		// Extract IP from existing CIDR format
+		existingIP, _ := ip.ExtractIPFromCIDR(existingPeer.ClientIP)
+		
+		// Check if IP actually changed
+		if existingIP != *newClientIP {
+			// Determine which IP pool to use
+			ipPoolID := peer.IPPoolID
+			if newIPPoolID != nil && *newIPPoolID != "" {
+				ipPoolID = *newIPPoolID
+			} else if ipPoolID == "" {
+				// Get default IP pool if not specified
+				pools, _, err := w.store.IPPools().ListIPPools(ctx, store.IPPoolListOptions{
+					Status: model.IPPoolStatusActive,
+					Limit:  1,
+				})
+				if err != nil || len(pools) == 0 {
+					return errors.WithCode(code.ErrIPPoolNotFound, "no active IP pool found")
+				}
+				ipPoolID = pools[0].ID
+				peer.IPPoolID = ipPoolID
+			}
+
+			// Get server tunnel IP from server config Address
+			serverTunnelIP := ""
+			if w.configManager != nil {
+				serverConfig, err := w.configManager.ReadServerConfig()
+				if err == nil && serverConfig != nil && serverConfig.Interface != nil && serverConfig.Interface.Address != "" {
+					// Extract IP from Address (e.g., "100.100.100.1/24" -> "100.100.100.1")
+					extractedIP, err := ip.ExtractIPFromCIDR(serverConfig.Interface.Address)
+					if err == nil {
+						serverTunnelIP = extractedIP
+					}
+				}
+			}
+
+			// Validate and allocate new IP
+			allocator := ip.NewAllocator(w.store)
+			if err := allocator.ValidateAndAllocateIP(ctx, ipPoolID, *newClientIP, serverTunnelIP); err != nil {
+				return err
+			}
+
+			// Release old IP allocation
+			if err := allocator.ReleaseIP(ctx, peer.ID); err != nil {
+				klog.V(1).InfoS("failed to release old IP allocation", "peerID", peer.ID, "error", err)
+				// Continue anyway
+			}
+
+			// Create new IP allocation record
+			allocationID, err := snowflake.GenerateID()
+			if err != nil {
+				return errors.WithCode(code.ErrWGPeerIDGenerationFailed, "failed to generate allocation ID")
+			}
+
+			allocation := &model.IPAllocation{
+				ID:        allocationID,
+				IPPoolID:  ipPoolID,
+				PeerID:    peer.ID,
+				IPAddress: *newClientIP,
+				Status:    model.IPAllocationStatusAllocated,
+			}
+
+			if err := w.store.IPAllocations().CreateIPAllocation(ctx, allocation); err != nil {
+				return err
+			}
+
+			// Format IP as CIDR
+			clientIPCIDR, err := ip.FormatIPAsCIDR(*newClientIP)
+			if err != nil {
+				return err
+			}
+			peer.ClientIP = clientIPCIDR
+		}
+	}
+
+	// Handle IP Pool change (without IP change)
+	if newIPPoolID != nil && *newIPPoolID != "" && peer.IPPoolID != *newIPPoolID {
+		peer.IPPoolID = *newIPPoolID
+	}
+
+	// Handle private key change - regenerate public key if needed
+	if peer.ClientPrivateKey != existingPeer.ClientPrivateKey && peer.ClientPrivateKey != "" {
+		// Validate private key
+		if err := wireguard.ValidatePrivateKey(peer.ClientPrivateKey); err != nil {
+			return errors.WithCode(code.ErrWGPrivateKeyInvalid, "invalid private key: %s", err.Error())
+		}
+		// Public key should already be updated in controller, but regenerate to be safe
+		publicKey, err := wireguard.GeneratePublicKey(peer.ClientPrivateKey)
+		if err != nil {
+			return errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "failed to generate public key: %s", err.Error())
+		}
+		peer.ClientPublicKey = publicKey
+	}
+
 	// Update database
 	if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
 		return err
-}
+	}
 
 	// Update server config if status or AllowedIPs changed
 	if w.configManager != nil {
@@ -351,20 +461,43 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 
 	// Use defaults if peer fields are empty
 	// Priority: Peer specified > IP Pool config > Global config
+	// If all are empty, DNS will be empty string and won't be written to config
 	dns := peer.DNS
 	if dns == "" && pool != nil && pool.DNS != "" {
 		dns = pool.DNS
 	}
-	if dns == "" {
+	if dns == "" && wgOpts.DNS != "" {
 		dns = wgOpts.DNS
 	}
+	// If dns is still empty, it will be omitted in GenerateClientConfig
 
+	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
 	endpoint := peer.Endpoint
 	if endpoint == "" && pool != nil && pool.Endpoint != "" {
 		endpoint = pool.Endpoint
 	}
 	if endpoint == "" {
-		endpoint = wgOpts.Endpoint
+		// Use Settings.ServerIP + ListenPort from server config
+		if w.configManager != nil {
+			serverConfig, err := w.configManager.ReadServerConfig()
+			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+				serverIP := wgOpts.ServerIP
+				if serverIP == "" {
+					// Auto-detect if not set
+					detectedIP, err := network.GetServerIP(ctx, "")
+					if err == nil {
+						serverIP = detectedIP
+					}
+				}
+				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
+					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
+				}
+			}
+		}
+		// Fallback to global endpoint if still empty
+		if endpoint == "" {
+			endpoint = wgOpts.Endpoint
+		}
 	}
 
 	allowedIPs := peer.AllowedIPs

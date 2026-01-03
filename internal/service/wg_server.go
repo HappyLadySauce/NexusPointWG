@@ -10,16 +10,17 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/ip"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
-	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/network"
 	"github.com/HappyLadySauce/errors"
 	"k8s.io/klog/v2"
 )
 
 // WGServerSrv defines the interface for WireGuard server configuration management.
 type WGServerSrv interface {
-	GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, error)
+	GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, error)
 	UpdateServerConfig(ctx context.Context, req *v1.UpdateServerConfigRequest) error
 }
 
@@ -53,19 +54,19 @@ func newWGServer(s *service) *wgServerSrv {
 
 // GetServerConfig gets the server configuration.
 // Returns: InterfaceConfig, PublicKey, error
-func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, error) {
+func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, error) {
 	if w.configManager == nil {
-		return nil, "", errors.WithCode(code.ErrWGConfigNotInitialized, "config manager not initialized")
+		return nil, "", "", errors.WithCode(code.ErrWGConfigNotInitialized, "config manager not initialized")
 	}
 
 	// Read server config
 	serverConfig, err := w.configManager.ReadServerConfig()
 	if err != nil {
-		return nil, "", errors.Wrap(err, "failed to read server config")
+		return nil, "", "", errors.Wrap(err, "failed to read server config")
 	}
 
 	if serverConfig.Interface == nil {
-		return nil, "", errors.WithCode(code.ErrWGServerConfigNotFound, "server interface config not found")
+		return nil, "", "", errors.WithCode(code.ErrWGServerConfigNotFound, "server interface config not found")
 	}
 
 	// Get server public key
@@ -78,7 +79,24 @@ func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.Interface
 		}
 	}
 
-	return serverConfig.Interface, publicKey, nil
+	// Get or detect ServerIP
+	cfg := config.Get()
+	var serverIP string
+	if cfg != nil && cfg.WireGuard != nil {
+		serverIP = cfg.WireGuard.ServerIP
+		if serverIP == "" {
+			// Auto-detect if not set
+			detectedIP, err := network.GetServerIP(ctx, "")
+			if err != nil {
+				klog.V(1).InfoS("failed to detect server IP", "error", err)
+				// Continue with empty serverIP
+			} else {
+				serverIP = detectedIP
+			}
+		}
+	}
+
+	return serverConfig.Interface, publicKey, serverIP, nil
 }
 
 // UpdateServerConfig updates the server configuration.
@@ -135,6 +153,25 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 	}
 	if req.PostDown != nil {
 		serverConfig.Interface.PostDown = *req.PostDown
+	}
+
+	// Handle ServerIP update
+	cfg := config.Get()
+	if cfg != nil && cfg.WireGuard != nil {
+		if req.ServerIP != nil {
+			// Update ServerIP if provided
+			cfg.WireGuard.ServerIP = *req.ServerIP
+		} else if cfg.WireGuard.ServerIP == "" {
+			// Auto-detect if not set and not provided
+			detectedIP, err := network.GetServerIP(ctx, "")
+			if err != nil {
+				klog.V(1).InfoS("failed to detect server IP", "error", err)
+				// Continue without serverIP
+			} else {
+				cfg.WireGuard.ServerIP = detectedIP
+				klog.V(1).InfoS("auto-detected server IP", "ip", detectedIP)
+			}
+		}
 	}
 
 	// Write updated config
@@ -249,32 +286,62 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 
 	// Use defaults if peer fields are empty
 	// Priority: Peer specified > IP Pool config > Global config
+	// If all are empty, DNS will be empty string and won't be written to config
 	dns := peer.DNS
 	if dns == "" && pool != nil && pool.DNS != "" {
 		dns = pool.DNS
 	}
-	if dns == "" {
+	if dns == "" && wgOpts.DNS != "" {
 		dns = wgOpts.DNS
 	}
+	// If dns is still empty, it will be omitted in GenerateClientConfig
 
+	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
 	endpoint := peer.Endpoint
 	if endpoint == "" && pool != nil && pool.Endpoint != "" {
 		endpoint = pool.Endpoint
 	}
 	if endpoint == "" {
-		endpoint = wgOpts.Endpoint
+		// Use Settings.ServerIP + ListenPort
+		serverIP := wgOpts.ServerIP
+		if serverIP == "" {
+			// Auto-detect if not set
+			detectedIP, err := network.GetServerIP(ctx, "")
+			if err == nil {
+				serverIP = detectedIP
+			}
+		}
+		if serverIP != "" && newConfig.ListenPort > 0 {
+			endpoint = fmt.Sprintf("%s:%d", serverIP, newConfig.ListenPort)
+		}
+		// Fallback to global endpoint if still empty
+		if endpoint == "" {
+			endpoint = wgOpts.Endpoint
+		}
 	}
 
-	// Update endpoint port if ListenPort changed and we have endpoint IP
-	if listenPortChanged && endpointIP != "" {
+	// Update endpoint port if ListenPort changed
+	if listenPortChanged {
 		// Extract IP from current endpoint if it exists
 		currentEndpointIP, err := ip.ExtractIPFromEndpoint(endpoint)
 		if err == nil && currentEndpointIP != "" {
 			// Use current endpoint IP
 			endpoint = fmt.Sprintf("%s:%d", currentEndpointIP, newConfig.ListenPort)
 		} else {
-			// Use global endpoint IP
-			endpoint = fmt.Sprintf("%s:%d", endpointIP, newConfig.ListenPort)
+			// Use Settings.ServerIP or detected IP
+			serverIP := wgOpts.ServerIP
+			if serverIP == "" {
+				detectedIP, err := network.GetServerIP(ctx, "")
+				if err == nil {
+					serverIP = detectedIP
+				}
+			}
+			if serverIP != "" {
+				endpoint = fmt.Sprintf("%s:%d", serverIP, newConfig.ListenPort)
+			} else if endpointIP != "" {
+				// Fallback to extracted endpoint IP from global config
+				endpoint = fmt.Sprintf("%s:%d", endpointIP, newConfig.ListenPort)
+			}
 		}
 	}
 
@@ -327,4 +394,3 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 	klog.V(2).InfoS("updated client config file", "peerID", peer.ID, "path", configPath, "listenPortChanged", listenPortChanged, "mtuChanged", mtuChanged, "privateKeyChanged", privateKeyChanged)
 	return nil
 }
-

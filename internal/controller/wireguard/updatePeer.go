@@ -9,6 +9,7 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
@@ -88,6 +89,23 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 	if req.DeviceName != nil {
 		existingPeer.DeviceName = *req.DeviceName
 	}
+	if req.ClientIP != nil {
+		existingPeer.ClientIP = *req.ClientIP
+	}
+	if req.IPPoolID != nil {
+		existingPeer.IPPoolID = *req.IPPoolID
+	}
+	if req.ClientPrivateKey != nil {
+		existingPeer.ClientPrivateKey = *req.ClientPrivateKey
+		// Regenerate public key from private key
+		publicKey, err := wireguard.GeneratePublicKey(*req.ClientPrivateKey)
+		if err != nil {
+			klog.V(1).InfoS("failed to generate public key from private key", "error", err)
+			core.WriteResponse(c, errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "failed to generate public key from private key"), nil)
+			return
+		}
+		existingPeer.ClientPublicKey = publicKey
+	}
 	if req.AllowedIPs != nil {
 		existingPeer.AllowedIPs = *req.AllowedIPs
 	}
@@ -109,8 +127,8 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 		existingPeer.Status = *req.Status
 	}
 
-	// Update peer
-	if err := w.srv.WGPeers().UpdatePeer(context.Background(), existingPeer); err != nil {
+	// Update peer (service layer handles IP allocation and key validation)
+	if err := w.srv.WGPeers().UpdatePeer(context.Background(), existingPeer, req.ClientIP, req.IPPoolID); err != nil {
 		klog.V(1).InfoS("failed to update peer", "peerID", peerID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return

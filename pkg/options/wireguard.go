@@ -34,6 +34,9 @@ type WireGuardOptions struct {
 	// ApplyMethod determines how to apply server config changes.
 	// Supported: "systemctl", "none".
 	ApplyMethod string `json:"apply-method" mapstructure:"apply-method"`
+
+	// ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)
+	ServerIP string `json:"server_ip" mapstructure:"server_ip"`
 }
 
 func NewWireGuardOptions() *WireGuardOptions {

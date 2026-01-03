@@ -32,6 +32,12 @@ type CreateWGPeerRequest struct {
 type UpdateWGPeerRequest struct {
 	// DeviceName is the name of the device
 	DeviceName *string `json:"device_name,omitempty" binding:"omitempty,min=1,max=64"`
+	// ClientIP is the IP address to assign to the client (IPv4 address without CIDR, e.g., "100.100.100.2")
+	ClientIP *string `json:"client_ip,omitempty" binding:"omitempty,ipv4"`
+	// IPPoolID is the ID of the IP pool to allocate from
+	IPPoolID *string `json:"ip_pool_id,omitempty" binding:"omitempty"`
+	// ClientPrivateKey is the WireGuard private key
+	ClientPrivateKey *string `json:"client_private_key,omitempty" binding:"omitempty"`
 	// AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs)
 	AllowedIPs *string `json:"allowed_ips,omitempty" binding:"omitempty,cidr"`
 	// DNS is the DNS server(s) for the client (comma-separated)
@@ -155,6 +161,8 @@ type GetServerConfigResponse struct {
 	PostDown string `json:"post_down"`
 	// PublicKey is the server public key (calculated from private key)
 	PublicKey string `json:"public_key"`
+	// ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)
+	ServerIP string `json:"server_ip"`
 }
 
 // UpdateServerConfigRequest represents a request to update server configuration.
@@ -172,4 +180,6 @@ type UpdateServerConfigRequest struct {
 	PostUp *string `json:"post_up,omitempty" binding:"omitempty,max=1000"`
 	// PostDown is the PostDown command
 	PostDown *string `json:"post_down,omitempty" binding:"omitempty,max=1000"`
+	// ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)
+	ServerIP *string `json:"server_ip,omitempty" binding:"omitempty,ipv4"`
 }

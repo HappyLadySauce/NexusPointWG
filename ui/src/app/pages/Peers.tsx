@@ -91,12 +91,41 @@ const peerSchema = z.object({
 
 type PeerFormValues = z.infer<typeof peerSchema>;
 
+// Edit peer form schema
+const editPeerSchema = z.object({
+  device_name: z.string().min(1, "Device name is required").max(64, "Device name must be at most 64 characters"),
+  client_ip: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^(\d{1,3}\.){3}\d{1,3}$/.test(val);
+  }, "Invalid IPv4 address format"),
+  ip_pool_id: z.string().optional(),
+  client_private_key: z.string().optional(),
+  allowed_ips: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^((\d{1,3}\.){3}\d{1,3}\/\d{1,2})(,\s*((\d{1,3}\.){3}\d{1,3}\/\d{1,2}))*$/.test(val);
+  }, "Invalid CIDR list format (e.g., 0.0.0.0/0, 192.168.1.0/24)"),
+  dns: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^((\d{1,3}\.){3}\d{1,3})(,\s*((\d{1,3}\.){3}\d{1,3}))*$/.test(val);
+  }, "Invalid DNS IP format (e.g., 1.1.1.1, 8.8.8.8)"),
+  endpoint: z.string().optional().refine((val) => {
+    if (!val || val === "") return true;
+    return /^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(val);
+  }, "Invalid Endpoint format (e.g., 118.24.41.142:51820)"),
+  persistent_keepalive: z.number().min(0).max(65535).optional(),
+  status: z.enum(["active", "disabled"]).optional(),
+});
+
+type EditPeerFormValues = z.infer<typeof editPeerSchema>;
+
 export function Peers() {
   const { user: currentUser } = useAuth();
   const [peers, setPeers] = useState<WGPeerResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPeer, setEditingPeer] = useState<WGPeerResponse | null>(null);
 
   // Enhanced state management
   const [pools, setPools] = useState<IPPoolResponse[]>([]);
@@ -109,6 +138,11 @@ export function Peers() {
       config_mode: "pool",
       persistent_keepalive: 25,
     },
+  });
+
+  // Edit form
+  const { register: registerEdit, handleSubmit: handleEditSubmit, reset: resetEdit, formState: { errors: editErrors, isSubmitting: isEditSubmitting }, watch: watchEdit, setValue: setEditValue } = useForm<EditPeerFormValues>({
+    resolver: zodResolver(editPeerSchema),
   });
 
   const isAdmin = currentUser?.role === "admin";
@@ -253,6 +287,71 @@ export function Peers() {
     } catch (error) {
       toast.error("Failed to download config");
       console.error(error);
+    }
+  };
+
+  const handleEdit = (peer: WGPeerResponse) => {
+    setEditingPeer(peer);
+    // Extract IP from CIDR format (e.g., "100.100.100.1/32" -> "100.100.100.1")
+    const clientIP = peer.client_ip.split("/")[0];
+    resetEdit({
+      device_name: peer.device_name,
+      client_ip: clientIP,
+      ip_pool_id: peer.ip_pool_id || "",
+      client_private_key: "", // Don't show private key for security, user can enter new one
+      allowed_ips: peer.allowed_ips || "",
+      dns: peer.dns || "",
+      endpoint: peer.endpoint || "",
+      persistent_keepalive: peer.persistent_keepalive,
+      status: peer.status as "active" | "disabled",
+    });
+    setIsEditOpen(true);
+  };
+
+  const onEditSubmit = async (data: EditPeerFormValues) => {
+    if (!editingPeer) return;
+
+    try {
+      const request: any = {};
+      const existingIP = editingPeer.client_ip.split("/")[0];
+
+      // Only include fields that are provided (partial update)
+      if (data.device_name !== editingPeer.device_name) {
+        request.device_name = data.device_name;
+      }
+      if (data.client_ip && data.client_ip !== existingIP) {
+        request.client_ip = data.client_ip;
+      }
+      if (data.ip_pool_id && data.ip_pool_id !== (editingPeer.ip_pool_id || "")) {
+        request.ip_pool_id = data.ip_pool_id || undefined;
+      }
+      if (data.client_private_key && data.client_private_key !== "") {
+        request.client_private_key = data.client_private_key;
+      }
+      if (data.allowed_ips !== (editingPeer.allowed_ips || "")) {
+        request.allowed_ips = data.allowed_ips || undefined;
+      }
+      if (data.dns !== (editingPeer.dns || "")) {
+        request.dns = data.dns || undefined;
+      }
+      if (data.endpoint !== (editingPeer.endpoint || "")) {
+        request.endpoint = data.endpoint || undefined;
+      }
+      if (data.persistent_keepalive !== editingPeer.persistent_keepalive) {
+        request.persistent_keepalive = data.persistent_keepalive;
+      }
+      if (data.status !== editingPeer.status) {
+        request.status = data.status;
+      }
+
+      await api.wg.updatePeer(editingPeer.id, request);
+      toast.success("Peer updated successfully");
+      setIsEditOpen(false);
+      setEditingPeer(null);
+      resetEdit();
+      fetchPeers();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update peer");
     }
   };
 
@@ -591,7 +690,7 @@ export function Peers() {
                         <DropdownMenuItem onClick={() => handleDownloadConfig(peer.id)}>
                           <Download className="mr-2 h-4 w-4" /> Download Config
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.info("Edit not implemented in demo")}>
+                        <DropdownMenuItem onClick={() => handleEdit(peer)}>
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
@@ -606,6 +705,209 @@ export function Peers() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Peer Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={(open) => {
+        setIsEditOpen(open);
+        if (!open) {
+          setEditingPeer(null);
+          resetEdit();
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Peer</DialogTitle>
+            <DialogDescription>
+              Update the WireGuard peer configuration. Changes will automatically sync to the server and client configs.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPeer && (
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+              {/* Read-only fields */}
+              <div className="space-y-4 border-b pb-4">
+                <div className="space-y-2">
+                  <Label>Client Public Key (read-only)</Label>
+                  <Input value={editingPeer.client_public_key} readOnly className="bg-muted font-mono text-xs" />
+                </div>
+              </div>
+
+              {/* Editable fields */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_device_name">Device Name *</Label>
+                  <Input
+                    id="edit_device_name"
+                    placeholder="e.g. My iPhone"
+                    {...registerEdit("device_name")}
+                  />
+                  {editErrors.device_name && (
+                    <p className="text-sm text-red-500">{editErrors.device_name.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_client_ip">Client IP</Label>
+                  <Input
+                    id="edit_client_ip"
+                    placeholder="e.g., 100.100.100.2"
+                    {...registerEdit("client_ip")}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    IPv4 address without CIDR (optional)
+                  </p>
+                  {editErrors.client_ip && (
+                    <p className="text-sm text-red-500">{editErrors.client_ip.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_ip_pool_id">IP Pool</Label>
+                  <Select
+                    value={watchEdit("ip_pool_id") || editingPeer.ip_pool_id || ""}
+                    onValueChange={(value) => setEditValue("ip_pool_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select IP Pool (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {pools.map((pool) => (
+                        <SelectItem key={pool.id} value={pool.id}>
+                          {pool.name} ({pool.cidr})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    IP Pool for IP allocation (optional)
+                  </p>
+                  {editErrors.ip_pool_id && (
+                    <p className="text-sm text-red-500">{editErrors.ip_pool_id.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_client_private_key">Client Private Key</Label>
+                  <Input
+                    id="edit_client_private_key"
+                    type="password"
+                    placeholder="Enter new private key (leave empty to keep current)"
+                    {...registerEdit("client_private_key")}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    WireGuard private key (optional, leave empty to keep current key)
+                  </p>
+                  {editErrors.client_private_key && (
+                    <p className="text-sm text-red-500">{editErrors.client_private_key.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_allowed_ips">Allowed IPs</Label>
+                  <Input
+                    id="edit_allowed_ips"
+                    placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                    {...registerEdit("allowed_ips")}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated CIDR format (optional)
+                  </p>
+                  {editErrors.allowed_ips && (
+                    <p className="text-sm text-red-500">{editErrors.allowed_ips.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_dns">DNS</Label>
+                  <Input
+                    id="edit_dns"
+                    placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                    {...registerEdit("dns")}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated DNS server IPs (optional)
+                  </p>
+                  {editErrors.dns && (
+                    <p className="text-sm text-red-500">{editErrors.dns.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_endpoint">Endpoint</Label>
+                  <Input
+                    id="edit_endpoint"
+                    placeholder="e.g., 118.24.41.142:51820"
+                    {...registerEdit("endpoint")}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Server endpoint in host:port format (optional)
+                  </p>
+                  {editErrors.endpoint && (
+                    <p className="text-sm text-red-500">{editErrors.endpoint.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_persistent_keepalive">Persistent Keepalive (seconds)</Label>
+                  <Input
+                    id="edit_persistent_keepalive"
+                    type="number"
+                    min="0"
+                    max="65535"
+                    placeholder="25"
+                    {...registerEdit("persistent_keepalive", { valueAsNumber: true })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Keepalive interval in seconds (0-65535, optional)
+                  </p>
+                  {editErrors.persistent_keepalive && (
+                    <p className="text-sm text-red-500">{editErrors.persistent_keepalive.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_status">Status</Label>
+                  <Select
+                    value={watchEdit("status") || editingPeer.status}
+                    onValueChange={(value) => setEditValue("status", value as "active" | "disabled")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="disabled">Disabled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Peer status (optional)
+                  </p>
+                  {editErrors.status && (
+                    <p className="text-sm text-red-500">{editErrors.status.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditOpen(false);
+                    setEditingPeer(null);
+                    resetEdit();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isEditSubmitting}>
+                  {isEditSubmitting ? "Updating..." : "Update Peer"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

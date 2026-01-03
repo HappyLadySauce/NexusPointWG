@@ -81,6 +81,9 @@ export interface CreateWGPeerRequest {
 
 export interface UpdateWGPeerRequest {
   device_name?: string;
+  client_ip?: string;
+  ip_pool_id?: string;
+  client_private_key?: string;
   allowed_ips?: string;
   dns?: string;
   endpoint?: string;
@@ -136,6 +139,7 @@ export interface GetServerConfigResponse {
   post_up: string;      // PostUp command
   post_down: string;    // PostDown command
   public_key: string;   // Server public key (calculated from private key)
+  server_ip: string;   // Server public IP for client endpoint (optional, auto-detected if empty)
 }
 
 export interface UpdateServerConfigRequest {
@@ -145,6 +149,7 @@ export interface UpdateServerConfigRequest {
   mtu?: number;
   post_up?: string;
   post_down?: string;
+  server_ip?: string;   // Server public IP for client endpoint (optional, auto-detected if empty)
 }
 
 // Pagination types
@@ -635,8 +640,8 @@ export const api = {
 
       const res = await fetch(`${API_BASE}/wg/server-config`, {
         headers: getHeaders(),
-      });
-      return handleResponse(res);
+          });
+          return handleResponse(res);
     },
 
     updateServerConfig: async (data: UpdateServerConfigRequest): Promise<void> => {
@@ -733,7 +738,7 @@ export const api = {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/users`, {
+          const res = await fetch(`${API_BASE}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

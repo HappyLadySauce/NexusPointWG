@@ -45,7 +45,7 @@ func (w *WGController) GetServerConfig(c *gin.Context) {
 	}
 
 	// Get server config
-	interfaceConfig, publicKey, err := w.srv.WGServer().GetServerConfig(context.Background())
+	interfaceConfig, publicKey, serverIP, err := w.srv.WGServer().GetServerConfig(context.Background())
 	if err != nil {
 		klog.V(1).InfoS("failed to get server config", "error", err)
 		core.WriteResponse(c, err, nil)
@@ -61,6 +61,7 @@ func (w *WGController) GetServerConfig(c *gin.Context) {
 		PostUp:     interfaceConfig.PostUp,
 		PostDown:   interfaceConfig.PostDown,
 		PublicKey:  publicKey,
+		ServerIP:   serverIP,
 	}
 
 	klog.V(1).InfoS("wireguard server config retrieved successfully")

@@ -23,7 +23,8 @@ func NewAllocator(store store.Factory) *Allocator {
 
 // AllocateIP allocates an IP address from the specified IP pool.
 // If preferredIP is provided and available, it will be used; otherwise, the first available IP will be allocated.
-func (a *Allocator) AllocateIP(ctx context.Context, poolID, preferredIP string) (string, error) {
+// serverTunnelIP is the server tunnel IP address (from server config Address) to exclude from allocation.
+func (a *Allocator) AllocateIP(ctx context.Context, poolID, preferredIP, serverTunnelIP string) (string, error) {
 	// Get IP pool
 	pool, err := a.store.IPPools().GetIPPool(ctx, poolID)
 	if err != nil {
@@ -52,8 +53,12 @@ func (a *Allocator) AllocateIP(ctx context.Context, poolID, preferredIP string) 
 		return "", errors.WithCode(code.ErrIPPoolInvalidCIDR, "invalid CIDR format: %s", pool.CIDR)
 	}
 
-	// Extract server IP from endpoint
-	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
+	// Extract server tunnel IP from Address (e.g., "100.100.100.1/24" -> "100.100.100.1")
+	// If not provided, try to extract from pool endpoint as fallback (for backward compatibility)
+	serverIPStr := serverTunnelIP
+	if serverIPStr == "" {
+		serverIPStr, _ = ExtractIPFromEndpoint(pool.Endpoint)
+	}
 
 	// If preferred IP is provided, validate and use it
 	if preferredIP != "" {
@@ -152,7 +157,8 @@ func (a *Allocator) findFirstAvailableIP(ipNet *net.IPNet, serverIPStr string, a
 
 // ValidateAndAllocateIP validates an IP address and allocates it if valid.
 // This is used when an IP is manually specified.
-func (a *Allocator) ValidateAndAllocateIP(ctx context.Context, poolID, ipStr string) error {
+// serverTunnelIP is the server tunnel IP address (from server config Address) to exclude from allocation.
+func (a *Allocator) ValidateAndAllocateIP(ctx context.Context, poolID, ipStr, serverTunnelIP string) error {
 	// Get IP pool
 	pool, err := a.store.IPPools().GetIPPool(ctx, poolID)
 	if err != nil {
@@ -163,8 +169,12 @@ func (a *Allocator) ValidateAndAllocateIP(ctx context.Context, poolID, ipStr str
 		return errors.WithCode(code.ErrIPPoolDisabled, "IP pool %s is disabled", poolID)
 	}
 
-	// Extract server IP from endpoint
-	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
+	// Extract server tunnel IP from Address (e.g., "100.100.100.1/24" -> "100.100.100.1")
+	// If not provided, try to extract from pool endpoint as fallback (for backward compatibility)
+	serverIPStr := serverTunnelIP
+	if serverIPStr == "" {
+		serverIPStr, _ = ExtractIPFromEndpoint(pool.Endpoint)
+	}
 
 	// Validate IP
 	if err := ValidateIPv4(ipStr); err != nil {
@@ -216,7 +226,9 @@ func (a *Allocator) GetAvailableIPs(ctx context.Context, poolID string, limit in
 		return nil, errors.WithCode(code.ErrIPPoolInvalidCIDR, "invalid CIDR format: %s", pool.CIDR)
 	}
 
-	// Extract server IP from endpoint
+	// Extract server tunnel IP from Address (e.g., "100.100.100.1/24" -> "100.100.100.1")
+	// Note: This method is used by GetAvailableIPs which may not have serverTunnelIP,
+	// so we fall back to extracting from pool endpoint for backward compatibility
 	serverIPStr, _ := ExtractIPFromEndpoint(pool.Endpoint)
 
 	// Generate available IPs

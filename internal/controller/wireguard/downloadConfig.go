@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/network"
 	"github.com/HappyLadySauce/errors"
 )
 
@@ -121,20 +123,44 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 
 	// Use defaults if peer fields are empty
 	// Priority: Peer specified > IP Pool config > Global config
+	// If all are empty, DNS will be empty string and won't be written to config
 	dns := peer.DNS
 	if dns == "" && pool != nil && pool.DNS != "" {
 		dns = pool.DNS
 	}
-	if dns == "" {
+	if dns == "" && wgOpts.DNS != "" {
 		dns = wgOpts.DNS
 	}
+	// If dns is still empty, it will be omitted in GenerateClientConfig
 
+	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
 	endpoint := peer.Endpoint
 	if endpoint == "" && pool != nil && pool.Endpoint != "" {
 		endpoint = pool.Endpoint
 	}
 	if endpoint == "" {
-		endpoint = wgOpts.Endpoint
+		// Use Settings.ServerIP + ListenPort from server config
+		if wgOpts.ServerConfigPath() != "" {
+			configManager := wireguard.NewServerConfigManager(wgOpts.ServerConfigPath(), wgOpts.ApplyMethod)
+			serverConfig, err := configManager.ReadServerConfig()
+			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+				serverIP := wgOpts.ServerIP
+				if serverIP == "" {
+					// Auto-detect if not set
+					detectedIP, err := network.GetServerIP(context.Background(), "")
+					if err == nil {
+						serverIP = detectedIP
+					}
+				}
+				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
+					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
+				}
+			}
+		}
+		// Fallback to global endpoint if still empty
+		if endpoint == "" {
+			endpoint = wgOpts.Endpoint
+		}
 	}
 
 	allowedIPs := peer.AllowedIPs
