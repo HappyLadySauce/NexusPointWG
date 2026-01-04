@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build outputs (keep _output for Docker, but exclude other build artifacts)
+*.db
+*.dbz
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# Node modules (will be installed in Docker)
+ui/node_modules
+ui/dist
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Config files (will be copied separately)
+configs/*.yaml
+!configs/NexusPointWG-Example.yaml
+
+# Test files
+*_test.go
+test
+tests
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+*.iml
+.project
+.classpath
+.settings
+

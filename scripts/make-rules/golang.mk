@@ -21,8 +21,8 @@ GOROOT := $(shell $(GO) env GOROOT 2>/dev/null || echo $$GOROOT)
 
 .PHONY: go.build
 go.build:
-	@echo "===========> Building binary"
-	@$(GO) build -o $(OUTPUT_DIR)/NexusPointWG cmd/main.go
+	@echo "===========> Building binary (static, no CGO)"
+	@CGO_ENABLED=0 GOOS=linux $(GO) build -a -installsuffix cgo -o $(OUTPUT_DIR)/NexusPointWG cmd/main.go
 
 .PHONY: go.run
 go.run:

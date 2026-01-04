@@ -23,6 +23,7 @@ include scripts/make-rules/config.mk
 include scripts/make-rules/golang.mk
 include scripts/make-rules/tools.mk
 include scripts/make-rules/swagger.mk
+include scripts/make-rules/ui.mk
 
 # ==============================================================================
 # Usage
@@ -65,6 +66,54 @@ swagger:
 .PHONY: run
 run:
 	@$(MAKE) go.run
+
+## ui.build: Build frontend application to _output/dist.
+
+## docker.build: Build backend and frontend, then build Docker image.
+.PHONY: docker.build
+docker.build: go.build ui.build
+	@echo "===========> Building Docker image"
+	@docker build -t nexuspointwg:latest -f Dockerfile .
+
+## docker.run: Run NexusPointWG in Docker container.
+.PHONY: docker.run
+docker.run:
+	@echo "===========> Running Docker container"
+	@if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg$$'; then \
+		echo "Removing existing container..."; \
+		docker rm -f nexuspointwg || true; \
+	fi
+	@docker run -d --name nexuspointwg \
+		-p 8001:8001 \
+		-v $(ROOT_DIR)/configs:/app/configs:ro \
+		-v $(ROOT_DIR)/nexuspointwg.db:/app/nexuspointwg.db \
+		nexuspointwg:latest
+	@echo "Container started. Use 'docker logs nexuspointwg' to view logs."
+
+## docker.stop: Stop Docker container.
+.PHONY: docker.stop
+docker.stop:
+	@echo "===========> Stopping Docker container"
+	@docker stop nexuspointwg || true
+
+## docker.rm: Remove Docker container.
+.PHONY: docker.rm
+docker.rm:
+	@echo "===========> Removing Docker container"
+	@docker rm -f nexuspointwg || true
+
+## docker.push: Push Docker image to registry.
+.PHONY: docker.push
+docker.push: REGISTRY_PREFIX ?= 
+docker.push: VERSION ?= latest
+docker.push:
+	@if [ -z "$(REGISTRY_PREFIX)" ]; then \
+		echo "Error: REGISTRY_PREFIX is required. Example: make docker.push REGISTRY_PREFIX=your-registry.com/namespace VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "===========> Pushing Docker image"
+	@docker tag nexuspointwg:latest $(REGISTRY_PREFIX)/nexuspointwg:$(VERSION)
+	@docker push $(REGISTRY_PREFIX)/nexuspointwg:$(VERSION)
 
 .PHONY: tidy
 tidy:
