@@ -113,7 +113,7 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 
 // initializeDefaultAdmin 初始化默认管理员用户
 // 如果数据库中不存在admin用户，则创建一个默认的admin用户
-// 密码随机生成并保存到 pwd.txt 文件中
+// 使用固定默认密码并保存到 pwd.txt 文件中
 func initializeDefaultAdmin(db *gorm.DB) error {
 	ctx := context.Background()
 	adminUsername := "admin"
@@ -131,11 +131,8 @@ func initializeDefaultAdmin(db *gorm.DB) error {
 		return errors.Wrap(err, "failed to check admin user existence")
 	}
 
-	// 生成随机密码（16位，包含大小写字母和数字）
-	password, err := passwd.GenerateRandomPassword(16)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate random password")
-	}
+	// 使用固定默认密码
+	password := "nexuspointwg"
 
 	// 生成盐值
 	salt, err := passwd.GenerateSalt()
