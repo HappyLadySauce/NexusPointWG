@@ -6,7 +6,24 @@
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata wget
+# util-linux provides nsenter to access host systemd
+RUN apk add --no-cache ca-certificates tzdata wget dbus util-linux
+
+# Create systemctl wrapper script to communicate with host systemd
+# If running with --pid=host, systemctl is available directly
+# Otherwise, uses nsenter to access host's PID namespace
+RUN echo '#!/bin/sh' > /usr/local/bin/systemctl && \
+    echo '# Wrapper to execute systemctl on the host system' >> /usr/local/bin/systemctl && \
+    echo 'if [ -f /proc/1/ns/pid ] && [ "$(readlink /proc/self/ns/pid)" != "$(readlink /proc/1/ns/pid)" ]; then' >> /usr/local/bin/systemctl && \
+    echo '  # Not in host PID namespace, use nsenter' >> /usr/local/bin/systemctl && \
+    echo '  exec nsenter -t 1 -m -u -i -n -p systemctl "$@"' >> /usr/local/bin/systemctl && \
+    echo 'else' >> /usr/local/bin/systemctl && \
+    echo '  # In host PID namespace, use systemctl directly' >> /usr/local/bin/systemctl && \
+    echo '  # Note: systemctl binary needs to be available in PATH' >> /usr/local/bin/systemctl && \
+    echo '  # For Alpine, we use nsenter as fallback since systemctl is not available' >> /usr/local/bin/systemctl && \
+    echo '  exec nsenter -t 1 -m -u -i -n -p systemctl "$@"' >> /usr/local/bin/systemctl && \
+    echo 'fi' >> /usr/local/bin/systemctl && \
+    chmod +x /usr/local/bin/systemctl
 
 # Create app user
 RUN addgroup -g 1000 appuser && \
@@ -21,7 +38,7 @@ COPY _output/NexusPointWG /app/NexusPointWG
 # Copy frontend build output from _output/dist (built locally)
 COPY _output/dist /app/ui
 
-# Copy config file (if exists)
+# Copy config file
 COPY configs/NexusPointWG-Example.yaml /app/configs/NexusPointWG.yaml
 
 # Change ownership

@@ -75,32 +75,27 @@ docker.build: go.build ui.build
 	@echo "===========> Building Docker image"
 	@docker build -t nexuspointwg:latest -f Dockerfile .
 
-## docker.run: Run NexusPointWG in Docker container.
-.PHONY: docker.run
-docker.run:
-	@echo "===========> Running Docker container"
+## docker.up: Start services using docker-compose.
+.PHONY: docker.up
+docker.up:
+	@echo "===========> Starting services with docker compose"
 	@if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg$$'; then \
 		echo "Removing existing container..."; \
 		docker rm -f nexuspointwg || true; \
 	fi
-	@docker run -d --name nexuspointwg \
-		-p 8001:8001 \
-		-v $(ROOT_DIR)/configs:/app/configs:ro \
-		-v $(ROOT_DIR)/nexuspointwg.db:/app/nexuspointwg.db \
-		nexuspointwg:latest
-	@echo "Container started. Use 'docker logs nexuspointwg' to view logs."
+	@docker compose up
 
-## docker.stop: Stop Docker container.
-.PHONY: docker.stop
-docker.stop:
-	@echo "===========> Stopping Docker container"
-	@docker stop nexuspointwg || true
+## docker.down: Stop and remove services.
+.PHONY: docker.down
+docker.down:
+	@echo "===========> Stopping services"
+	@docker compose down
 
-## docker.rm: Remove Docker container.
-.PHONY: docker.rm
-docker.rm:
-	@echo "===========> Removing Docker container"
-	@docker rm -f nexuspointwg || true
+## docker.restart: Restart services.
+.PHONY: docker.restart
+docker.restart:
+	@echo "===========> Restarting services"
+	@docker compose restart
 
 ## docker.push: Push Docker image to registry.
 .PHONY: docker.push
