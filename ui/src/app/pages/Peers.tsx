@@ -381,235 +381,236 @@ export function Peers() {
               <Plus className="mr-2 h-4 w-4" /> Create Peer
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Create New Peer</DialogTitle>
               <DialogDescription>
                 Add a new device to the WireGuard network. Choose between Pool auto-fill or manual configuration.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="device_name">Device Name *</Label>
-                  <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
-                  {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
+            <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="device_name">Device Name *</Label>
+                    <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
+                    {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
+                  </div>
+
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="username">User *</Label>
+                      <Select
+                        value={watch("username") || ""}
+                        onValueChange={(value) => setValue("username", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.username} value={user.username}>
+                              {user.username} {user.nickname && `(${user.nickname})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+                    </div>
+                  )}
+
+                  {/* Configuration Mode */}
+                  <div className="space-y-2">
+                    <Label>Configuration Mode</Label>
+                    <RadioGroup
+                      value={configMode}
+                      onValueChange={(value) => {
+                        setValue("config_mode", value as "pool" | "manual");
+                        // Reset fields when switching modes
+                        if (value === "manual") {
+                          setValue("allowed_ips", "");
+                          setValue("dns", "");
+                          setValue("endpoint", "");
+                        }
+                      }}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="pool" id="pool" />
+                        <Label htmlFor="pool" className="font-normal cursor-pointer">Pool Auto-fill</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="manual" id="manual" />
+                        <Label htmlFor="manual" className="font-normal cursor-pointer">Manual Configuration</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
 
-                {isAdmin && (
-                  <div className="space-y-2">
-                    <Label htmlFor="username">User *</Label>
-                    <Select
-                      value={watch("username") || ""}
-                      onValueChange={(value) => setValue("username", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select user" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.username} value={user.username}>
-                            {user.username} {user.nickname && `(${user.nickname})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+                {/* Pool Mode Fields */}
+                {configMode === "pool" && (
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ip_pool_id">IP Pool *</Label>
+                      <Select
+                        value={watch("ip_pool_id") || ""}
+                        onValueChange={handlePoolChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select IP Pool" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pools.map((pool) => (
+                            <SelectItem key={pool.id} value={pool.id}>
+                              {pool.name} ({pool.cidr})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.ip_pool_id && <p className="text-sm text-red-500">{errors.ip_pool_id.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="client_ip">Client IP (optional)</Label>
+                      <Input
+                        id="client_ip"
+                        placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
+                        {...register("client_ip")}
+                      />
+                      {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="allowed_ips">Allowed IPs (auto-filled, can override)</Label>
+                      <Input
+                        id="allowed_ips"
+                        placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                        {...register("allowed_ips")}
+                      />
+                      {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="dns">DNS (auto-filled, can override)</Label>
+                      <Input
+                        id="dns"
+                        placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                        {...register("dns")}
+                      />
+                      {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="endpoint">Endpoint (auto-filled, can override)</Label>
+                      <Input
+                        id="endpoint"
+                        placeholder="e.g., 118.24.41.142:51820"
+                        {...register("endpoint")}
+                      />
+                      {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="persistent_keepalive">Persistent Keepalive (seconds)</Label>
+                      <Input
+                        id="persistent_keepalive"
+                        type="number"
+                        min="0"
+                        max="65535"
+                        placeholder="25"
+                        {...register("persistent_keepalive", { valueAsNumber: true })}
+                      />
+                      {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
+                    </div>
                   </div>
                 )}
 
-                {/* Configuration Mode */}
-                <div className="space-y-2">
-                  <Label>Configuration Mode</Label>
-                  <RadioGroup
-                    value={configMode}
-                    onValueChange={(value) => {
-                      setValue("config_mode", value as "pool" | "manual");
-                      // Reset fields when switching modes
-                      if (value === "manual") {
-                        setValue("allowed_ips", "");
-                        setValue("dns", "");
-                        setValue("endpoint", "");
-                      }
-                    }}
-                    className="flex gap-6"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="pool" id="pool" />
-                      <Label htmlFor="pool" className="font-normal cursor-pointer">Pool Auto-fill</Label>
+                {/* Manual Mode Fields */}
+                {configMode === "manual" && (
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ip_pool_id_manual">IP Pool (optional, for IP allocation)</Label>
+                      <Select
+                        value={watch("ip_pool_id") || "__none__"}
+                        onValueChange={(value) => {
+                          const poolId = value === "__none__" ? undefined : value;
+                          setValue("ip_pool_id", poolId);
+                          if (poolId) {
+                            handlePoolChange(poolId);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select IP Pool (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {pools.map((pool) => (
+                            <SelectItem key={pool.id} value={pool.id}>
+                              {pool.name} ({pool.cidr})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual" className="font-normal cursor-pointer">Manual Configuration</Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="client_ip_manual">Client IP (optional)</Label>
+                      <Input
+                        id="client_ip_manual"
+                        placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
+                        {...register("client_ip")}
+                      />
+                      {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
                     </div>
-                  </RadioGroup>
-                </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="allowed_ips_manual">Allowed IPs *</Label>
+                      <Input
+                        id="allowed_ips_manual"
+                        placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                        {...register("allowed_ips")}
+                      />
+                      {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="dns_manual">DNS (optional)</Label>
+                      <Input
+                        id="dns_manual"
+                        placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                        {...register("dns")}
+                      />
+                      {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="endpoint_manual">Endpoint (optional)</Label>
+                      <Input
+                        id="endpoint_manual"
+                        placeholder="e.g., 118.24.41.142:51820"
+                        {...register("endpoint")}
+                      />
+                      {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="persistent_keepalive_manual">Persistent Keepalive (seconds)</Label>
+                      <Input
+                        id="persistent_keepalive_manual"
+                        type="number"
+                        min="0"
+                        max="65535"
+                        placeholder="25"
+                        {...register("persistent_keepalive", { valueAsNumber: true })}
+                      />
+                      {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Pool Mode Fields */}
-              {configMode === "pool" && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ip_pool_id">IP Pool *</Label>
-                    <Select
-                      value={watch("ip_pool_id") || ""}
-                      onValueChange={handlePoolChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select IP Pool" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pools.map((pool) => (
-                          <SelectItem key={pool.id} value={pool.id}>
-                            {pool.name} ({pool.cidr})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.ip_pool_id && <p className="text-sm text-red-500">{errors.ip_pool_id.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="client_ip">Client IP (optional)</Label>
-                    <Input
-                      id="client_ip"
-                      placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
-                      {...register("client_ip")}
-                    />
-                    {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="allowed_ips">Allowed IPs (auto-filled, can override)</Label>
-                    <Input
-                      id="allowed_ips"
-                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
-                      {...register("allowed_ips")}
-                    />
-                    {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="dns">DNS (auto-filled, can override)</Label>
-                    <Input
-                      id="dns"
-                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
-                      {...register("dns")}
-                    />
-                    {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="endpoint">Endpoint (auto-filled, can override)</Label>
-                    <Input
-                      id="endpoint"
-                      placeholder="e.g., 118.24.41.142:51820"
-                      {...register("endpoint")}
-                    />
-                    {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="persistent_keepalive">Persistent Keepalive (seconds)</Label>
-                    <Input
-                      id="persistent_keepalive"
-                      type="number"
-                      min="0"
-                      max="65535"
-                      placeholder="25"
-                      {...register("persistent_keepalive", { valueAsNumber: true })}
-                    />
-                    {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
-                  </div>
-                </div>
-              )}
-
-              {/* Manual Mode Fields */}
-              {configMode === "manual" && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ip_pool_id_manual">IP Pool (optional, for IP allocation)</Label>
-                    <Select
-                      value={watch("ip_pool_id") || "__none__"}
-                      onValueChange={(value) => {
-                        const poolId = value === "__none__" ? undefined : value;
-                        setValue("ip_pool_id", poolId);
-                        if (poolId) {
-                          handlePoolChange(poolId);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select IP Pool (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
-                        {pools.map((pool) => (
-                          <SelectItem key={pool.id} value={pool.id}>
-                            {pool.name} ({pool.cidr})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="client_ip_manual">Client IP (optional)</Label>
-                    <Input
-                      id="client_ip_manual"
-                      placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
-                      {...register("client_ip")}
-                    />
-                    {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="allowed_ips_manual">Allowed IPs *</Label>
-                    <Input
-                      id="allowed_ips_manual"
-                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
-                      {...register("allowed_ips")}
-                    />
-                    {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="dns_manual">DNS (optional)</Label>
-                    <Input
-                      id="dns_manual"
-                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
-                      {...register("dns")}
-                    />
-                    {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="endpoint_manual">Endpoint (optional)</Label>
-                    <Input
-                      id="endpoint_manual"
-                      placeholder="e.g., 118.24.41.142:51820"
-                      {...register("endpoint")}
-                    />
-                    {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="persistent_keepalive_manual">Persistent Keepalive (seconds)</Label>
-                    <Input
-                      id="persistent_keepalive_manual"
-                      type="number"
-                      min="0"
-                      max="65535"
-                      placeholder="25"
-                      {...register("persistent_keepalive", { valueAsNumber: true })}
-                    />
-                    {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
-                  </div>
-                </div>
-              )}
-
-              <DialogFooter>
+              <DialogFooter className="flex-shrink-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -727,198 +728,199 @@ export function Peers() {
           resetEdit();
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Edit Peer</DialogTitle>
             <DialogDescription>
               Update the WireGuard peer configuration. Changes will automatically sync to the server and client configs.
             </DialogDescription>
           </DialogHeader>
           {editingPeer && (
-            <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
-              {/* Read-only fields */}
-              <div className="space-y-4 border-b pb-4">
-                <div className="space-y-2">
-                  <Label>Client Public Key (read-only)</Label>
-                  <Input value={editingPeer.client_public_key} readOnly className="bg-muted font-mono text-xs" />
-                </div>
-              </div>
-
-              {/* Editable fields */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit_device_name">Device Name *</Label>
-                  <Input
-                    id="edit_device_name"
-                    placeholder="e.g. My iPhone"
-                    {...registerEdit("device_name")}
-                  />
-                  {editErrors.device_name && (
-                    <p className="text-sm text-red-500">{editErrors.device_name.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit_client_ip">Client IP</Label>
-                  <Input
-                    id="edit_client_ip"
-                    placeholder="e.g., 100.100.100.2"
-                    {...registerEdit("client_ip")}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    IPv4 address without CIDR (optional)
-                  </p>
-                  {editErrors.client_ip && (
-                    <p className="text-sm text-red-500">{editErrors.client_ip.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit_ip_pool_id">IP Pool</Label>
-                  <Select
-                    value={watchEdit("ip_pool_id") || editingPeer?.ip_pool_id || "__none__"}
-                    onValueChange={(value) => setEditValue("ip_pool_id", value === "__none__" ? undefined : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select IP Pool (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {pools.map((pool) => (
-                        <SelectItem key={pool.id} value={pool.id}>
-                          {pool.name} ({pool.cidr})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    IP Pool for IP allocation (optional)
-                  </p>
-                  {editErrors.ip_pool_id && (
-                    <p className="text-sm text-red-500">{editErrors.ip_pool_id.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit_client_private_key">Client Private Key</Label>
-                  <div className="relative">
-                    <Input
-                      id="edit_client_private_key"
-                      type={showPrivateKey ? "text" : "password"}
-                      placeholder="Enter new private key (leave empty to keep current)"
-                      {...registerEdit("client_private_key")}
-                      disabled={!isAdmin}
-                      className={!isAdmin ? "bg-muted" : ""}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPrivateKey(!showPrivateKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPrivateKey ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
+            <form onSubmit={handleEditSubmit(onEditSubmit)} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {/* Read-only fields */}
+                <div className="space-y-4 border-b pb-4">
+                  <div className="space-y-2">
+                    <Label>Client Public Key (read-only)</Label>
+                    <Input value={editingPeer.client_public_key} readOnly className="bg-muted font-mono text-xs" />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {isAdmin
-                      ? "WireGuard private key (optional, leave empty to keep current key). Only admins can modify."
-                      : "WireGuard private key (read-only). Only admins can modify private keys."}
-                  </p>
-                  {editErrors.client_private_key && (
-                    <p className="text-sm text-red-500">{editErrors.client_private_key.message}</p>
-                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_allowed_ips">Allowed IPs</Label>
-                  <Input
-                    id="edit_allowed_ips"
-                    placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
-                    {...registerEdit("allowed_ips")}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Comma-separated CIDR format (optional)
-                  </p>
-                  {editErrors.allowed_ips && (
-                    <p className="text-sm text-red-500">{editErrors.allowed_ips.message}</p>
-                  )}
-                </div>
+                {/* Editable fields */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_device_name">Device Name *</Label>
+                    <Input
+                      id="edit_device_name"
+                      placeholder="e.g. My iPhone"
+                      {...registerEdit("device_name")}
+                    />
+                    {editErrors.device_name && (
+                      <p className="text-sm text-red-500">{editErrors.device_name.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_dns">DNS</Label>
-                  <Input
-                    id="edit_dns"
-                    placeholder="e.g., 1.1.1.1, 8.8.8.8"
-                    {...registerEdit("dns")}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Comma-separated DNS server IPs (optional)
-                  </p>
-                  {editErrors.dns && (
-                    <p className="text-sm text-red-500">{editErrors.dns.message}</p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_client_ip">Client IP</Label>
+                    <Input
+                      id="edit_client_ip"
+                      placeholder="e.g., 100.100.100.2"
+                      {...registerEdit("client_ip")}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      IPv4 address without CIDR (optional)
+                    </p>
+                    {editErrors.client_ip && (
+                      <p className="text-sm text-red-500">{editErrors.client_ip.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_endpoint">Endpoint</Label>
-                  <Input
-                    id="edit_endpoint"
-                    placeholder="e.g., 118.24.41.142:51820"
-                    {...registerEdit("endpoint")}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Server endpoint in host:port format (optional)
-                  </p>
-                  {editErrors.endpoint && (
-                    <p className="text-sm text-red-500">{editErrors.endpoint.message}</p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_ip_pool_id">IP Pool</Label>
+                    <Select
+                      value={watchEdit("ip_pool_id") || editingPeer?.ip_pool_id || "__none__"}
+                      onValueChange={(value) => setEditValue("ip_pool_id", value === "__none__" ? undefined : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select IP Pool (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {pools.map((pool) => (
+                          <SelectItem key={pool.id} value={pool.id}>
+                            {pool.name} ({pool.cidr})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      IP Pool for IP allocation (optional)
+                    </p>
+                    {editErrors.ip_pool_id && (
+                      <p className="text-sm text-red-500">{editErrors.ip_pool_id.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_persistent_keepalive">Persistent Keepalive (seconds)</Label>
-                  <Input
-                    id="edit_persistent_keepalive"
-                    type="number"
-                    min="0"
-                    max="65535"
-                    placeholder="25"
-                    {...registerEdit("persistent_keepalive", { valueAsNumber: true })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Keepalive interval in seconds (0-65535, optional)
-                  </p>
-                  {editErrors.persistent_keepalive && (
-                    <p className="text-sm text-red-500">{editErrors.persistent_keepalive.message}</p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_client_private_key">Client Private Key</Label>
+                    <div className="relative">
+                      <Input
+                        id="edit_client_private_key"
+                        type={showPrivateKey ? "text" : "password"}
+                        placeholder="Enter new private key (leave empty to keep current)"
+                        {...registerEdit("client_private_key")}
+                        disabled={!isAdmin}
+                        className={!isAdmin ? "bg-muted" : ""}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivateKey(!showPrivateKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPrivateKey ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {isAdmin
+                        ? "WireGuard private key (optional, leave empty to keep current key). Only admins can modify."
+                        : "WireGuard private key (read-only). Only admins can modify private keys."}
+                    </p>
+                    {editErrors.client_private_key && (
+                      <p className="text-sm text-red-500">{editErrors.client_private_key.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_status">Status</Label>
-                  <Select
-                    value={watchEdit("status") || editingPeer.status}
-                    onValueChange={(value) => setEditValue("status", value as "active" | "disabled")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="disabled">Disabled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Peer status (optional)
-                  </p>
-                  {editErrors.status && (
-                    <p className="text-sm text-red-500">{editErrors.status.message}</p>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_allowed_ips">Allowed IPs</Label>
+                    <Input
+                      id="edit_allowed_ips"
+                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                      {...registerEdit("allowed_ips")}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Comma-separated CIDR format (optional)
+                    </p>
+                    {editErrors.allowed_ips && (
+                      <p className="text-sm text-red-500">{editErrors.allowed_ips.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_dns">DNS</Label>
+                    <Input
+                      id="edit_dns"
+                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                      {...registerEdit("dns")}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Comma-separated DNS server IPs (optional)
+                    </p>
+                    {editErrors.dns && (
+                      <p className="text-sm text-red-500">{editErrors.dns.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_endpoint">Endpoint</Label>
+                    <Input
+                      id="edit_endpoint"
+                      placeholder="e.g., 118.24.41.142:51820"
+                      {...registerEdit("endpoint")}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Server endpoint in host:port format (optional)
+                    </p>
+                    {editErrors.endpoint && (
+                      <p className="text-sm text-red-500">{editErrors.endpoint.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_persistent_keepalive">Persistent Keepalive (seconds)</Label>
+                    <Input
+                      id="edit_persistent_keepalive"
+                      type="number"
+                      min="0"
+                      max="65535"
+                      placeholder="25"
+                      {...registerEdit("persistent_keepalive", { valueAsNumber: true })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Keepalive interval in seconds (0-65535, optional)
+                    </p>
+                    {editErrors.persistent_keepalive && (
+                      <p className="text-sm text-red-500">{editErrors.persistent_keepalive.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_status">Status</Label>
+                    <Select
+                      value={watchEdit("status") || editingPeer.status}
+                      onValueChange={(value) => setEditValue("status", value as "active" | "disabled")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="disabled">Disabled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Peer status (optional)
+                    </p>
+                    {editErrors.status && (
+                      <p className="text-sm text-red-500">{editErrors.status.message}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              <DialogFooter>
+              <DialogFooter className="flex-shrink-0">
                 <Button
                   type="button"
                   variant="outline"
