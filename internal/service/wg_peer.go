@@ -315,7 +315,8 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClien
 	}
 
 	// Handle IP Pool change (without IP change)
-	if newIPPoolID != nil && *newIPPoolID != "" && peer.IPPoolID != *newIPPoolID {
+	// Allow clearing IP Pool by setting it to empty string
+	if newIPPoolID != nil && peer.IPPoolID != *newIPPoolID {
 		peer.IPPoolID = *newIPPoolID
 	}
 
