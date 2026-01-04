@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, Edit, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { Download, Edit, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -126,6 +126,7 @@ export function Peers() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPeer, setEditingPeer] = useState<WGPeerResponse | null>(null);
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
 
   // Enhanced state management
   const [pools, setPools] = useState<IPPoolResponse[]>([]);
@@ -292,13 +293,14 @@ export function Peers() {
 
   const handleEdit = (peer: WGPeerResponse) => {
     setEditingPeer(peer);
+    setShowPrivateKey(false); // Reset show/hide state
     // Extract IP from CIDR format (e.g., "100.100.100.1/32" -> "100.100.100.1")
     const clientIP = peer.client_ip.split("/")[0];
     resetEdit({
       device_name: peer.device_name,
       client_ip: clientIP,
-      ip_pool_id: peer.ip_pool_id || "",
-      client_private_key: "", // Don't show private key for security, user can enter new one
+      ip_pool_id: peer.ip_pool_id || undefined,
+      client_private_key: peer.client_private_key || "", // Show current private key
       allowed_ips: peer.allowed_ips || "",
       dns: peer.dns || "",
       endpoint: peer.endpoint || "",
@@ -322,11 +324,18 @@ export function Peers() {
       if (data.client_ip && data.client_ip !== existingIP) {
         request.client_ip = data.client_ip;
       }
-      if (data.ip_pool_id && data.ip_pool_id !== (editingPeer.ip_pool_id || "")) {
+      // Handle ip_pool_id: allow clearing (undefined) or changing
+      const currentPoolId = editingPeer.ip_pool_id || undefined;
+      if (data.ip_pool_id !== currentPoolId) {
         request.ip_pool_id = data.ip_pool_id || undefined;
       }
-      if (data.client_private_key && data.client_private_key !== "") {
-        request.client_private_key = data.client_private_key;
+      // Only admins can update private key
+      if (isAdmin && data.client_private_key && data.client_private_key !== "") {
+        // Only send if it's different from current (or if current is empty)
+        const currentKey = editingPeer.client_private_key || "";
+        if (data.client_private_key !== currentKey) {
+          request.client_private_key = data.client_private_key;
+        }
       }
       if (data.allowed_ips !== (editingPeer.allowed_ips || "")) {
         request.allowed_ips = data.allowed_ips || undefined;
@@ -522,17 +531,20 @@ export function Peers() {
                   <div className="space-y-2">
                     <Label htmlFor="ip_pool_id_manual">IP Pool (optional, for IP allocation)</Label>
                     <Select
-                      value={watch("ip_pool_id") || ""}
+                      value={watch("ip_pool_id") || "__none__"}
                       onValueChange={(value) => {
-                        setValue("ip_pool_id", value);
-                        handlePoolChange(value);
+                        const poolId = value === "__none__" ? undefined : value;
+                        setValue("ip_pool_id", poolId);
+                        if (poolId) {
+                          handlePoolChange(poolId);
+                        }
                       }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select IP Pool (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {pools.map((pool) => (
                           <SelectItem key={pool.id} value={pool.id}>
                             {pool.name} ({pool.cidr})
@@ -711,6 +723,7 @@ export function Peers() {
         setIsEditOpen(open);
         if (!open) {
           setEditingPeer(null);
+          setShowPrivateKey(false);
           resetEdit();
         }
       }}>
@@ -763,14 +776,14 @@ export function Peers() {
                 <div className="space-y-2">
                   <Label htmlFor="edit_ip_pool_id">IP Pool</Label>
                   <Select
-                    value={watchEdit("ip_pool_id") || editingPeer.ip_pool_id || ""}
-                    onValueChange={(value) => setEditValue("ip_pool_id", value)}
+                    value={watchEdit("ip_pool_id") || editingPeer?.ip_pool_id || "__none__"}
+                    onValueChange={(value) => setEditValue("ip_pool_id", value === "__none__" ? undefined : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select IP Pool (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {pools.map((pool) => (
                         <SelectItem key={pool.id} value={pool.id}>
                           {pool.name} ({pool.cidr})
@@ -788,14 +801,31 @@ export function Peers() {
 
                 <div className="space-y-2">
                   <Label htmlFor="edit_client_private_key">Client Private Key</Label>
-                  <Input
-                    id="edit_client_private_key"
-                    type="password"
-                    placeholder="Enter new private key (leave empty to keep current)"
-                    {...registerEdit("client_private_key")}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="edit_client_private_key"
+                      type={showPrivateKey ? "text" : "password"}
+                      placeholder="Enter new private key (leave empty to keep current)"
+                      {...registerEdit("client_private_key")}
+                      disabled={!isAdmin}
+                      className={!isAdmin ? "bg-muted" : ""}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPrivateKey(!showPrivateKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPrivateKey ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    WireGuard private key (optional, leave empty to keep current key)
+                    {isAdmin
+                      ? "WireGuard private key (optional, leave empty to keep current key). Only admins can modify."
+                      : "WireGuard private key (read-only). Only admins can modify private keys."}
                   </p>
                   {editErrors.client_private_key && (
                     <p className="text-sm text-red-500">{editErrors.client_private_key.message}</p>

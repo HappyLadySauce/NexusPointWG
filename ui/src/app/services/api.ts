@@ -55,6 +55,7 @@ export interface WGPeerResponse {
   username?: string;
   device_name: string;
   client_public_key: string;
+  client_private_key?: string; // Optional, sensitive information
   client_ip: string;
   allowed_ips: string; // Comma-separated CIDRs, not array
   dns?: string;

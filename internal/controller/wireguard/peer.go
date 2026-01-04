@@ -65,7 +65,7 @@ func (w *WGController) CreatePeer(c *gin.Context) {
 			targetUserID = user.ID
 		} else if req.UserID != "" {
 			// Backward compatibility: support UserID
-		targetUserID = req.UserID
+			targetUserID = req.UserID
 		}
 	}
 
@@ -241,6 +241,7 @@ func (w *WGController) ListPeers(c *gin.Context) {
 			Username:            "",
 			DeviceName:          peer.DeviceName,
 			ClientPublicKey:     peer.ClientPublicKey,
+			ClientPrivateKey:    peer.ClientPrivateKey,
 			ClientIP:            peer.ClientIP,
 			AllowedIPs:          peer.AllowedIPs,
 			DNS:                 peer.DNS,

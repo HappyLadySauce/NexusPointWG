@@ -52,8 +52,10 @@ const (
 	// ---- WireGuard peer ----
 	// Create: create a new WireGuard peer
 	ActionWGPeerCreate Action = "wg_peer:create"
-	// Update: update an existing WireGuard peer
+	// Update: update an existing WireGuard peer (basic fields)
 	ActionWGPeerUpdate Action = "wg_peer:update"
+	// UpdateSensitive: update sensitive fields like private key (admin-only)
+	ActionWGPeerUpdateSensitive Action = "wg_peer:update_sensitive"
 	// Delete: delete a WireGuard peer
 	ActionWGPeerDelete Action = "wg_peer:delete"
 	// List: list WireGuard peers

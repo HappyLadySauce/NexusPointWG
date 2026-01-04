@@ -66,6 +66,15 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 	}
 	obj := spec.Obj(spec.ResourceWGPeer, scope)
 
+	// Parse request body first to check for sensitive fields
+	var req v1.UpdateWGPeerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		klog.V(1).InfoS("invalid request body", "error", err)
+		core.WriteResponseBindErr(c, err, nil)
+		return
+	}
+
+	// 1) Basic updates require wg_peer:update
 	allowed, err := spec.Enforce(requesterRole, obj, spec.ActionWGPeerUpdate)
 	if err != nil {
 		klog.V(1).InfoS("authz enforce failed", "error", err)
@@ -77,12 +86,19 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 		return
 	}
 
-	// Parse request body
-	var req v1.UpdateWGPeerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		klog.V(1).InfoS("invalid request body", "error", err)
-		core.WriteResponseBindErr(c, err, nil)
-		return
+	// 2) Sensitive updates (private key) additionally require wg_peer:update_sensitive
+	if req.ClientPrivateKey != nil && *req.ClientPrivateKey != "" {
+		allowed, err := spec.Enforce(requesterRole, obj, spec.ActionWGPeerUpdateSensitive)
+		if err != nil {
+			klog.V(1).InfoS("authz enforce failed for sensitive update", "error", err)
+			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
+			return
+		}
+		if !allowed {
+			klog.V(1).InfoS("permission denied for sensitive update", "requesterRole", requesterRole, "peerID", peerID)
+			core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+			return
+		}
 	}
 
 	// Update peer fields (only update provided fields)
@@ -151,6 +167,7 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 		Username:            "",
 		DeviceName:          updatedPeer.DeviceName,
 		ClientPublicKey:     updatedPeer.ClientPublicKey,
+		ClientPrivateKey:    updatedPeer.ClientPrivateKey,
 		ClientIP:            updatedPeer.ClientIP,
 		AllowedIPs:          updatedPeer.AllowedIPs,
 		DNS:                 updatedPeer.DNS,

@@ -58,6 +58,7 @@ type WGPeerResponse struct {
 	Username            string `json:"username,omitempty"` // Populated when listing peers
 	DeviceName          string `json:"device_name"`
 	ClientPublicKey     string `json:"client_public_key"`
+	ClientPrivateKey    string `json:"client_private_key,omitempty"` // Optional, sensitive information
 	ClientIP            string `json:"client_ip"`
 	AllowedIPs          string `json:"allowed_ips"`
 	DNS                 string `json:"dns,omitempty"`

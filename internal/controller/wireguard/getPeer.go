@@ -82,6 +82,7 @@ func (w *WGController) GetPeer(c *gin.Context) {
 		Username:            "",
 		DeviceName:          peer.DeviceName,
 		ClientPublicKey:     peer.ClientPublicKey,
+		ClientPrivateKey:    peer.ClientPrivateKey,
 		ClientIP:            peer.ClientIP,
 		AllowedIPs:          peer.AllowedIPs,
 		DNS:                 peer.DNS,
