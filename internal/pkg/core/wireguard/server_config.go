@@ -51,20 +51,123 @@ type InterfaceConfig struct {
 	SaveConfig bool
 }
 
-// ReadServerConfig reads and parses the server configuration file.
-func (m *ServerConfigManager) ReadServerConfig() (*ServerConfig, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+// createDefaultConfig creates a default server configuration with generated private key.
+func (m *ServerConfigManager) createDefaultConfig() (*ServerConfig, error) {
+	// Generate private key
+	privateKey, err := GeneratePrivateKey()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate private key for default config")
+	}
 
+	// Create default config
+	config := &ServerConfig{
+		Interface: &InterfaceConfig{
+			PrivateKey: privateKey,
+			ListenPort: 51820, // Default WireGuard port
+			MTU:        1420,  // Default MTU
+		},
+		Peers: make([]*ServerPeerConfig, 0),
+	}
+
+	return config, nil
+}
+
+// ReadServerConfig reads and parses the server configuration file.
+// If the file does not exist or is empty, it will create a default configuration.
+func (m *ServerConfigManager) ReadServerConfig() (*ServerConfig, error) {
+	// Check if file exists
 	file, err := os.Open(m.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, errors.WithCode(code.ErrWGServerConfigNotFound, "server config file not found: %s", m.configPath)
+			// File doesn't exist, create default config
+			m.mu.Lock()
+			defer m.mu.Unlock()
+
+			// Double-check after acquiring lock
+			if _, err := os.Stat(m.configPath); os.IsNotExist(err) {
+				defaultConfig, createErr := m.createDefaultConfig()
+				if createErr != nil {
+					return nil, createErr
+				}
+
+				// Write default config to file
+				if writeErr := m.writeServerConfigUnsafe(defaultConfig); writeErr != nil {
+					return nil, errors.Wrap(writeErr, "failed to write default config")
+				}
+
+				klog.V(1).InfoS("created default server config", "path", m.configPath)
+				return defaultConfig, nil
+			}
+			// File was created by another goroutine, reopen and read
+			file, err = os.Open(m.configPath)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to reopen server config file")
+			}
+		} else {
+			return nil, errors.Wrap(err, "failed to open server config file")
 		}
-		return nil, errors.Wrap(err, "failed to open server config file")
 	}
 	defer file.Close()
 
+	// Read and parse existing config
+	m.mu.RLock()
+	config, err := m.readConfigFile(file)
+	m.mu.RUnlock()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if Interface is nil or PrivateKey is empty (config is empty/invalid)
+	if config.Interface == nil || config.Interface.PrivateKey == "" {
+		// Config is empty or invalid, create default config
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		// Re-read config after acquiring lock to ensure it's still empty
+		// (another goroutine might have initialized it)
+		file2, err := os.Open(m.configPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to reopen config file for validation")
+		}
+		defer file2.Close()
+
+		config2, err := m.readConfigFile(file2)
+		if err != nil {
+			return nil, err
+		}
+
+		// Double-check after acquiring lock
+		if config2.Interface == nil || config2.Interface.PrivateKey == "" {
+			defaultConfig, createErr := m.createDefaultConfig()
+			if createErr != nil {
+				return nil, createErr
+			}
+
+			// Preserve existing peers if any
+			if config2.Peers != nil && len(config2.Peers) > 0 {
+				defaultConfig.Peers = config2.Peers
+			}
+
+			// Write default config to file
+			if writeErr := m.writeServerConfigUnsafe(defaultConfig); writeErr != nil {
+				return nil, errors.Wrap(writeErr, "failed to write default config")
+			}
+
+			klog.V(1).InfoS("initialized empty server config with defaults", "path", m.configPath)
+			return defaultConfig, nil
+		}
+
+		// Config was initialized by another goroutine, return it
+		return config2, nil
+	}
+
+	return config, nil
+}
+
+// readConfigFile reads and parses the configuration from an open file.
+// This method should be called while holding a read lock.
+func (m *ServerConfigManager) readConfigFile(file *os.File) (*ServerConfig, error) {
 	config := &ServerConfig{
 		Interface: &InterfaceConfig{},
 		Peers:     make([]*ServerPeerConfig, 0),

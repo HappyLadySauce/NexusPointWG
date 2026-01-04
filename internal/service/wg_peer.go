@@ -401,6 +401,22 @@ func (w *wgPeerSrv) DeletePeer(ctx context.Context, id string, isHardDelete bool
 		}
 	}
 
+	// Delete client config file
+	cfg := config.Get()
+	if cfg != nil && cfg.WireGuard != nil {
+		userDir := cfg.WireGuard.ResolvedUserDir()
+		configPath := filepath.Join(userDir, id+".conf")
+		if err := os.Remove(configPath); err != nil {
+			if !os.IsNotExist(err) {
+				// Only log if file exists but deletion failed
+				klog.V(1).InfoS("failed to delete client config file", "peerID", id, "path", configPath, "error", err)
+			}
+			// Continue anyway, file deletion is not critical
+		} else {
+			klog.V(2).InfoS("deleted client config file", "peerID", id, "path", configPath)
+		}
+	}
+
 	// Handle IP allocation: hard delete for admin, soft delete for regular users
 	if isHardDelete {
 		// Hard delete: remove IP allocation record completely
