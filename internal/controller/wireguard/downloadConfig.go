@@ -122,14 +122,18 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 	}
 
 	// Use defaults if peer fields are empty
-	// Priority: Peer specified > IP Pool config > Global config
-	// If all are empty, DNS will be empty string and won't be written to config
+	// Priority: Peer specified > IP Pool config > Settings/Global config
+	// If IP Pool is associated, use IP Pool DNS (even if empty, don't fallback to global)
+	// If IP Pool is not associated, fallback to Settings/Global config DNS
 	dns := peer.DNS
-	if dns == "" && pool != nil && pool.DNS != "" {
+	if dns == "" && pool != nil {
+		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
 		dns = pool.DNS
-	}
-	if dns == "" && wgOpts.DNS != "" {
-		dns = wgOpts.DNS
+	} else if dns == "" && pool == nil {
+		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
+		if wgOpts.DNS != "" {
+			dns = wgOpts.DNS
+		}
 	}
 	// If dns is still empty, it will be omitted in GenerateClientConfig
 

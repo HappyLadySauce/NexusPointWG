@@ -20,7 +20,7 @@ import (
 
 // WGServerSrv defines the interface for WireGuard server configuration management.
 type WGServerSrv interface {
-	GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, error)
+	GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, string, error)
 	UpdateServerConfig(ctx context.Context, req *v1.UpdateServerConfigRequest) error
 }
 
@@ -53,20 +53,20 @@ func newWGServer(s *service) *wgServerSrv {
 }
 
 // GetServerConfig gets the server configuration.
-// Returns: InterfaceConfig, PublicKey, error
-func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, error) {
+// Returns: InterfaceConfig, PublicKey, ServerIP, DNS, error
+func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.InterfaceConfig, string, string, string, error) {
 	if w.configManager == nil {
-		return nil, "", "", errors.WithCode(code.ErrWGConfigNotInitialized, "config manager not initialized")
+		return nil, "", "", "", errors.WithCode(code.ErrWGConfigNotInitialized, "config manager not initialized")
 	}
 
 	// Read server config
 	serverConfig, err := w.configManager.ReadServerConfig()
 	if err != nil {
-		return nil, "", "", errors.Wrap(err, "failed to read server config")
+		return nil, "", "", "", errors.Wrap(err, "failed to read server config")
 	}
 
 	if serverConfig.Interface == nil {
-		return nil, "", "", errors.WithCode(code.ErrWGServerConfigNotFound, "server interface config not found")
+		return nil, "", "", "", errors.WithCode(code.ErrWGServerConfigNotFound, "server interface config not found")
 	}
 
 	// Get server public key
@@ -82,6 +82,7 @@ func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.Interface
 	// Get or detect ServerIP
 	cfg := config.Get()
 	var serverIP string
+	var dns string
 	if cfg != nil && cfg.WireGuard != nil {
 		serverIP = cfg.WireGuard.ServerIP
 		if serverIP == "" {
@@ -94,9 +95,10 @@ func (w *wgServerSrv) GetServerConfig(ctx context.Context) (*wireguard.Interface
 				serverIP = detectedIP
 			}
 		}
+		dns = cfg.WireGuard.DNS
 	}
 
-	return serverConfig.Interface, publicKey, serverIP, nil
+	return serverConfig.Interface, publicKey, serverIP, dns, nil
 }
 
 // UpdateServerConfig updates the server configuration.
@@ -151,11 +153,11 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 	if req.PostUp != nil {
 		serverConfig.Interface.PostUp = *req.PostUp
 	}
-	if req.PostDown != nil {
+		if req.PostDown != nil {
 		serverConfig.Interface.PostDown = *req.PostDown
 	}
 
-	// Handle ServerIP update
+	// Handle ServerIP and DNS update
 	cfg := config.Get()
 	if cfg != nil && cfg.WireGuard != nil {
 		if req.ServerIP != nil {
@@ -171,6 +173,10 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 				cfg.WireGuard.ServerIP = detectedIP
 				klog.V(1).InfoS("auto-detected server IP", "ip", detectedIP)
 			}
+		}
+		if req.DNS != nil {
+			// Update DNS if provided (empty string means clear DNS setting)
+			cfg.WireGuard.DNS = *req.DNS
 		}
 	}
 
@@ -285,14 +291,18 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 	}
 
 	// Use defaults if peer fields are empty
-	// Priority: Peer specified > IP Pool config > Global config
-	// If all are empty, DNS will be empty string and won't be written to config
+	// Priority: Peer specified > IP Pool config > Settings/Global config
+	// If IP Pool is associated, use IP Pool DNS (even if empty, don't fallback to global)
+	// If IP Pool is not associated, fallback to Settings/Global config DNS
 	dns := peer.DNS
-	if dns == "" && pool != nil && pool.DNS != "" {
+	if dns == "" && pool != nil {
+		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
 		dns = pool.DNS
-	}
-	if dns == "" && wgOpts.DNS != "" {
-		dns = wgOpts.DNS
+	} else if dns == "" && pool == nil {
+		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
+		if wgOpts.DNS != "" {
+			dns = wgOpts.DNS
+		}
 	}
 	// If dns is still empty, it will be omitted in GenerateClientConfig
 

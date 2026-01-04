@@ -163,6 +163,8 @@ type GetServerConfigResponse struct {
 	PublicKey string `json:"public_key"`
 	// ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)
 	ServerIP string `json:"server_ip"`
+	// DNS is the DNS server for client configs (optional, comma-separated IP addresses)
+	DNS string `json:"dns"`
 }
 
 // UpdateServerConfigRequest represents a request to update server configuration.
@@ -182,4 +184,6 @@ type UpdateServerConfigRequest struct {
 	PostDown *string `json:"post_down,omitempty" binding:"omitempty,max=1000"`
 	// ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)
 	ServerIP *string `json:"server_ip,omitempty" binding:"omitempty,ipv4"`
+	// DNS is the DNS server for client configs (optional, comma-separated IP addresses)
+	DNS *string `json:"dns,omitempty" binding:"omitempty,dnslist"`
 }

@@ -27,6 +27,19 @@ const serverConfigSchema = z.object({
     /^(\d{1,3}\.){3}\d{1,3}$/,
     "Invalid IPv4 address format"
   ).optional().or(z.literal("")),
+  dns: z.string().optional().or(z.literal("")).refine(
+    (val) => {
+      if (!val || val.trim() === "") return true;
+      // Validate comma-separated IP addresses
+      const parts = val.split(",");
+      const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+      return parts.every((part) => {
+        const trimmed = part.trim();
+        return trimmed === "" || ipRegex.test(trimmed);
+      });
+    },
+    { message: "Invalid DNS format (e.g., 1.1.1.1, 8.8.8.8)" }
+  ),
 });
 
 type ServerConfigFormValues = z.infer<typeof serverConfigSchema>;
@@ -70,15 +83,16 @@ export function Settings() {
         post_up: response.post_up || "",
         post_down: response.post_down || "",
         server_ip: response.server_ip || "",
+        dns: response.dns || "",
       };
       setInitialValues(formData);
       reset(formData);
-      } catch (error) {
+    } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load server configuration");
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchConfig();
@@ -94,7 +108,8 @@ export function Settings() {
       formValues.mtu !== initialValues.mtu ||
       formValues.post_up !== initialValues.post_up ||
       formValues.post_down !== initialValues.post_down ||
-      formValues.server_ip !== initialValues.server_ip
+      formValues.server_ip !== initialValues.server_ip ||
+      formValues.dns !== initialValues.dns
     );
   };
 
@@ -130,6 +145,9 @@ export function Settings() {
         if (data.server_ip !== initialValues.server_ip) {
           request.server_ip = data.server_ip || undefined;
         }
+        if (data.dns !== initialValues.dns) {
+          request.dns = data.dns || undefined;
+        }
       } else {
         // If no initial values, send all fields
         request.address = data.address;
@@ -139,11 +157,12 @@ export function Settings() {
         request.post_up = data.post_up || undefined;
         request.post_down = data.post_down || undefined;
         request.server_ip = data.server_ip || undefined;
+        request.dns = data.dns || undefined;
       }
 
       await api.wg.updateServerConfig(request);
       toast.success("Server configuration updated successfully. All client configurations will be automatically synchronized.");
-      
+
       // Reload configuration
       await fetchConfig();
     } catch (error) {
@@ -174,7 +193,7 @@ export function Settings() {
         </div>
       </div>
     );
-    }
+  }
 
   if (loading) {
     return (
@@ -194,18 +213,18 @@ export function Settings() {
   return (
     <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
       <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-      
+
       <div className="max-w-2xl">
         <Card>
-            <CardHeader>
+          <CardHeader>
             <CardTitle>Global Settings</CardTitle>
-                <CardDescription>
-                    Configure global settings for the WireGuard interface and generated peer configs.
+            <CardDescription>
+              Configure global settings for the WireGuard interface and generated peer configs.
               Changes will automatically sync to all client configurations.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Address */}
               <div className="space-y-2">
                 <Label htmlFor="address">Address *</Label>
@@ -223,27 +242,27 @@ export function Settings() {
               </div>
 
               {/* Listen Port */}
-                    <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="listen_port">Listen Port *</Label>
-                        <Input 
+                <Input
                   id="listen_port"
                   type="number"
                   placeholder="e.g. 51820"
                   {...register("listen_port", { valueAsNumber: true })}
-                        />
+                />
                 <p className="text-xs text-muted-foreground">
                   WireGuard listening port (1-65535)
                 </p>
                 {errors.listen_port && (
                   <p className="text-sm text-red-500">{errors.listen_port.message}</p>
                 )}
-                    </div>
+              </div>
 
               {/* Private Key */}
-                    <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="private_key">Private Key *</Label>
                 <div className="relative">
-                        <Input 
+                  <Input
                     id="private_key"
                     type={showPrivateKey ? "text" : "password"}
                     placeholder="Server private key"
@@ -270,7 +289,7 @@ export function Settings() {
                 {errors.private_key && (
                   <p className="text-sm text-red-500">{errors.private_key.message}</p>
                 )}
-                    </div>
+              </div>
 
               {/* Public Key (Read-only) */}
               {config && (
@@ -289,38 +308,38 @@ export function Settings() {
               )}
 
               {/* MTU */}
-                        <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="mtu">MTU *</Label>
-                            <Input 
-                                id="mtu" 
-                                type="number" 
+                <Input
+                  id="mtu"
+                  type="number"
                   placeholder="e.g. 1420"
                   {...register("mtu", { valueAsNumber: true })}
-                            />
+                />
                 <p className="text-xs text-muted-foreground">
                   Maximum Transmission Unit (68-65535)
                 </p>
                 {errors.mtu && (
                   <p className="text-sm text-red-500">{errors.mtu.message}</p>
                 )}
-                        </div>
+              </div>
 
               {/* PostUp */}
-                        <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="post_up">PostUp</Label>
                 <Textarea
                   id="post_up"
                   placeholder="e.g. iptables -A FORWARD -i wg0 -j ACCEPT"
                   rows={3}
                   {...register("post_up")}
-                            />
+                />
                 <p className="text-xs text-muted-foreground">
                   Commands to run after the interface is brought up (optional)
                 </p>
                 {errors.post_up && (
                   <p className="text-sm text-red-500">{errors.post_up.message}</p>
                 )}
-                        </div>
+              </div>
 
               {/* PostDown */}
               <div className="space-y-2">
@@ -337,23 +356,39 @@ export function Settings() {
                 {errors.post_down && (
                   <p className="text-sm text-red-500">{errors.post_down.message}</p>
                 )}
-                    </div>
+              </div>
 
               {/* Server IP */}
-                     <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="server_ip">Server IP</Label>
-                        <Input 
+                <Input
                   id="server_ip"
                   placeholder="e.g. 118.24.41.142"
                   {...register("server_ip")}
-                        />
+                />
                 <p className="text-xs text-muted-foreground">
                   Server public IP address for client endpoint (optional, auto-detected if empty)
                 </p>
                 {errors.server_ip && (
                   <p className="text-sm text-red-500">{errors.server_ip.message}</p>
                 )}
-                    </div>
+              </div>
+
+              {/* DNS */}
+              <div className="space-y-2">
+                <Label htmlFor="dns">DNS</Label>
+                <Input
+                  id="dns"
+                  placeholder="e.g. 1.1.1.1, 8.8.8.8"
+                  {...register("dns")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  DNS server for client configs (optional, comma-separated IP addresses, e.g., 1.1.1.1, 8.8.8.8)
+                </p>
+                {errors.dns && (
+                  <p className="text-sm text-red-500">{errors.dns.message}</p>
+                )}
+              </div>
 
               {/* Submit Button */}
               <div className="flex justify-end gap-2">
@@ -370,18 +405,18 @@ export function Settings() {
                   Reset
                 </Button>
                 <Button type="submit" disabled={!hasChanges() || isSubmitting}>
-                        {isSubmitting ? (
+                  {isSubmitting ? (
                     <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
                     </>
-                        ) : (
+                  ) : (
                     "Update Configuration"
-                        )}
-                    </Button>
+                  )}
+                </Button>
               </div>
-                </form>
-            </CardContent>
+            </form>
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -140,6 +140,7 @@ export interface GetServerConfigResponse {
   post_down: string;    // PostDown command
   public_key: string;   // Server public key (calculated from private key)
   server_ip: string;   // Server public IP for client endpoint (optional, auto-detected if empty)
+  dns?: string;         // DNS server for client configs (optional, comma-separated IP addresses)
 }
 
 export interface UpdateServerConfigRequest {
@@ -150,6 +151,7 @@ export interface UpdateServerConfigRequest {
   post_up?: string;
   post_down?: string;
   server_ip?: string;   // Server public IP for client endpoint (optional, auto-detected if empty)
+  dns?: string;         // DNS server for client configs (optional, comma-separated IP addresses)
 }
 
 // Pagination types
