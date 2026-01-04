@@ -8,6 +8,7 @@ export function Dashboard() {
   const [stats, setStats] = useState({
     totalPeers: 0,
     activePeers: 0,
+    totalUsers: 0,
   });
 
   useEffect(() => {
@@ -19,9 +20,19 @@ export function Dashboard() {
         
         const active = peerList.filter(p => p.status === 'active').length;
         
+        // Fetch users data
+        let totalUsers = 0;
+        try {
+          const usersResponse = await api.users.list();
+          totalUsers = usersResponse.total || 0;
+        } catch (e) {
+          console.error("Failed to fetch users:", e);
+        }
+        
         setStats({
           totalPeers: response.total || peerList.length,
           activePeers: active,
+          totalUsers: totalUsers,
         });
       } catch (e) {
         console.error(e);
@@ -61,13 +72,13 @@ export function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <UsersIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">Online</div>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              WireGuard Service Running
+              Registered users
             </p>
           </CardContent>
         </Card>
