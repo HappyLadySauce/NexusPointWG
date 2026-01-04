@@ -67,10 +67,18 @@ func (u *UserController) ListUsers(c *gin.Context) {
 
 	items := make([]v1.UserResponse, 0, len(users))
 	for _, user := range users {
+		// Calculate peer count for each user
+		peerCount, err := u.srv.WGPeers().CountPeersByUserID(context.Background(), user.ID)
+		if err != nil {
+			klog.V(1).InfoS("failed to count peers for user", "userID", user.ID, "error", err)
+			peerCount = 0 // Default to 0 on error
+		}
+
 		items = append(items, v1.UserResponse{
-			Username: user.Username,
-			Nickname: user.Nickname,
-			Email:    user.Email,
+			Username:  user.Username,
+			Nickname:  user.Nickname,
+			Email:     user.Email,
+			PeerCount: peerCount,
 		})
 	}
 

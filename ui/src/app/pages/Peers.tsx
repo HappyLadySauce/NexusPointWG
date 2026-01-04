@@ -650,7 +650,7 @@ export function Peers() {
               <TableHead>Name</TableHead>
               <TableHead>IP Address</TableHead>
               <TableHead>Endpoint</TableHead>
-              <TableHead>Latest Handshake</TableHead>
+              {isAdmin && <TableHead>User</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -658,11 +658,11 @@ export function Peers() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">Loading peers...</TableCell>
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">Loading peers...</TableCell>
               </TableRow>
             ) : filteredPeers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">No peers found.</TableCell>
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">No peers found.</TableCell>
               </TableRow>
             ) : (
               filteredPeers.map((peer) => (
@@ -680,9 +680,11 @@ export function Peers() {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{peer.endpoint || "N/A"}</TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground">N/A</span>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <span className="text-sm">{peer.username || "N/A"}</span>
+                    </TableCell>
+                  )}
                   <TableCell>
                     {peer.status === 'active' ? (
                       <Badge variant="default">Active</Badge>

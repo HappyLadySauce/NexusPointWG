@@ -437,6 +437,7 @@ export function UsersPage() {
             <TableRow>
               <TableHead>Username</TableHead>
               <TableHead>Role</TableHead>
+              {isAdmin && <TableHead className="text-right">Peers</TableHead>}
               <TableHead className="text-right">Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -444,7 +445,7 @@ export function UsersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8">Loading...</TableCell>
+                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8">Loading...</TableCell>
               </TableRow>
             ) : (
               users.map((user, index) => (
@@ -463,6 +464,11 @@ export function UsersPage() {
                   <TableCell>
                     <Badge variant="secondary">User</Badge>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <span className="text-sm font-medium">{user.peer_count ?? 0}</span>
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <span className="text-emerald-600 text-sm font-medium">Active</span>
                   </TableCell>

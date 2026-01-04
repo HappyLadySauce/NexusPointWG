@@ -25,6 +25,9 @@ type WGPeerStore interface {
 
 	// ListPeers lists peers with optional filters and pagination.
 	ListPeers(ctx context.Context, opt WGPeerListOptions) ([]*model.WGPeer, int64, error)
+
+	// CountPeersByUserID counts the number of peers for a specific user.
+	CountPeersByUserID(ctx context.Context, userID string) (int64, error)
 }
 
 // WGPeerListOptions defines options for listing WireGuard peers.

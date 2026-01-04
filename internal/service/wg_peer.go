@@ -27,6 +27,7 @@ type WGPeerSrv interface {
 	DeletePeer(ctx context.Context, id string, isHardDelete bool) error
 	ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error)
 	ReleaseIP(ctx context.Context, peerID string) error
+	CountPeersByUserID(ctx context.Context, userID string) (int64, error)
 }
 
 type wgPeerSrv struct {
@@ -443,6 +444,10 @@ func (w *wgPeerSrv) ReleaseIP(ctx context.Context, peerID string) error {
 
 func (w *wgPeerSrv) ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error) {
 	return w.store.WGPeers().ListPeers(ctx, opt)
+}
+
+func (w *wgPeerSrv) CountPeersByUserID(ctx context.Context, userID string) (int64, error) {
+	return w.store.WGPeers().CountPeersByUserID(ctx, userID)
 }
 
 // generateAndSaveClientConfig generates and saves the client configuration file.

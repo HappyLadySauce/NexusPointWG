@@ -13,6 +13,7 @@ export interface UserResponse {
   username: string;
   nickname: string;
   email: string;
+  peer_count?: number;
 }
 
 export interface User {

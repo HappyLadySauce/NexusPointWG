@@ -54,13 +54,14 @@ type ChangePwdRequest struct {
 // UserResponse represents a user response.
 // swagger:model
 type UserResponse struct {
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Email    string `json:"email"`
+	Username  string `json:"username"`
+	Nickname  string `json:"nickname"`
+	Email     string `json:"email"`
+	PeerCount int64  `json:"peer_count"`
 }
 
 // UserListResponse represents a paginated list of users.
-// swagger:model
+// swagger:model``
 type UserListResponse struct {
 	Total int64          `json:"total"`
 	Items []UserResponse `json:"items"`

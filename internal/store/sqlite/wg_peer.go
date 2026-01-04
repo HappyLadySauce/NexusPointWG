@@ -118,3 +118,12 @@ func (w *wgPeers) ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([
 	}
 	return peers, total, nil
 }
+
+func (w *wgPeers) CountPeersByUserID(ctx context.Context, userID string) (int64, error) {
+	var count int64
+	err := w.db.WithContext(ctx).Model(&model.WGPeer{}).Where("user_id = ?", userID).Count(&count).Error
+	if err != nil {
+		return 0, errors.WithCode(code.ErrDatabase, "%s", err.Error())
+	}
+	return count, nil
+}
