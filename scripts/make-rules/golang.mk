@@ -19,10 +19,35 @@ GOPATH := $(shell $(GO) env GOPATH 2>/dev/null || echo $$GOPATH || echo $(HOME)/
 # Get GOROOT from go env, fallback to environment variable
 GOROOT := $(shell $(GO) env GOROOT 2>/dev/null || echo $$GOROOT)
 
+# ==============================================================================
+# Version flags
+#
+# BUILD_VERSION 用于控制编译注入到二进制中的版本号:
+# - 不设置时，默认使用 pkg/environment/version.go 中的默认值（dev）
+# - release 构建时，通过 Makefile 显式传入 BUILD_VERSION 覆盖
+# 版本常量定义在 pkg/environment/version.go 中:
+#   const (
+#     release = "1.0.0"
+#     dev     = "1.0.0-dev"
+#   )
+#
+BUILD_VERSION ?=
+
+LDFLAGS_VERSION :=
+ifneq ($(strip $(BUILD_VERSION)),)
+LDFLAGS_VERSION += -X github.com/HappyLadySauce/NexusPointWG/pkg/environment.Version=$(BUILD_VERSION)
+endif
+
+LDFLAGS := $(strip $(LDFLAGS_VERSION))
+
 .PHONY: go.build
 go.build:
 	@echo "===========> Building binary (static, no CGO)"
-	@CGO_ENABLED=0 GOOS=linux $(GO) build -a -installsuffix cgo -o $(OUTPUT_DIR)/NexusPointWG cmd/main.go
+	@if [ -z "$(BINARY_NAME)" ]; then \
+		echo "Error: BINARY_NAME is not set. Please set it in Makefile."; \
+		exit 1; \
+	fi
+	@CGO_ENABLED=0 GOOS=linux $(GO) build -a -installsuffix cgo -ldflags '$(LDFLAGS)' -o $(OUTPUT_DIR)/$(BINARY_NAME) cmd/main.go
 
 .PHONY: go.run
 go.run:

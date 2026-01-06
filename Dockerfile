@@ -5,6 +5,11 @@
 
 FROM alpine:latest
 
+# Optional build-time version argument (for visibility only; actual version is injected via Go ldflags)
+ARG BUILD_VERSION=dev
+# Binary name with version (e.g., NexusPointWG-1.0.0-dev)
+ARG BINARY_NAME=NexusPointWG
+
 # Install runtime dependencies
 # util-linux provides nsenter to access host systemd
 # curl is needed for public IP detection
@@ -33,8 +38,9 @@ RUN addgroup -g 51830 NexusPointWG && \
 # Set working directory
 WORKDIR /app
 
-# Copy backend binary from _output (built locally)
-COPY _output/NexusPointWG /app/NexusPointWG
+# Copy backend binary from _output (built locally with version in name)
+# We'll copy it to a fixed name for simplicity, then use the actual binary name in ENTRYPOINT
+COPY _output/${BINARY_NAME} /app/NexusPointWG-versioned
 
 # Copy frontend build output from _output/dist (built locally)
 COPY _output/dist /app/ui
@@ -55,6 +61,7 @@ EXPOSE 51830
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:51830/livez || exit 1
 
-# Run the application
-ENTRYPOINT ["/app/NexusPointWG", "-c", "/app/configs/NexusPointWG.yaml"]
+# Run the application (use the versioned binary name)
+# Use shell form to allow variable expansion
+ENTRYPOINT ["/bin/sh", "-c", "exec /app/NexusPointWG-versioned -c /app/configs/NexusPointWG.yaml"]
 

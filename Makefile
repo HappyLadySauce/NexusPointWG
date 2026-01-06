@@ -16,6 +16,24 @@ all: build
 ROOT_PACKAGE=github.com/HappyLadySauce/NexusPointWG
 
 # ==============================================================================
+# Version extraction from pkg/environment/version.go
+# Extract the dev constant value as the default version
+# This ensures single source of truth for version management
+# Use awk for better compatibility (works on most Unix systems)
+VERSION_FROM_SRC := $(shell awk '/^[[:space:]]*dev[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go)
+ifeq ($(VERSION_FROM_SRC),)
+  # Fallback: try with grep (if available)
+  VERSION_FROM_SRC := $(shell grep -E '^\s*dev\s*=\s*"' pkg/environment/version.go | sed -E 's/.*dev\s*=\s*"([^"]+)".*/\1/' | head -1)
+endif
+ifeq ($(VERSION_FROM_SRC),)
+  # Final fallback
+  VERSION_FROM_SRC := 1.0.0-dev
+endif
+
+# Binary name with version
+BINARY_NAME := NexusPointWG-$(VERSION_FROM_SRC)
+
+# ==============================================================================
 # Includes
 
 include scripts/make-rules/common.mk
@@ -69,21 +87,70 @@ run:
 
 ## ui.build: Build frontend application to _output/dist.
 
-## docker.build: Build backend and frontend, then build Docker image.
-.PHONY: docker.build
-docker.build: go.build ui.build
-	@echo "===========> Building Docker image"
-	@docker build -t nexuspointwg:latest -f Dockerfile .
+## docker.build.dev: Build dev image (default).
+.PHONY: docker.build.dev
+docker.build.dev:
+	@echo "===========> Building dev binary and Docker image (version: $(VERSION_FROM_SRC))"
+	@$(MAKE) BUILD_VERSION= BINARY_NAME=$(BINARY_NAME) go.build ui.build
+	@echo "===========> Building Docker image with tag: $(VERSION_FROM_SRC)"
+	@docker build --build-arg BUILD_VERSION=$(VERSION_FROM_SRC) --build-arg BINARY_NAME=$(BINARY_NAME) -t nexuspointwg:$(VERSION_FROM_SRC) -f Dockerfile .
 
-## docker.up: Start services using docker-compose.
-.PHONY: docker.up
-docker.up:
-	@echo "===========> Starting services with docker compose"
-	@if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg$$'; then \
-		echo "Removing existing container..."; \
-		docker rm -f nexuspointwg || true; \
+## docker.build.release: Build release image.
+.PHONY: docker.build.release
+docker.build.release:
+	@echo "===========> Building release binary and Docker image"
+	@RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
+	fi; \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION="1.0.0"; \
+	fi; \
+	echo "Release version: $$RELEASE_VERSION"; \
+	RELEASE_BINARY_NAME="NexusPointWG-$$RELEASE_VERSION"; \
+	$(MAKE) BUILD_VERSION=$$RELEASE_VERSION BINARY_NAME=$$RELEASE_BINARY_NAME go.build ui.build; \
+	echo "===========> Building Docker image with tag: $$RELEASE_VERSION"; \
+	docker build --build-arg BUILD_VERSION=$$RELEASE_VERSION --build-arg BINARY_NAME=$$RELEASE_BINARY_NAME -t nexuspointwg:$$RELEASE_VERSION -f Dockerfile .
+
+## docker.build: Default to dev build.
+.PHONY: docker.build
+docker.build: docker.build.dev
+
+## docker.run.dev: Run dev environment with docker-compose.dev.yml.
+.PHONY: docker.run.dev
+docker.run.dev:
+	@echo "===========> Starting dev services with docker compose (docker-compose.dev.yml, version: $(VERSION_FROM_SRC))"
+	@if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg-dev$$'; then \
+		echo "Removing existing dev container..."; \
+		docker rm -f nexuspointwg-dev || true; \
 	fi
-	@docker compose up
+	@IMAGE_TAG=$(VERSION_FROM_SRC) docker compose -f docker-compose.dev.yml up
+
+## docker.run.release: Run release environment with docker-compose.release.yml.
+.PHONY: docker.run.release
+docker.run.release:
+	@echo "===========> Starting release services with docker compose (docker-compose.release.yml)"
+	@RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
+	fi; \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION="1.0.0"; \
+	fi; \
+	echo "Release version: $$RELEASE_VERSION"; \
+	if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg$$'; then \
+		echo "Removing existing release container..."; \
+		docker rm -f nexuspointwg || true; \
+	fi; \
+	IMAGE_TAG=$$RELEASE_VERSION docker compose -f docker-compose.release.yml up
+
+## docker.run: Default to dev run.
+.PHONY: docker.run
+docker.run: docker.run.dev
+
+## docker.up: Backward-compatible alias for docker.run.
+.PHONY: docker.up
+docker.up: docker.run
 
 ## docker.down: Stop and remove services.
 .PHONY: docker.down
