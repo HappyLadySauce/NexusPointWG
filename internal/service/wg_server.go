@@ -156,7 +156,7 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 	if req.PostUp != nil {
 		serverConfig.Interface.PostUp = *req.PostUp
 	}
-	if req.PostDown != nil {
+		if req.PostDown != nil {
 		serverConfig.Interface.PostDown = *req.PostDown
 	}
 
@@ -330,12 +330,14 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 
 	// Use endpoint from database, but update port if ListenPort changed
 	endpoint := peer.Endpoint
+	endpointUpdated := false
 	if listenPortChanged {
 		// Extract IP from current endpoint if it exists
 		currentEndpointIP, err := ip.ExtractIPFromEndpoint(endpoint)
 		if err == nil && currentEndpointIP != "" {
 			// Use current endpoint IP with new port
 			endpoint = fmt.Sprintf("%s:%d", currentEndpointIP, newConfig.ListenPort)
+			endpointUpdated = true
 		} else {
 			// Use Settings.ServerIP or detected IP
 			serverIP := wgOpts.ServerIP
@@ -347,9 +349,11 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 			}
 			if serverIP != "" {
 				endpoint = fmt.Sprintf("%s:%d", serverIP, newConfig.ListenPort)
+				endpointUpdated = true
 			} else if endpointIP != "" {
 				// Fallback to extracted endpoint IP from global config
 				endpoint = fmt.Sprintf("%s:%d", endpointIP, newConfig.ListenPort)
+				endpointUpdated = true
 			}
 		}
 	}
@@ -364,12 +368,12 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 			var err error
 			pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
 			if err == nil && pool != nil && pool.Routes != "" {
-				allowedIPs = pool.Routes
-			}
+		allowedIPs = pool.Routes
+	}
 		}
 		// Fallback to global default if still empty
-		if allowedIPs == "" {
-			allowedIPs = wgOpts.DefaultAllowedIPs
+	if allowedIPs == "" {
+		allowedIPs = wgOpts.DefaultAllowedIPs
 		}
 	}
 
@@ -409,6 +413,15 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 	configPath := filepath.Join(userDir, peer.ID+".conf")
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		return errors.WithCode(code.ErrWGConfigWriteFailed, "failed to write client config file: %s", err.Error())
+	}
+
+	// If endpoint was updated, also update database
+	if endpointUpdated && endpoint != peer.Endpoint {
+		peer.Endpoint = endpoint
+		if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
+			klog.V(1).InfoS("failed to update peer endpoint in database", "peerID", peer.ID, "error", err)
+			// Continue anyway, config file is already updated
+		}
 	}
 
 	klog.V(2).InfoS("updated client config file", "peerID", peer.ID, "path", configPath, "listenPortChanged", listenPortChanged, "mtuChanged", mtuChanged, "privateKeyChanged", privateKeyChanged)

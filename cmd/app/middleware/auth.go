@@ -89,7 +89,7 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 			if errors.ParseCoder(err).Code() == code.ErrUserNotFound {
 				core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", code.Message(code.ErrTokenInvalid)), nil)
 			} else {
-				core.WriteResponse(c, err, nil)
+			core.WriteResponse(c, err, nil)
 			}
 			c.Abort()
 			return

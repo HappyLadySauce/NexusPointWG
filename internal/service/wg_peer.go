@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/ip"
@@ -273,7 +275,7 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClien
 	if newClientIP != nil && *newClientIP != "" {
 		// Extract IP from existing CIDR format
 		existingIP, _ := ip.ExtractIPFromCIDR(existingPeer.ClientIP)
-
+		
 		// Check if IP actually changed
 		if existingIP != *newClientIP {
 			// Determine which IP pool to use
@@ -596,6 +598,17 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 		}
 	}
 
+	// Get server MTU from server config
+	var mtu int
+	if w.configManager != nil {
+		serverConfig, err := w.configManager.ReadServerConfig()
+		if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+			if serverConfig.Interface.MTU > 0 {
+				mtu = serverConfig.Interface.MTU
+			}
+		}
+	}
+
 	// Use values directly from database - they are already calculated and stored during create/update
 	// DNS and Endpoint are guaranteed to have default values (if applicable) stored in the database
 	dns := peer.DNS
@@ -624,6 +637,7 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 		PrivateKey:          peer.ClientPrivateKey,
 		Address:             peer.ClientIP,
 		DNS:                 dns,
+		MTU:                 mtu,
 		Endpoint:            endpoint,
 		PublicKey:           serverPublicKey,
 		AllowedIPs:          allowedIPs,
@@ -776,6 +790,15 @@ func (w *wgPeerSrv) UpdatePeersEndpointForGlobalConfigChange(ctx context.Context
 		}
 	}
 
+	// Get current ListenPort from server config
+	var currentListenPort int
+	if w.configManager != nil {
+		serverConfig, err := w.configManager.ReadServerConfig()
+		if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+			currentListenPort = serverConfig.Interface.ListenPort
+		}
+	}
+
 	// Update each peer if needed
 	for _, peer := range peers {
 		needsUpdate := false
@@ -790,8 +813,29 @@ func (w *wgPeerSrv) UpdatePeersEndpointForGlobalConfigChange(ctx context.Context
 			if err == nil && endpointIP != "" {
 				// Check if it matches current server IP
 				if serverIP != "" && endpointIP == serverIP {
-					// Endpoint uses server IP, so it's based on global config
-					needsUpdate = true
+					// Endpoint uses server IP, check if port matches current ListenPort
+					if currentListenPort > 0 {
+						// Extract port from current endpoint
+						_, port, err := net.SplitHostPort(peer.Endpoint)
+						if err == nil {
+							currentPort, err := strconv.Atoi(port)
+							if err == nil {
+								if currentPort != currentListenPort {
+									// Port doesn't match, needs update
+									needsUpdate = true
+								}
+							} else {
+								// Can't parse port, assume needs update
+								needsUpdate = true
+							}
+						} else {
+							// Can't parse endpoint, assume needs update
+							needsUpdate = true
+						}
+					} else {
+						// Can't get ListenPort, assume needs update
+						needsUpdate = true
+					}
 				} else if peer.Endpoint == wgOpts.Endpoint {
 					// Endpoint equals global endpoint config
 					needsUpdate = true
@@ -806,12 +850,35 @@ func (w *wgPeerSrv) UpdatePeersEndpointForGlobalConfigChange(ctx context.Context
 				pool, _ = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
 			}
 
-			// Recalculate endpoint
-			oldEndpoint := peer.Endpoint
-			peer.Endpoint = CalculateEffectiveEndpoint(peer, pool, wgOpts, w.configManager, ctx)
+			// Recalculate endpoint directly (don't rely on CalculateEffectiveEndpoint
+			// which returns early if peer.Endpoint is not empty)
+			var newEndpoint string
+			if peer.Endpoint == "" {
+				// Use CalculateEffectiveEndpoint for empty endpoint
+				newEndpoint = CalculateEffectiveEndpoint(peer, pool, wgOpts, w.configManager, ctx)
+			} else {
+				// For non-empty endpoint, recalculate based on current ServerIP and ListenPort
+				endpointIP, _ := ip.ExtractIPFromEndpoint(peer.Endpoint)
+				if endpointIP != "" && serverIP != "" && endpointIP == serverIP {
+					// Use current ServerIP with current ListenPort
+					if currentListenPort > 0 {
+						newEndpoint = fmt.Sprintf("%s:%d", serverIP, currentListenPort)
+					} else {
+						// Fallback to global endpoint if can't get ListenPort
+						newEndpoint = wgOpts.Endpoint
+					}
+				} else if peer.Endpoint == wgOpts.Endpoint {
+					// Use global endpoint (which may have changed)
+					newEndpoint = wgOpts.Endpoint
+				} else {
+					// Endpoint doesn't match server IP or global config, don't update
+					continue
+				}
+			}
 
 			// Only update if endpoint actually changed
-			if oldEndpoint != peer.Endpoint {
+			if newEndpoint != "" && newEndpoint != peer.Endpoint {
+				peer.Endpoint = newEndpoint
 				// Update in database
 				if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
 					klog.V(1).InfoS("failed to update peer endpoint", "peerID", peer.ID, "error", err)

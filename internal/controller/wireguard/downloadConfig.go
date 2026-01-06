@@ -97,14 +97,22 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 	}
 
 	// File doesn't exist, generate it on the fly
-	// Get server public key
+	// Get server public key and MTU
 	var serverPublicKey string
+	var mtu int
 	if wgOpts.ServerConfigPath() != "" {
 		configManager := wireguard.NewServerConfigManager(wgOpts.ServerConfigPath(), wgOpts.ApplyMethod)
 		serverPublicKey, err = configManager.GetServerPublicKey()
 		if err != nil {
 			klog.V(1).InfoS("failed to get server public key", "error", err)
 			// Continue with empty server public key
+		}
+		// Get server MTU from server config
+		serverConfig, err := configManager.ReadServerConfig()
+		if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+			if serverConfig.Interface.MTU > 0 {
+				mtu = serverConfig.Interface.MTU
+			}
 		}
 	}
 
@@ -136,6 +144,7 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 		PrivateKey:          peer.ClientPrivateKey,
 		Address:             peer.ClientIP,
 		DNS:                 dns,
+		MTU:                 mtu,
 		Endpoint:            endpoint,
 		PublicKey:           serverPublicKey,
 		AllowedIPs:          allowedIPs,

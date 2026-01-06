@@ -401,12 +401,12 @@ export function Peers() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Peers</h1>
         {isAdmin && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Create Peer
-              </Button>
-            </DialogTrigger>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Create Peer
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
               <DialogTitle>Create New Peer</DialogTitle>
@@ -644,12 +644,12 @@ export function Peers() {
                         </DropdownMenuItem>
                         {isAdmin && (
                           <>
-                            <DropdownMenuItem onClick={() => handleEdit(peer)}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEdit(peer)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
                           </>
                         )}
                       </DropdownMenuContent>
