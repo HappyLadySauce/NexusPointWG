@@ -27,8 +27,8 @@ RUN echo '#!/bin/sh' > /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl
 
 # Create app user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
+RUN addgroup -g 1000 nexuspointwg && \
+    adduser -D -u 1000 -G nexuspointwg nexuspointwg
 
 # Set working directory
 WORKDIR /app
@@ -43,17 +43,17 @@ COPY _output/dist /app/ui
 COPY configs/NexusPointWG.yaml /app/configs/NexusPointWG.yaml
 
 # Change ownership
-RUN chown -R appuser:appuser /app
+RUN chown -R nexuspointwg:nexuspointwg /app
 
 # Switch to non-root user
-USER appuser
+USER nexuspointwg
 
 # Expose port
-EXPOSE 8001
+EXPOSE 51830
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8001/livez || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:51830/livez || exit 1
 
 # Run the application
 ENTRYPOINT ["/app/NexusPointWG", "-c", "/app/configs/NexusPointWG.yaml"]

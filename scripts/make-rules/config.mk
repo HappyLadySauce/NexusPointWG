@@ -8,7 +8,7 @@ CONFIG_FILE ?= $(ROOT_DIR)/configs/NexusPointWG.yaml
 
 # --- insecure ---
 export ORGANIZE_TOYS_SERVER_INSECURE_BIND_ADDRESS ?= 127.0.0.1
-export ORGANIZE_TOYS_SERVER_INSECURE_BIND_PORT ?= 8001
+export ORGANIZE_TOYS_SERVER_INSECURE_BIND_PORT ?= 51830
 
 # --- logs ---
 # Write logs into _output/logs by default (keeps repo clean).
