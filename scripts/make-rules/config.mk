@@ -19,5 +19,5 @@ export NEXUS_POINT_WG_LOGS_LOG_MAX_AGE ?= 28
 export NEXUS_POINT_WG_LOGS_LOG_COMPRESS ?= true
 
 # --- sqlite ---
-export NEXUS_POINT_WG_SQLITE_DATA_SOURCE_NAME ?= $(ROOT_DIR)/nexuspointwg.db
+export NEXUS_POINT_WG_SQLITE_DATA_SOURCE_NAME ?= $(ROOT_DIR)/NexusPointWG.db
 

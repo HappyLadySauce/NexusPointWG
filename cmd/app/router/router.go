@@ -13,6 +13,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store/sqlite"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/environment"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/options"
 
 	_ "github.com/HappyLadySauce/NexusPointWG/api/swagger/docs"
 	_ "github.com/HappyLadySauce/NexusPointWG/pkg/utils/validator"
@@ -23,17 +24,23 @@ var (
 	v1     *gin.RouterGroup
 	authed *gin.RouterGroup
 
-	StoreIns store.Factory
+	StoreIns    store.Factory
+	initialized bool
 )
 
-func init() {
+// Init initializes the router with the provided SQLite options.
+// This must be called after configuration is loaded and before starting the server.
+// It initializes the store, sets up the router, and registers all routes.
+func Init(opts *options.SqliteOptions) error {
+	if initialized {
+		klog.V(1).InfoS("router already initialized, skipping")
+		return nil
+	}
+
 	var err error
-	StoreIns, err = sqlite.GetSqliteFactoryOr(nil)
+	StoreIns, err = sqlite.GetSqliteFactoryOr(opts)
 	if err != nil {
-		// In init(), we can't return error, so we panic if store initialization fails
-		// This will prevent the application from starting with an invalid store
-		// Use %+v to show the full error chain including the original error
-		klog.Fatalf("Failed to initialize store in router init: %+v", err)
+		return err
 	}
 
 	if !environment.IsDev() {
@@ -64,6 +71,10 @@ func init() {
 
 	// setup static file serving for frontend
 	setupStaticFiles(router)
+
+	initialized = true
+	klog.V(1).InfoS("router initialized successfully")
+	return nil
 }
 
 // setupStaticFiles configures static file serving for the frontend SPA.

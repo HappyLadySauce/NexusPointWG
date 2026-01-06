@@ -238,7 +238,7 @@ let mockIPPools: IPPoolResponse[] = [
     cidr: "10.0.0.0/24",
     routes: "10.0.0.0/24, 192.168.1.0/24",
     dns: "1.1.1.1, 223.5.5.5",
-    endpoint: "118.24.41.142:51820",
+    endpoint: "10.10.10.10:51820",
     description: "Main IP pool",
     status: "active",
     created_at: new Date().toISOString(),

@@ -17,9 +17,9 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/ip"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 
-	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
-	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
-	_ "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/wg"
+	authRoutes "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/auth"
+	userRoutes "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/user"
+	wgRoutes "github.com/HappyLadySauce/NexusPointWG/cmd/app/routes/wg"
 )
 
 const (
@@ -85,6 +85,17 @@ func run(ctx context.Context, opts *options.Options) error {
 		JWT:             opts.JWT,
 		WireGuard:       opts.WireGuard,
 	})
+
+	// Initialize router with SQLite options from config
+	// This must be done after config.Init() to ensure the correct database path is used
+	if err := router.Init(config.Get().Sqlite); err != nil {
+		return fmt.Errorf("failed to initialize router: %w", err)
+	}
+
+	// Register all route handlers (must be done after router is initialized)
+	authRoutes.RegisterRoutes()
+	userRoutes.RegisterRoutes()
+	wgRoutes.RegisterRoutes()
 
 	// Sync all peers and IP allocations from config files on startup
 	// This runs asynchronously to avoid blocking server startup

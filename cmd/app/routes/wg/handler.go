@@ -5,7 +5,9 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/controller/wireguard"
 )
 
-func init() {
+// RegisterRoutes registers WireGuard management routes.
+// This function must be called after router.Init() to ensure router.StoreIns is initialized.
+func RegisterRoutes() {
 	wgController := wireguard.NewWGController(router.StoreIns)
 
 	// WireGuard routes require authentication

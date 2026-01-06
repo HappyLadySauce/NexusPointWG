@@ -11,7 +11,7 @@ type ClientConfig struct {
 	Address             string // Client IP in CIDR format, e.g. "100.100.100.2/32"
 	DNS                 string // Optional, comma-separated
 	MTU                 int    // Optional, default 1420
-	Endpoint            string // Server endpoint, e.g. "118.24.41.142:51820"
+	Endpoint            string // Server endpoint, e.g. "10.10.10.10:51820"
 	PublicKey           string // Server public key
 	AllowedIPs          string // Comma-separated CIDRs
 	PersistentKeepalive int    // Optional, default 25

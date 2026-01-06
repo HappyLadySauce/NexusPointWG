@@ -43,7 +43,7 @@ const ipPoolSchema = z.object({
   endpoint: z.string().optional().refine((val) => {
     if (!val || val === "") return true;
     return /^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(val);
-  }, "Invalid Endpoint format (e.g., 118.24.41.142:51820)"),
+  }, "Invalid Endpoint format (e.g., 10.10.10.10:51820)"),
   description: z.string().max(255, "Description must be at most 255 characters").optional().or(z.literal("")),
   status: z.enum(["active", "disabled"]).optional(),
 });
@@ -251,11 +251,11 @@ export function IPPools() {
                   <Label htmlFor="endpoint">Endpoint</Label>
                   <Input
                     id="endpoint"
-                    placeholder="e.g. 118.24.41.142:51820"
+                    placeholder="e.g. 10.10.10.10:51820"
                     {...register("endpoint")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Server endpoint (e.g., 118.24.41.142:51820)
+                    Server endpoint (e.g., 10.10.10.10:51820)
                   </p>
                   {errors.endpoint && (
                     <p className="text-sm text-red-500">{errors.endpoint.message}</p>
@@ -365,11 +365,11 @@ export function IPPools() {
                 <Label htmlFor="edit-endpoint">Endpoint</Label>
                 <Input
                   id="edit-endpoint"
-                  placeholder="e.g. 118.24.41.142:51820"
+                  placeholder="e.g. 10.10.10.10:51820"
                   {...register("endpoint")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Server endpoint (e.g., 118.24.41.142:51820)
+                  Server endpoint (e.g., 10.10.10.10:51820)
                 </p>
                 {errors.endpoint && (
                   <p className="text-sm text-red-500">{errors.endpoint.message}</p>

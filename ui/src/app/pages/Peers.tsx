@@ -62,7 +62,7 @@ const peerSchema = z.object({
   endpoint: z.string().optional().refine((val) => {
     if (!val || val === "") return true;
     return /^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(val);
-  }, "Invalid Endpoint format (e.g., 118.24.41.142:51820)"),
+  }, "Invalid Endpoint format (e.g., 10.10.10.10:51820)"),
   persistent_keepalive: z.number().min(0).max(65535).optional(),
 }).refine((data) => {
   // Manual mode (no IP Pool or None selected) requires allowed_ips
@@ -98,7 +98,7 @@ const editPeerSchema = z.object({
   endpoint: z.string().optional().refine((val) => {
     if (!val || val === "") return true;
     return /^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(val);
-  }, "Invalid Endpoint format (e.g., 118.24.41.142:51820)"),
+  }, "Invalid Endpoint format (e.g., 10.10.10.10:51820)"),
   persistent_keepalive: z.number().min(0).max(65535).optional(),
   status: z.enum(["active", "disabled"]).optional(),
 });
@@ -521,7 +521,7 @@ export function Peers() {
                     </Label>
                     <Input
                       id="endpoint"
-                      placeholder="e.g., 118.24.41.142:51820"
+                      placeholder="e.g., 10.10.10.10:51820"
                       {...register("endpoint")}
                     />
                     {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
@@ -815,7 +815,7 @@ export function Peers() {
                     <Label htmlFor="edit_endpoint">Endpoint</Label>
                     <Input
                       id="edit_endpoint"
-                      placeholder="e.g., 118.24.41.142:51820"
+                      placeholder="e.g., 10.10.10.10:51820"
                       {...registerEdit("endpoint")}
                     />
                     <p className="text-xs text-muted-foreground">

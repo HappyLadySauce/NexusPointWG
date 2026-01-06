@@ -623,12 +623,12 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 			var err error
 			pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
 			if err == nil && pool != nil && pool.Routes != "" {
-				allowedIPs = pool.Routes
-			}
+		allowedIPs = pool.Routes
+	}
 		}
 		// Fallback to global default if still empty
-		if allowedIPs == "" {
-			allowedIPs = wgOpts.DefaultAllowedIPs
+	if allowedIPs == "" {
+		allowedIPs = wgOpts.DefaultAllowedIPs
 		}
 	}
 

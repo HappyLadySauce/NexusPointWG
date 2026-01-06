@@ -21,7 +21,7 @@ type WireGuardOptions struct {
 	// If relative, it is resolved under RootDir.
 	UserDir string `json:"user-dir" mapstructure:"user-dir"`
 
-	// Endpoint is the public endpoint exposed to clients, e.g. 118.24.41.142:51820.
+	// Endpoint is the public endpoint exposed to clients, e.g. 10.10.10.10:51820.
 	Endpoint string `json:"endpoint" mapstructure:"endpoint"`
 
 	// DNS is an optional DNS server for client configs.

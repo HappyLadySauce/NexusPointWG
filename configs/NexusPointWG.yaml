@@ -8,7 +8,7 @@ logs:
     log-max-age: 28
     log-compress: true
 sqlite:
-    data-source-name: ./nexuspointwg.db
+    data-source-name: /etc/wireguard/.NexusPointWG.db
 wireguard:
     # root-dir: Docker 容器内路径，通过 docker-compose 挂载到主机 /opt/NexusPointWG/example/wireguard
     # 注意：viper.AutomaticEnv() 会从环境变量读取，优先级高于配置文件

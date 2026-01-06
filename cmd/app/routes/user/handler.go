@@ -5,7 +5,9 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/controller/user"
 )
 
-func init() {
+// RegisterRoutes registers user management routes.
+// This function must be called after router.Init() to ensure router.StoreIns is initialized.
+func RegisterRoutes() {
 	userController := user.NewUserController(router.StoreIns)
 	// 用户注册路由不需要认证
 	router.V1().POST("/users", userController.CreateUser)

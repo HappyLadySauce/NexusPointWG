@@ -27,8 +27,8 @@ RUN echo '#!/bin/sh' > /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl
 
 # Create app user
-RUN addgroup -g 51830 nexuspointwg && \
-    adduser -D -u 51830 -G nexuspointwg nexuspointwg
+RUN addgroup -g 51830 NexusPointWG && \
+    adduser -D -u 51830 -G NexusPointWG NexusPointWG
 
 # Set working directory
 WORKDIR /app
@@ -43,10 +43,10 @@ COPY _output/dist /app/ui
 COPY configs/NexusPointWG.yaml /app/configs/NexusPointWG.yaml
 
 # Change ownership
-RUN chown -R nexuspointwg:nexuspointwg /app
+RUN chown -R NexusPointWG:NexusPointWG /app
 
 # Switch to non-root user
-USER nexuspointwg
+USER NexusPointWG
 
 # Expose port
 EXPOSE 51830

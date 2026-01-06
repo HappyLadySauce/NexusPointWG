@@ -124,18 +124,18 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 
 	// Only calculate AllowedIPs default if it's still empty (shouldn't happen for new peers, but handle legacy data)
 	if allowedIPs == "" {
-		// Get IP pool configuration if peer has IPPoolID
-		var pool *model.IPPool
-		if peer.IPPoolID != "" {
-			var err error
-			pool, err = w.srv.IPPools().GetIPPool(context.Background(), peer.IPPoolID)
+	// Get IP pool configuration if peer has IPPoolID
+	var pool *model.IPPool
+	if peer.IPPoolID != "" {
+		var err error
+		pool, err = w.srv.IPPools().GetIPPool(context.Background(), peer.IPPoolID)
 			if err == nil && pool != nil && pool.Routes != "" {
 				allowedIPs = pool.Routes
 			}
 		}
 		// Fallback to global default if still empty
 		if allowedIPs == "" {
-			allowedIPs = wgOpts.DefaultAllowedIPs
+		allowedIPs = wgOpts.DefaultAllowedIPs
 		}
 	}
 

@@ -363,7 +363,7 @@ export function Settings() {
                 <Label htmlFor="server_ip">Server IP</Label>
                 <Input
                   id="server_ip"
-                  placeholder="e.g. 118.24.41.142"
+                  placeholder="e.g. 10.10.10.10"
                   {...register("server_ip")}
                 />
                 <p className="text-xs text-muted-foreground">

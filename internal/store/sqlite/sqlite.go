@@ -62,6 +62,29 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 	var err error
 	var dbIns *gorm.DB
 	once.Do(func() {
+		// Ensure the parent directory of the database file exists
+		// SQLite will not create parent directories automatically
+		dbPath := opts.DataSourceName
+
+		// Get the absolute path to handle both relative and absolute paths
+		absPath, absErr := filepath.Abs(dbPath)
+		if absErr != nil {
+			// If we can't get absolute path, use the original path
+			absPath = dbPath
+		}
+
+		// Get the parent directory
+		parentDir := filepath.Dir(absPath)
+
+		// Create parent directory if it doesn't exist
+		if err = os.MkdirAll(parentDir, 0755); err != nil {
+			klog.V(1).InfoS("failed to create database parent directory", "parentDir", parentDir, "dataSource", opts.DataSourceName, "error", err)
+			err = errors.Wrap(err, "failed to create database parent directory")
+			return
+		}
+
+		klog.V(2).InfoS("database parent directory ensured", "parentDir", parentDir, "dataSource", opts.DataSourceName)
+
 		dbOpts := &db.Options{
 			DataSourceName: opts.DataSourceName,
 		}
@@ -71,6 +94,13 @@ func GetSqliteFactoryOr(opts *options.SqliteOptions) (store.Factory, error) {
 			klog.V(1).InfoS("failed to create sqlite database", "dataSource", opts.DataSourceName, "error", err)
 			err = errors.Wrap(err, "failed to create sqlite db with data source")
 			return
+		}
+
+		// Handle custom migrations for existing tables before AutoMigrate
+		// This is needed because SQLite doesn't allow adding NOT NULL columns to existing tables
+		if migrateErr := handleCustomMigrations(dbIns); migrateErr != nil {
+			klog.V(1).InfoS("failed to run custom migrations", "dataSource", opts.DataSourceName, "error", migrateErr)
+			// Log error but continue, as AutoMigrate might still work for new tables
 		}
 
 		// Auto migrate database schema
@@ -132,7 +162,7 @@ func initializeDefaultAdmin(db *gorm.DB) error {
 	}
 
 	// 使用固定默认密码
-	password := "nexuspointwg"
+	password := "NexusPointWG"
 
 	// 生成盐值
 	salt, err := passwd.GenerateSalt()
@@ -187,6 +217,73 @@ func initializeDefaultAdmin(db *gorm.DB) error {
 	} else {
 		klog.V(1).InfoS("admin user initialized successfully", "username", adminUsername, "passwordFile", pwdFile)
 		klog.Infof("Default admin user created. Username: %s, Password saved to: %s", adminUsername, pwdFile)
+	}
+
+	return nil
+}
+
+// handleCustomMigrations handles custom migrations for existing tables.
+// This is needed because SQLite doesn't allow adding NOT NULL columns to existing tables
+// without default values. We need to add the column as nullable first, then update it.
+func handleCustomMigrations(db *gorm.DB) error {
+	// Check if ip_pools table exists and if CIDR column is missing
+	var count int64
+	err := db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ip_pools'").Scan(&count).Error
+	if err != nil {
+		return errors.Wrap(err, "failed to check if ip_pools table exists")
+	}
+
+	if count > 0 {
+		// Table exists, check if CIDR column exists
+		var columns []struct {
+			Name string `gorm:"column:name"`
+		}
+		err = db.Raw("PRAGMA table_info(ip_pools)").Scan(&columns).Error
+		if err != nil {
+			return errors.Wrap(err, "failed to get ip_pools table info")
+		}
+
+		hasCIDR := false
+		for _, col := range columns {
+			if col.Name == "cidr" {
+				hasCIDR = true
+				break
+			}
+		}
+
+		if !hasCIDR {
+			// Add CIDR column as nullable first
+			klog.V(1).InfoS("adding cidr column to ip_pools table as nullable")
+			if err := db.Exec("ALTER TABLE ip_pools ADD COLUMN cidr TEXT").Error; err != nil {
+				// If column already exists or other error, log and continue
+				klog.V(1).InfoS("failed to add cidr column (may already exist)", "error", err)
+			} else {
+				// Update existing records with default CIDR value
+				// Use "100.100.100.0/24" as default CIDR (common example in codebase)
+				defaultCIDR := "100.100.100.0/24"
+				klog.V(1).InfoS("updating existing ip_pools records with default cidr value", "defaultCIDR", defaultCIDR)
+				if err := db.Exec("UPDATE ip_pools SET cidr = ? WHERE cidr IS NULL OR cidr = ''", defaultCIDR).Error; err != nil {
+					klog.V(1).InfoS("failed to update existing records with default cidr", "error", err)
+					// Continue anyway, AutoMigrate will handle it
+				} else {
+					klog.V(1).InfoS("successfully updated existing ip_pools records with default cidr")
+				}
+			}
+		} else {
+			// CIDR column exists, but may have NULL values
+			// Update any NULL or empty CIDR values with default
+			defaultCIDR := "100.100.100.0/24"
+			klog.V(1).InfoS("checking for NULL or empty cidr values in ip_pools")
+			var nullCount int64
+			if err := db.Raw("SELECT COUNT(*) FROM ip_pools WHERE cidr IS NULL OR cidr = ''").Scan(&nullCount).Error; err == nil && nullCount > 0 {
+				klog.V(1).InfoS("updating NULL or empty cidr values with default", "count", nullCount, "defaultCIDR", defaultCIDR)
+				if err := db.Exec("UPDATE ip_pools SET cidr = ? WHERE cidr IS NULL OR cidr = ''", defaultCIDR).Error; err != nil {
+					klog.V(1).InfoS("failed to update NULL cidr values", "error", err)
+				} else {
+					klog.V(1).InfoS("successfully updated NULL cidr values with default")
+				}
+			}
+		}
 	}
 
 	return nil

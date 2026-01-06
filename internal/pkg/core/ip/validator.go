@@ -106,7 +106,7 @@ func FormatIPAsCIDR(ipStr string) (string, error) {
 	return fmt.Sprintf("%s/32", ipStr), nil
 }
 
-// ExtractIPFromEndpoint extracts the IP address from an endpoint string (e.g., "118.24.41.142:51820" -> "118.24.41.142").
+// ExtractIPFromEndpoint extracts the IP address from an endpoint string (e.g., "10.10.10.10:51820" -> "10.10.10.10").
 func ExtractIPFromEndpoint(endpoint string) (string, error) {
 	if endpoint == "" {
 		return "", nil

@@ -88,7 +88,7 @@ type CreateIPPoolRequest struct {
 	Routes string `json:"routes,omitempty" binding:"omitempty,cidr"`
 	// DNS is the DNS servers (comma-separated) for client config (optional)
 	DNS string `json:"dns,omitempty" binding:"omitempty,dnslist"`
-	// Endpoint is the server endpoint (e.g., "118.24.41.142:51820") (optional)
+	// Endpoint is the server endpoint (e.g., "10.10.10.10:51820") (optional)
 	Endpoint string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
 	// Description is a description of the IP pool
 	Description string `json:"description,omitempty" binding:"omitempty,max=255"`
@@ -106,7 +106,7 @@ type UpdateIPPoolRequest struct {
 	Routes *string `json:"routes,omitempty" binding:"omitempty,cidr"`
 	// DNS is the DNS servers (comma-separated) for client config
 	DNS *string `json:"dns,omitempty" binding:"omitempty,dnslist"`
-	// Endpoint is the server endpoint (e.g., "118.24.41.142:51820")
+	// Endpoint is the server endpoint (e.g., "10.10.10.10:51820")
 	Endpoint *string `json:"endpoint,omitempty" binding:"omitempty,endpoint"`
 	// Description is a description of the IP pool
 	Description *string `json:"description,omitempty" binding:"omitempty,max=255"`

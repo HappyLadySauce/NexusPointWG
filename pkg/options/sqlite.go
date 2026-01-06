@@ -12,7 +12,7 @@ type SqliteOptions struct {
 
 func NewSqliteOptions() *SqliteOptions {
 	return &SqliteOptions{
-		DataSourceName: "./nexuspointwg.db",
+		DataSourceName: "./NexusPointWG.db",
 	}
 }
 
