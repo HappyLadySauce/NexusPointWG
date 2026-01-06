@@ -12,7 +12,7 @@ services:
       - "51830:51830"
     volumes:
       # 开发环境使用独立的 WireGuard 目录，避免与系统环境冲突
-      - /opt/NexusPointWG/dev/wireguard:/etc/wireguard:rw
+      - /opt/NexusPointWG/example/wireguard:/etc/wireguard:rw
     networks:
       - nexuspointwg-dev-network
     healthcheck:

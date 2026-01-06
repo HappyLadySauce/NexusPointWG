@@ -164,18 +164,37 @@ docker.restart:
 	@echo "===========> Restarting services"
 	@docker compose restart
 
-## docker.push: Push Docker image to registry.
+## docker.push: Push release Docker image to Docker Hub (happlelaoganma/nexuspointwg).
 .PHONY: docker.push
-docker.push: REGISTRY_PREFIX ?= 
-docker.push: VERSION ?= latest
 docker.push:
-	@if [ -z "$(REGISTRY_PREFIX)" ]; then \
-		echo "Error: REGISTRY_PREFIX is required. Example: make docker.push REGISTRY_PREFIX=your-registry.com/namespace VERSION=v1.0.0"; \
+	@echo "===========> Pushing release Docker image to Docker Hub"
+	@set -e; \
+	RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
+	fi; \
+	if [ -z "$$RELEASE_VERSION" ]; then \
+		RELEASE_VERSION="1.0.0"; \
+	fi; \
+	echo "Release version: $$RELEASE_VERSION"; \
+	SOURCE_IMAGE="nexuspointwg:$$RELEASE_VERSION"; \
+	TARGET_IMAGE_VERSION="happlelaoganma/nexuspointwg:$$RELEASE_VERSION"; \
+	TARGET_IMAGE_LATEST="happlelaoganma/nexuspointwg:latest"; \
+	echo "Checking if source image exists: $$SOURCE_IMAGE"; \
+	if ! docker image inspect $$SOURCE_IMAGE >/dev/null 2>&1; then \
+		echo "Error: Source image $$SOURCE_IMAGE does not exist."; \
+		echo "Please run 'make docker.build.release' first to build the release image."; \
 		exit 1; \
-	fi
-	@echo "===========> Pushing Docker image"
-	@docker tag nexuspointwg:latest $(REGISTRY_PREFIX)/nexuspointwg:$(VERSION)
-	@docker push $(REGISTRY_PREFIX)/nexuspointwg:$(VERSION)
+	fi; \
+	echo "Tagging image as $$TARGET_IMAGE_VERSION"; \
+	docker tag $$SOURCE_IMAGE $$TARGET_IMAGE_VERSION; \
+	echo "Tagging image as $$TARGET_IMAGE_LATEST"; \
+	docker tag $$SOURCE_IMAGE $$TARGET_IMAGE_LATEST; \
+	echo "Pushing $$TARGET_IMAGE_VERSION"; \
+	docker push $$TARGET_IMAGE_VERSION; \
+	echo "Pushing $$TARGET_IMAGE_LATEST"; \
+	docker push $$TARGET_IMAGE_LATEST; \
+	echo "===========> Successfully pushed release image to Docker Hub"
 
 .PHONY: tidy
 tidy:
