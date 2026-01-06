@@ -185,4 +185,3 @@ func GetServerIP(ctx context.Context, serverIP string) (string, error) {
 
 	return "", fmt.Errorf("failed to detect server IP: public IP detection failed (%v), default route interface detection failed (%v)", err, err)
 }
-

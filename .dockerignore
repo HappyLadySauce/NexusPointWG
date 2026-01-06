@@ -29,7 +29,7 @@ docs
 
 # Config files (will be copied separately)
 configs/*.yaml
-!configs/NexusPointWG-Example.yaml
+!configs/NexusPointWG.yaml
 
 # Test files
 *_test.go

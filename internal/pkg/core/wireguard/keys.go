@@ -1,63 +1,66 @@
 package wireguard
 
 import (
+	"crypto/rand"
 	"encoding/base64"
-	"os/exec"
-	"strings"
 
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
 	"github.com/HappyLadySauce/errors"
+	"golang.org/x/crypto/curve25519"
 	"k8s.io/klog/v2"
 )
 
-// GeneratePrivateKey generates a new WireGuard private key using wg genkey command.
+// GeneratePrivateKey generates a new WireGuard private key.
+// Uses pure Go implementation (crypto/rand + Curve25519) instead of wg command.
+// This ensures it works in Docker containers without wireguard-tools installed.
 func GeneratePrivateKey() (string, error) {
-	cmd := exec.Command("wg", "genkey")
-	output, err := cmd.Output()
-	if err != nil {
-		klog.V(1).InfoS("failed to generate WireGuard private key", "error", err)
-		return "", errors.WithCode(code.ErrWGKeyGenerationFailed, "failed to generate private key: %s", err.Error())
+	// Try pure Go implementation first (works everywhere)
+	privateKeyBytes := make([]byte, 32)
+	if _, err := rand.Read(privateKeyBytes); err != nil {
+		klog.V(1).InfoS("failed to generate random bytes for private key", "error", err)
+		return "", errors.WithCode(code.ErrWGKeyGenerationFailed, "failed to generate random bytes: %s", err.Error())
 	}
 
-	privateKey := strings.TrimSpace(string(output))
-	if privateKey == "" {
-		return "", errors.WithCode(code.ErrWGKeyGenerationFailed, "generated private key is empty")
-	}
+	// WireGuard private key clamping (required for Curve25519)
+	// Set the least significant bit of the first byte to 0
+	privateKeyBytes[0] &= 248
+	// Set the second least significant bit of the last byte to 0
+	privateKeyBytes[31] &= 127
+	// Set the third least significant bit of the last byte to 1
+	privateKeyBytes[31] |= 64
 
-	// Validate base64 encoding
-	_, err = base64.StdEncoding.DecodeString(privateKey)
-	if err != nil {
-		return "", errors.WithCode(code.ErrWGPrivateKeyInvalid, "generated private key is not valid base64: %s", err.Error())
-	}
-
+	// Encode to base64
+	privateKey := base64.StdEncoding.EncodeToString(privateKeyBytes)
 	return privateKey, nil
 }
 
-// GeneratePublicKey generates a WireGuard public key from a private key using wg pubkey command.
+// GeneratePublicKey generates a WireGuard public key from a private key.
+// Uses pure Go implementation (Curve25519) instead of wg command.
+// This ensures it works in Docker containers without wireguard-tools installed.
 func GeneratePublicKey(privateKey string) (string, error) {
 	if privateKey == "" {
 		return "", errors.WithCode(code.ErrWGPrivateKeyInvalid, "private key is empty")
 	}
 
-	// Validate base64 encoding
-	_, err := base64.StdEncoding.DecodeString(privateKey)
+	// Decode private key from base64
+	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKey)
 	if err != nil {
 		return "", errors.WithCode(code.ErrWGPrivateKeyInvalid, "private key is not valid base64: %s", err.Error())
 	}
 
-	cmd := exec.Command("wg", "pubkey")
-	cmd.Stdin = strings.NewReader(privateKey)
-	output, err := cmd.Output()
-	if err != nil {
-		klog.V(1).InfoS("failed to generate WireGuard public key", "error", err)
-		return "", errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "failed to generate public key: %s", err.Error())
+	// Validate length
+	if len(privateKeyBytes) != 32 {
+		return "", errors.WithCode(code.ErrWGPrivateKeyInvalid, "private key must be 32 bytes, got %d", len(privateKeyBytes))
 	}
 
-	publicKey := strings.TrimSpace(string(output))
-	if publicKey == "" {
-		return "", errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "generated public key is empty")
-	}
+	// Generate public key using Curve25519
+	var publicKeyBytes [32]byte
+	var privateKeyArray [32]byte
+	copy(privateKeyArray[:], privateKeyBytes)
+	curve25519.ScalarBaseMult(&publicKeyBytes, &privateKeyArray)
 
+	// Encode to base64
+	publicKey := base64.StdEncoding.EncodeToString(publicKeyBytes[:])
 	return publicKey, nil
 }
 

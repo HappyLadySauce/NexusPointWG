@@ -7,7 +7,8 @@ FROM alpine:latest
 
 # Install runtime dependencies
 # util-linux provides nsenter to access host systemd
-RUN apk add --no-cache ca-certificates tzdata wget dbus util-linux
+# curl is needed for public IP detection
+RUN apk add --no-cache ca-certificates tzdata wget curl dbus util-linux
 
 # Create systemctl wrapper script to communicate with host systemd
 # If running with --pid=host, systemctl is available directly
@@ -39,7 +40,7 @@ COPY _output/NexusPointWG /app/NexusPointWG
 COPY _output/dist /app/ui
 
 # Copy config file
-COPY configs/NexusPointWG-Example.yaml /app/configs/NexusPointWG.yaml
+COPY configs/NexusPointWG.yaml /app/configs/NexusPointWG.yaml
 
 # Change ownership
 RUN chown -R appuser:appuser /app

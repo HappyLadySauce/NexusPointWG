@@ -1,19 +1,26 @@
 insecure:
-    bind-address: ${ORGANIZE_TOYS_SERVER_INSECURE_BIND_ADDRESS:-0.0.0.0} # 绑定的不安全 IP 地址，设置为 0.0.0.0 表示使用全部网络接口，默认为 127.0.0.1
-    bind-port: ${ORGANIZE_TOYS_SERVER_INSECURE_BIND_PORT:-8001} # 提供非安全认证的监听端口，默认为 8001
+    bind-address: 0.0.0.0 # 绑定的不安全 IP 地址，设置为 0.0.0.0 表示使用全部网络接口，默认为 127.0.0.1
+    bind-port: 8001 # 提供非安全认证的监听端口，默认为 8001
 logs:
-    log-file: ${NEXUS_POINT_WG_LOGS_LOG_FILE:-logs/NexusPointWG.log}
-    log-max-size: ${NEXUS_POINT_WG_LOGS_LOG_MAX_SIZE:-100}
-    log-max-backups: ${NEXUS_POINT_WG_LOGS_LOG_MAX_BACKUPS:-3}
-    log-max-age: ${NEXUS_POINT_WG_LOGS_LOG_MAX_AGE:-28}
-    log-compress: ${NEXUS_POINT_WG_LOGS_LOG_COMPRESS:-true}
+    log-file: logs/NexusPointWG.log
+    log-max-size: 100
+    log-max-backups: 3
+    log-max-age: 28
+    log-compress: true
 sqlite:
-    data-source-name: ${NEXUS_POINT_WG_SQLITE_DATA_SOURCE_NAME:-./nexuspointwg.db}
+    data-source-name: ./nexuspointwg.db
 wireguard:
-    root-dir: ${NEXUS_POINT_WG_WIREGUARD_ROOT_DIR:-/etc/wireguard}
-    interface: ${NEXUS_POINT_WG_WIREGUARD_INTERFACE:-wg0}
-    user-dir: ${NEXUS_POINT_WG_WIREGUARD_USER_DIR:-user}
-    endpoint: ${NEXUS_POINT_WG_WIREGUARD_ENDPOINT:-0.0.0.0:51820}
-    dns: ${NEXUS_POINT_WG_WIREGUARD_DNS:-}
-    default-allowed-ips: ${NEXUS_POINT_WG_WIREGUARD_DEFAULT_ALLOWED_IPS:-0.0.0.0/0,::/0}
-    apply-method: ${NEXUS_POINT_WG_WIREGUARD_APPLY_METHOD:-systemctl}
+    # root-dir: Docker 容器内路径，通过 docker-compose 挂载到主机 /opt/NexusPointWG/example/wireguard
+    # 注意：viper.AutomaticEnv() 会从环境变量读取，优先级高于配置文件
+    # 如果环境变量 NEXUS_POINT_WG_WIREGUARD_ROOT_DIR 未设置，使用此默认值
+    root-dir: /etc/wireguard
+    interface: wg0
+    user-dir: user
+    # endpoint: 必需字段，使用硬编码默认值确保 Docker 环境正常工作
+    # 注意：viper.AutomaticEnv() 会从环境变量 NEXUS_POINT_WG_WIREGUARD_ENDPOINT 读取（如果设置）
+    # 如果环境变量未设置，使用此默认值
+    endpoint: 0.0.0.0:51820
+    # dns: 可选字段，可通过环境变量 NEXUS_POINT_WG_WIREGUARD_DNS 覆盖
+    dns: 
+    default-allowed-ips: 0.0.0.0/0,::/0
+    apply-method: systemctl
