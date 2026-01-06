@@ -27,8 +27,8 @@ RUN echo '#!/bin/sh' > /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl
 
 # Create app user
-RUN addgroup -g 1000 nexuspointwg && \
-    adduser -D -u 1000 -G nexuspointwg nexuspointwg
+RUN addgroup -g 51830 nexuspointwg && \
+    adduser -D -u 51830 -G nexuspointwg nexuspointwg
 
 # Set working directory
 WORKDIR /app
