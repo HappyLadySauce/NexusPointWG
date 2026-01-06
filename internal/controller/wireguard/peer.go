@@ -230,6 +230,7 @@ func (w *WGController) ListPeers(c *gin.Context) {
 	}
 
 	// Convert to response format
+	// Endpoint and DNS values are already calculated and stored in the database during create/update
 	items := make([]v1.WGPeerResponse, 0, len(peers))
 	for _, peer := range peers {
 		// Get user info

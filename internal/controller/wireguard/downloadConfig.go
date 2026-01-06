@@ -2,7 +2,6 @@ package wireguard
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
-	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/network"
 	"github.com/HappyLadySauce/errors"
 )
 
@@ -110,69 +108,27 @@ func (w *WGController) DownloadPeerConfig(c *gin.Context) {
 		}
 	}
 
-	// Get IP pool configuration if peer has IPPoolID
-	var pool *model.IPPool
-	if peer.IPPoolID != "" {
-		var err error
-		pool, err = w.srv.IPPools().GetIPPool(context.Background(), peer.IPPoolID)
-		if err != nil {
-			klog.V(1).InfoS("failed to get IP pool", "poolID", peer.IPPoolID, "error", err)
-			// Continue without pool config
-		}
-	}
-
-	// Use defaults if peer fields are empty
-	// Priority: Peer specified > IP Pool config > Settings/Global config
-	// If IP Pool is associated, use IP Pool DNS (even if empty, don't fallback to global)
-	// If IP Pool is not associated, fallback to Settings/Global config DNS
+	// Use values directly from database - they are already calculated and stored during create/update
+	// DNS and Endpoint are guaranteed to have default values (if applicable) stored in the database
 	dns := peer.DNS
-	if dns == "" && pool != nil {
-		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
-		dns = pool.DNS
-	} else if dns == "" && pool == nil {
-		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
-		if wgOpts.DNS != "" {
-			dns = wgOpts.DNS
-		}
-	}
-	// If dns is still empty, it will be omitted in GenerateClientConfig
-
-	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
 	endpoint := peer.Endpoint
-	if endpoint == "" && pool != nil && pool.Endpoint != "" {
-		endpoint = pool.Endpoint
-	}
-	if endpoint == "" {
-		// Use Settings.ServerIP + ListenPort from server config
-		if wgOpts.ServerConfigPath() != "" {
-			configManager := wireguard.NewServerConfigManager(wgOpts.ServerConfigPath(), wgOpts.ApplyMethod)
-			serverConfig, err := configManager.ReadServerConfig()
-			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
-				serverIP := wgOpts.ServerIP
-				if serverIP == "" {
-					// Auto-detect if not set
-					detectedIP, err := network.GetServerIP(context.Background(), "")
-					if err == nil {
-						serverIP = detectedIP
-					}
-				}
-				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
-					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
-				}
+	allowedIPs := peer.AllowedIPs
+
+	// Only calculate AllowedIPs default if it's still empty (shouldn't happen for new peers, but handle legacy data)
+	if allowedIPs == "" {
+		// Get IP pool configuration if peer has IPPoolID
+		var pool *model.IPPool
+		if peer.IPPoolID != "" {
+			var err error
+			pool, err = w.srv.IPPools().GetIPPool(context.Background(), peer.IPPoolID)
+			if err == nil && pool != nil && pool.Routes != "" {
+				allowedIPs = pool.Routes
 			}
 		}
-		// Fallback to global endpoint if still empty
-		if endpoint == "" {
-			endpoint = wgOpts.Endpoint
+		// Fallback to global default if still empty
+		if allowedIPs == "" {
+			allowedIPs = wgOpts.DefaultAllowedIPs
 		}
-	}
-
-	allowedIPs := peer.AllowedIPs
-	if allowedIPs == "" && pool != nil && pool.Routes != "" {
-		allowedIPs = pool.Routes
-	}
-	if allowedIPs == "" {
-		allowedIPs = wgOpts.DefaultAllowedIPs
 	}
 
 	// Generate client config

@@ -264,8 +264,10 @@ const getHeaders = () => {
 
 // Helper for handling responses
 const handleResponse = async (res: Response) => {
-    if (res.status === 401) {
+    // 处理认证失败的情况：401 (Unauthorized) 和 403 (Forbidden)
+    if (res.status === 401 || res.status === 403) {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         window.location.href = "/"; // Force login
         throw new Error("Unauthorized");
     }
@@ -273,8 +275,32 @@ const handleResponse = async (res: Response) => {
         const text = await res.text();
         try {
             const json = JSON.parse(text);
+            // 检查错误码，如果是认证相关错误，也重定向到登录页
+            // 认证相关错误码：
+            // - 110003: 用户不存在 (ErrUserNotFound)
+            // - 110004: 用户未激活 (ErrUserNotActive)
+            // - 1002xx: 认证相关错误 (100201-100206)
+            const errorCode = json.code;
+            if (errorCode) {
+                // 检查是否是认证相关错误码
+                const isAuthError = 
+                    errorCode === 110003 || // ErrUserNotFound
+                    errorCode === 110004 || // ErrUserNotActive
+                    (errorCode >= 100201 && errorCode <= 100206); // 认证相关错误码范围
+                
+                if (isAuthError) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    window.location.href = "/"; // Force login
+                    throw new Error("Unauthorized");
+                }
+            }
             throw new Error(json.error || json.message || res.statusText);
-        } catch {
+        } catch (e) {
+            // 如果解析失败或已经抛出重定向错误，直接抛出
+            if (e instanceof Error && e.message === "Unauthorized") {
+                throw e;
+            }
             throw new Error(text || res.statusText);
         }
     }

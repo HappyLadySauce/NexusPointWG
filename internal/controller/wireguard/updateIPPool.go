@@ -9,9 +9,13 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	"github.com/HappyLadySauce/NexusPointWG/internal/service"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/options"
 	"github.com/HappyLadySauce/errors"
 )
 
@@ -72,6 +76,10 @@ func (w *WGController) UpdateIPPool(c *gin.Context) {
 		return
 	}
 
+	// Store old endpoint for comparison
+	oldEndpoint := existingPool.Endpoint
+	oldDNS := existingPool.DNS
+
 	// Check if CIDR is being modified
 	if req.CIDR != nil && *req.CIDR != existingPool.CIDR {
 		// Check if there are any allocated IPs from this pool
@@ -89,6 +97,17 @@ func (w *WGController) UpdateIPPool(c *gin.Context) {
 		existingPool.CIDR = *req.CIDR
 	}
 
+	// Get global config for calculating effective endpoint
+	cfg := config.Get()
+	var wgOpts *options.WireGuardOptions
+	var configManager *wireguard.ServerConfigManager
+	if cfg != nil && cfg.WireGuard != nil {
+		wgOpts = cfg.WireGuard
+		if wgOpts.ServerConfigPath() != "" {
+			configManager = wireguard.NewServerConfigManager(wgOpts.ServerConfigPath(), wgOpts.ApplyMethod)
+		}
+	}
+
 	// Apply updates (only update provided fields)
 	if req.Name != nil {
 		existingPool.Name = *req.Name
@@ -100,7 +119,15 @@ func (w *WGController) UpdateIPPool(c *gin.Context) {
 		existingPool.DNS = *req.DNS
 	}
 	if req.Endpoint != nil {
-		existingPool.Endpoint = *req.Endpoint
+		// Calculate effective endpoint if empty
+		if *req.Endpoint == "" && wgOpts != nil {
+			existingPool.Endpoint = service.CalculateIPPoolEndpoint("", wgOpts, configManager, context.Background())
+		} else {
+			existingPool.Endpoint = *req.Endpoint
+		}
+	} else if existingPool.Endpoint == "" && wgOpts != nil {
+		// If endpoint was not provided in request but is empty, calculate default
+		existingPool.Endpoint = service.CalculateIPPoolEndpoint("", wgOpts, configManager, context.Background())
 	}
 	if req.Description != nil {
 		existingPool.Description = *req.Description
@@ -109,11 +136,23 @@ func (w *WGController) UpdateIPPool(c *gin.Context) {
 		existingPool.Status = *req.Status
 	}
 
+	// Check if Endpoint or DNS changed
+	endpointChanged := oldEndpoint != existingPool.Endpoint
+	dnsChanged := oldDNS != existingPool.DNS
+
 	// Update IP pool
 	if err := w.srv.IPPools().UpdateIPPool(context.Background(), existingPool); err != nil {
 		klog.V(1).InfoS("failed to update IP pool", "poolID", poolID, "error", err)
 		core.WriteResponse(c, err, nil)
 		return
+	}
+
+	// If Endpoint or DNS changed, update all affected peers
+	if endpointChanged || dnsChanged {
+		if err := w.srv.WGPeers().UpdatePeersForIPPoolChange(context.Background(), poolID, existingPool); err != nil {
+			klog.V(1).InfoS("failed to update peers after pool change", "poolID", poolID, "error", err)
+			// Log error but don't fail the request - pool update succeeded
+		}
 	}
 
 	resp := v1.IPPoolResponse{

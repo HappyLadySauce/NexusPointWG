@@ -25,6 +25,7 @@ type WGServerSrv interface {
 }
 
 type wgServerSrv struct {
+	service       *service
 	store         store.Factory
 	configManager *wireguard.ServerConfigManager
 }
@@ -37,6 +38,7 @@ func newWGServer(s *service) *wgServerSrv {
 	if cfg == nil || cfg.WireGuard == nil {
 		klog.V(1).InfoS("WireGuard config not available, config manager will be nil")
 		return &wgServerSrv{
+			service:       s,
 			store:         s.store,
 			configManager: nil,
 		}
@@ -47,6 +49,7 @@ func newWGServer(s *service) *wgServerSrv {
 	configManager := wireguard.NewServerConfigManager(configPath, wgOpts.ApplyMethod)
 
 	return &wgServerSrv{
+		service:       s,
 		store:         s.store,
 		configManager: configManager,
 	}
@@ -153,13 +156,18 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 	if req.PostUp != nil {
 		serverConfig.Interface.PostUp = *req.PostUp
 	}
-		if req.PostDown != nil {
+	if req.PostDown != nil {
 		serverConfig.Interface.PostDown = *req.PostDown
 	}
 
 	// Handle ServerIP and DNS update
 	cfg := config.Get()
+	var oldServerIP, oldDNS string
 	if cfg != nil && cfg.WireGuard != nil {
+		// Save old values for comparison
+		oldServerIP = cfg.WireGuard.ServerIP
+		oldDNS = cfg.WireGuard.DNS
+
 		if req.ServerIP != nil {
 			// Update ServerIP if provided
 			cfg.WireGuard.ServerIP = *req.ServerIP
@@ -178,6 +186,8 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 			// Update DNS if provided (empty string means clear DNS setting)
 			cfg.WireGuard.DNS = *req.DNS
 		}
+		// Note: Endpoint is not updated here as it's not in UpdateServerConfigRequest
+		// Endpoint is only set via command line/config file
 	}
 
 	// Write updated config
@@ -191,8 +201,14 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 		// Continue anyway, config is written but not applied
 	}
 
+	// Detect changes in global config
+	serverIPChanged := cfg != nil && cfg.WireGuard != nil && cfg.WireGuard.ServerIP != oldServerIP
+	dnsChanged := cfg != nil && cfg.WireGuard != nil && cfg.WireGuard.DNS != oldDNS
+	// Endpoint change detection would require adding it to UpdateServerConfigRequest
+	// For now, we'll only handle ServerIP and DNS changes
+
 	// Sync client configs if needed
-	if err := w.syncClientConfigs(ctx, oldConfig, serverConfig.Interface); err != nil {
+	if err := w.syncClientConfigs(ctx, oldConfig, serverConfig.Interface, serverIPChanged, dnsChanged, false); err != nil {
 		klog.V(1).InfoS("failed to sync client configs", "error", err)
 		// Continue anyway, server config is updated
 	}
@@ -201,14 +217,14 @@ func (w *wgServerSrv) UpdateServerConfig(ctx context.Context, req *v1.UpdateServ
 }
 
 // syncClientConfigs synchronizes all client configurations when server config changes.
-func (w *wgServerSrv) syncClientConfigs(ctx context.Context, oldConfig, newConfig *wireguard.InterfaceConfig) error {
+func (w *wgServerSrv) syncClientConfigs(ctx context.Context, oldConfig, newConfig *wireguard.InterfaceConfig, serverIPChanged, dnsChanged, endpointChanged bool) error {
 	// Check what changed
 	listenPortChanged := oldConfig.ListenPort != newConfig.ListenPort
 	mtuChanged := oldConfig.MTU != newConfig.MTU
 	privateKeyChanged := oldConfig.PrivateKey != newConfig.PrivateKey
 
 	// If nothing changed that affects clients, return early
-	if !listenPortChanged && !mtuChanged && !privateKeyChanged {
+	if !listenPortChanged && !mtuChanged && !privateKeyChanged && !serverIPChanged && !dnsChanged && !endpointChanged {
 		return nil
 	}
 
@@ -253,6 +269,36 @@ func (w *wgServerSrv) syncClientConfigs(ctx context.Context, oldConfig, newConfi
 		}
 	}
 
+	// Handle Endpoint related changes (ServerIP, ListenPort, or Endpoint changed)
+	if listenPortChanged || serverIPChanged || endpointChanged {
+		// Update Peer endpoints in database
+		if err := w.service.WGPeers().UpdatePeersEndpointForGlobalConfigChange(ctx); err != nil {
+			klog.V(1).InfoS("failed to update peers endpoint for global config change", "error", err)
+			// Continue anyway
+		}
+
+		// Update IP Pool endpoints in database
+		if err := w.service.IPPools().UpdateIPPoolsEndpointForGlobalConfigChange(ctx); err != nil {
+			klog.V(1).InfoS("failed to update IP pools endpoint for global config change", "error", err)
+			// Continue anyway
+		}
+	}
+
+	// Handle DNS changes
+	if dnsChanged {
+		// Update Peer DNS in database
+		if err := w.service.WGPeers().UpdatePeersDNSForGlobalConfigChange(ctx); err != nil {
+			klog.V(1).InfoS("failed to update peers DNS for global config change", "error", err)
+			// Continue anyway
+		}
+
+		// Update IP Pool DNS in database
+		if err := w.service.IPPools().UpdateIPPoolsDNSForGlobalConfigChange(ctx); err != nil {
+			klog.V(1).InfoS("failed to update IP pools DNS for global config change", "error", err)
+			// Continue anyway
+		}
+	}
+
 	return nil
 }
 
@@ -264,17 +310,6 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 	}
 
 	wgOpts := cfg.WireGuard
-
-	// Get IP pool configuration if peer has IPPoolID
-	var pool *model.IPPool
-	if peer.IPPoolID != "" {
-		var err error
-		pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
-		if err != nil {
-			klog.V(1).InfoS("failed to get IP pool", "poolID", peer.IPPoolID, "error", err)
-			// Continue without pool config
-		}
-	}
 
 	// Get server public key
 	var serverPublicKey string
@@ -290,52 +325,16 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 		}
 	}
 
-	// Use defaults if peer fields are empty
-	// Priority: Peer specified > IP Pool config > Settings/Global config
-	// If IP Pool is associated, use IP Pool DNS (even if empty, don't fallback to global)
-	// If IP Pool is not associated, fallback to Settings/Global config DNS
+	// Use DNS directly from database - it's already calculated and stored during create/update
 	dns := peer.DNS
-	if dns == "" && pool != nil {
-		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
-		dns = pool.DNS
-	} else if dns == "" && pool == nil {
-		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
-		if wgOpts.DNS != "" {
-			dns = wgOpts.DNS
-		}
-	}
-	// If dns is still empty, it will be omitted in GenerateClientConfig
 
-	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
+	// Use endpoint from database, but update port if ListenPort changed
 	endpoint := peer.Endpoint
-	if endpoint == "" && pool != nil && pool.Endpoint != "" {
-		endpoint = pool.Endpoint
-	}
-	if endpoint == "" {
-		// Use Settings.ServerIP + ListenPort
-		serverIP := wgOpts.ServerIP
-		if serverIP == "" {
-			// Auto-detect if not set
-			detectedIP, err := network.GetServerIP(ctx, "")
-			if err == nil {
-				serverIP = detectedIP
-			}
-		}
-		if serverIP != "" && newConfig.ListenPort > 0 {
-			endpoint = fmt.Sprintf("%s:%d", serverIP, newConfig.ListenPort)
-		}
-		// Fallback to global endpoint if still empty
-		if endpoint == "" {
-			endpoint = wgOpts.Endpoint
-		}
-	}
-
-	// Update endpoint port if ListenPort changed
 	if listenPortChanged {
 		// Extract IP from current endpoint if it exists
 		currentEndpointIP, err := ip.ExtractIPFromEndpoint(endpoint)
 		if err == nil && currentEndpointIP != "" {
-			// Use current endpoint IP
+			// Use current endpoint IP with new port
 			endpoint = fmt.Sprintf("%s:%d", currentEndpointIP, newConfig.ListenPort)
 		} else {
 			// Use Settings.ServerIP or detected IP
@@ -355,12 +354,23 @@ func (w *wgServerSrv) updatePeerClientConfig(ctx context.Context, peer *model.WG
 		}
 	}
 
+	// Use AllowedIPs directly from database
 	allowedIPs := peer.AllowedIPs
-	if allowedIPs == "" && pool != nil && pool.Routes != "" {
-		allowedIPs = pool.Routes
-	}
+	// Only calculate default if it's still empty (shouldn't happen for new peers, but handle legacy data)
 	if allowedIPs == "" {
-		allowedIPs = wgOpts.DefaultAllowedIPs
+		// Get IP pool configuration if peer has IPPoolID
+		var pool *model.IPPool
+		if peer.IPPoolID != "" {
+			var err error
+			pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+			if err == nil && pool != nil && pool.Routes != "" {
+				allowedIPs = pool.Routes
+			}
+		}
+		// Fallback to global default if still empty
+		if allowedIPs == "" {
+			allowedIPs = wgOpts.DefaultAllowedIPs
+		}
 	}
 
 	// Determine MTU

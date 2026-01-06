@@ -21,8 +21,8 @@ services:
       - /run/systemd/system:/run/systemd/system:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
-      # # WireGuard 配置目录（读写）
-      # - /etc/wireguard:/etc/wireguard:rw
+      # WireGuard 配置目录（读写）
+      - /opt/NexusPointWG/example/wireguard:/etc/wireguard:rw
     # environment:
     #   # WireGuard 配置环境变量（可通过 docker-compose.yml 或 .env 文件覆盖）
     #   - NEXUS_POINT_WG_WIREGUARD_ENDPOINT=${NEXUS_POINT_WG_WIREGUARD_ENDPOINT:-0.0.0.0:51820}

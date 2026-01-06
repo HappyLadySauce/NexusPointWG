@@ -24,7 +24,7 @@ export function Sidebar({ className, currentTab, setCurrentTab }: SidebarProps) 
     { id: "peers", label: "Peers", icon: Network },
     { id: "ip-pools", label: "IP Pools", icon: Database, adminOnly: true },
     { id: "users", label: "Users", icon: Users, adminOnly: true },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "settings", label: "Settings", icon: Settings, adminOnly: true },
   ];
 
   return (

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, Edit, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, Download, Edit, Eye, EyeOff, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -112,7 +112,9 @@ export function Peers() {
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isViewConfigOpen, setIsViewConfigOpen] = useState(false);
   const [editingPeer, setEditingPeer] = useState<WGPeerResponse | null>(null);
+  const [viewingConfig, setViewingConfig] = useState<{ peerId: string; peerName: string; config: string } | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [ipPoolModified, setIpPoolModified] = useState(false);
 
@@ -149,8 +151,9 @@ export function Peers() {
 
   useEffect(() => {
     fetchPeers();
-    fetchPools();
+    // Only admins need to fetch IP pools (for creating peers with pool selection)
     if (isAdmin) {
+      fetchPools();
       fetchUsers();
     }
   }, [isAdmin]);
@@ -248,6 +251,34 @@ export function Peers() {
       } catch (error) {
         toast.error("Failed to delete peer");
       }
+    }
+  };
+
+  const handleViewConfig = async (id: string) => {
+    try {
+      const peer = peers.find(p => p.id === id);
+      const peerName = peer ? peer.device_name : `Peer ${id}`;
+      
+      toast.info("Loading configuration...");
+      const configText = await api.wg.downloadConfig(id);
+      
+      setViewingConfig({ peerId: id, peerName, config: configText });
+      setIsViewConfigOpen(true);
+    } catch (error) {
+      toast.error("Failed to load config");
+      console.error(error);
+    }
+  };
+
+  const handleCopyConfig = async () => {
+    if (!viewingConfig) return;
+    
+    try {
+      await navigator.clipboard.writeText(viewingConfig.config);
+      toast.success("Configuration copied to clipboard");
+    } catch (error) {
+      toast.error("Failed to copy configuration");
+      console.error(error);
     }
   };
 
@@ -369,12 +400,13 @@ export function Peers() {
     <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Peers</h1>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Create Peer
-            </Button>
-          </DialogTrigger>
+        {isAdmin && (
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> Create Peer
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
               <DialogTitle>Create New Peer</DialogTitle>
@@ -528,6 +560,7 @@ export function Peers() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="flex items-center space-x-2">
@@ -549,6 +582,7 @@ export function Peers() {
               <TableHead>Name</TableHead>
               <TableHead>IP Address</TableHead>
               <TableHead>Endpoint</TableHead>
+              <TableHead>DNS</TableHead>
               {isAdmin && <TableHead>User</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -557,11 +591,11 @@ export function Peers() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">Loading peers...</TableCell>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">Loading peers...</TableCell>
               </TableRow>
             ) : filteredPeers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">No peers found.</TableCell>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">No peers found.</TableCell>
               </TableRow>
             ) : (
               filteredPeers.map((peer) => (
@@ -579,6 +613,7 @@ export function Peers() {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{peer.endpoint || "N/A"}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{peer.dns || "N/A"}</TableCell>
                   {isAdmin && (
                     <TableCell>
                       <span className="text-sm">{peer.username || "N/A"}</span>
@@ -601,15 +636,22 @@ export function Peers() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleViewConfig(peer.id)}>
+                          <FileText className="mr-2 h-4 w-4" /> View Config
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDownloadConfig(peer.id)}>
                           <Download className="mr-2 h-4 w-4" /> Download Config
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEdit(peer)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleEdit(peer)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -843,6 +885,58 @@ export function Peers() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Config Dialog */}
+      <Dialog open={isViewConfigOpen} onOpenChange={(open) => {
+        setIsViewConfigOpen(open);
+        if (!open) {
+          setViewingConfig(null);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>View Configuration - {viewingConfig?.peerName || "Peer"}</DialogTitle>
+            <DialogDescription>
+              View the complete WireGuard configuration file for this peer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto bg-muted p-4 rounded">
+              <pre className="font-mono text-sm whitespace-pre-wrap break-words">
+                {viewingConfig?.config || "Loading..."}
+              </pre>
+            </div>
+          </div>
+          <DialogFooter className="flex-shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopyConfig}
+              disabled={!viewingConfig}
+            >
+              <Copy className="mr-2 h-4 w-4" /> Copy
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (viewingConfig) {
+                  handleDownloadConfig(viewingConfig.peerId);
+                }
+              }}
+              disabled={!viewingConfig}
+            >
+              <Download className="mr-2 h-4 w-4" /> Download
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setIsViewConfigOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -12,6 +12,7 @@ import (
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/options"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/network"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
@@ -28,6 +29,9 @@ type WGPeerSrv interface {
 	ListPeers(ctx context.Context, opt store.WGPeerListOptions) ([]*model.WGPeer, int64, error)
 	ReleaseIP(ctx context.Context, peerID string) error
 	CountPeersByUserID(ctx context.Context, userID string) (int64, error)
+	UpdatePeersForIPPoolChange(ctx context.Context, poolID string, newPool *model.IPPool) error
+	UpdatePeersEndpointForGlobalConfigChange(ctx context.Context) error
+	UpdatePeersDNSForGlobalConfigChange(ctx context.Context) error
 }
 
 type wgPeerSrv struct {
@@ -85,11 +89,12 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 	if allowedIPs == "" && pool.Routes != "" {
 		allowedIPs = pool.Routes
 	}
-	if dns == "" && pool.DNS != "" {
-		dns = pool.DNS
-	}
-	if endpoint == "" && pool.Endpoint != "" {
-		endpoint = pool.Endpoint
+	// Fallback to global default if still empty
+	if allowedIPs == "" {
+		cfg := config.Get()
+		if cfg != nil && cfg.WireGuard != nil && cfg.WireGuard.DefaultAllowedIPs != "" {
+			allowedIPs = cfg.WireGuard.DefaultAllowedIPs
+		}
 	}
 
 	// Get server tunnel IP from server config Address
@@ -155,7 +160,33 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 		return nil, errors.WithCode(code.ErrWGPeerIDGenerationFailed, "failed to generate peer ID")
 	}
 
-	// Create peer model
+	// Get global config for calculating effective endpoint and DNS
+	cfg := config.Get()
+	var wgOpts *options.WireGuardOptions
+	if cfg != nil && cfg.WireGuard != nil {
+		wgOpts = cfg.WireGuard
+	}
+
+	// Create a temporary peer model for calculating effective values
+	tempPeer := &model.WGPeer{
+		DNS:      dns,
+		Endpoint: endpoint,
+		IPPoolID: ipPoolID,
+	}
+
+	// Calculate effective endpoint and DNS using helper functions
+	// This ensures we store the complete values (including defaults) in the database
+	var effectiveEndpoint, effectiveDNS string
+	if wgOpts != nil {
+		effectiveEndpoint = CalculateEffectiveEndpoint(tempPeer, pool, wgOpts, w.configManager, ctx)
+		effectiveDNS = CalculateEffectiveDNS(tempPeer, pool, wgOpts)
+	} else {
+		// Fallback to provided values if config is not available
+		effectiveEndpoint = endpoint
+		effectiveDNS = dns
+	}
+
+	// Create peer model with calculated effective values
 	peer := &model.WGPeer{
 		ID:                  peerID,
 		UserID:              userID,
@@ -164,8 +195,8 @@ func (w *wgPeerSrv) CreatePeer(ctx context.Context, userID, deviceName, ipPoolID
 		ClientPublicKey:     publicKey,
 		ClientIP:            clientIPCIDR,
 		AllowedIPs:          allowedIPs,
-		DNS:                 dns,
-		Endpoint:            endpoint,
+		DNS:                 effectiveDNS,
+		Endpoint:            effectiveEndpoint,
 		PersistentKeepalive: 25,
 		Status:              model.WGPeerStatusActive,
 		IPPoolID:            ipPoolID,
@@ -242,7 +273,7 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClien
 	if newClientIP != nil && *newClientIP != "" {
 		// Extract IP from existing CIDR format
 		existingIP, _ := ip.ExtractIPFromCIDR(existingPeer.ClientIP)
-		
+
 		// Check if IP actually changed
 		if existingIP != *newClientIP {
 			// Determine which IP pool to use
@@ -316,8 +347,10 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClien
 
 	// Handle IP Pool change (without IP change)
 	// Allow clearing IP Pool by setting it to empty string
+	ipPoolChanged := false
 	if newIPPoolID != nil && peer.IPPoolID != *newIPPoolID {
 		peer.IPPoolID = *newIPPoolID
+		ipPoolChanged = true
 	}
 
 	// Handle private key change - regenerate public key if needed
@@ -332,6 +365,42 @@ func (w *wgPeerSrv) UpdatePeer(ctx context.Context, peer *model.WGPeer, newClien
 			return errors.WithCode(code.ErrWGPublicKeyGenerationFailed, "failed to generate public key: %s", err.Error())
 		}
 		peer.ClientPublicKey = publicKey
+	}
+
+	// Recalculate effective endpoint and DNS if needed:
+	// 1. Endpoint or DNS is empty (needs default value)
+	// 2. IP Pool changed (may have different pool config)
+	needsRecalculation := peer.Endpoint == "" || peer.DNS == "" || ipPoolChanged
+
+	if needsRecalculation {
+		// Get global config for calculating effective endpoint and DNS
+		cfg := config.Get()
+		var wgOpts *options.WireGuardOptions
+		if cfg != nil && cfg.WireGuard != nil {
+			wgOpts = cfg.WireGuard
+		}
+
+		// Get IP pool if peer has IPPoolID
+		var pool *model.IPPool
+		if peer.IPPoolID != "" {
+			var err error
+			pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+			if err != nil {
+				klog.V(1).InfoS("failed to get IP pool for recalculation", "poolID", peer.IPPoolID, "error", err)
+				// Continue without pool config
+			}
+		}
+
+		// Calculate effective endpoint and DNS using helper functions
+		if wgOpts != nil {
+			// Only recalculate if the field is empty or IP Pool changed
+			if peer.Endpoint == "" || ipPoolChanged {
+				peer.Endpoint = CalculateEffectiveEndpoint(peer, pool, wgOpts, w.configManager, ctx)
+			}
+			if peer.DNS == "" || ipPoolChanged {
+				peer.DNS = CalculateEffectiveDNS(peer, pool, wgOpts)
+			}
+		}
 	}
 
 	// Update database
@@ -451,6 +520,63 @@ func (w *wgPeerSrv) CountPeersByUserID(ctx context.Context, userID string) (int6
 	return w.store.WGPeers().CountPeersByUserID(ctx, userID)
 }
 
+// UpdatePeersForIPPoolChange updates all peers that use a specific IP pool
+// when the pool's Endpoint or DNS changes.
+func (w *wgPeerSrv) UpdatePeersForIPPoolChange(ctx context.Context, poolID string, newPool *model.IPPool) error {
+	// Find all peers using this pool
+	peers, _, err := w.store.WGPeers().ListPeers(ctx, store.WGPeerListOptions{
+		IPPoolID: poolID,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get global config for calculating effective endpoint and DNS
+	cfg := config.Get()
+	var wgOpts *options.WireGuardOptions
+	if cfg != nil && cfg.WireGuard != nil {
+		wgOpts = cfg.WireGuard
+	}
+
+	// Update each peer if needed
+	for _, peer := range peers {
+		needsUpdate := false
+
+		// If peer's Endpoint is empty, it uses pool's default, so recalculate
+		if peer.Endpoint == "" {
+			if wgOpts != nil {
+				peer.Endpoint = CalculateEffectiveEndpoint(peer, newPool, wgOpts, w.configManager, ctx)
+				needsUpdate = true
+			}
+		}
+
+		// If peer's DNS is empty, it uses pool's default, so recalculate
+		if peer.DNS == "" {
+			if wgOpts != nil {
+				peer.DNS = CalculateEffectiveDNS(peer, newPool, wgOpts)
+				needsUpdate = true
+			}
+		}
+
+		if needsUpdate {
+			// Update peer in database
+			if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
+				klog.V(1).InfoS("failed to update peer after pool change", "peerID", peer.ID, "error", err)
+				// Continue with other peers
+				continue
+			}
+
+			// Regenerate client config file
+			if err := w.generateAndSaveClientConfig(ctx, peer); err != nil {
+				klog.V(1).InfoS("failed to regenerate client config after pool change", "peerID", peer.ID, "error", err)
+				// Continue with other peers
+			}
+		}
+	}
+
+	return nil
+}
+
 // generateAndSaveClientConfig generates and saves the client configuration file.
 func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model.WGPeer) error {
 	cfg := config.Get()
@@ -470,68 +596,27 @@ func (w *wgPeerSrv) generateAndSaveClientConfig(ctx context.Context, peer *model
 		}
 	}
 
-	// Get IP pool configuration if peer has IPPoolID
-	var pool *model.IPPool
-	if peer.IPPoolID != "" {
-		var err error
-		pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
-		if err != nil {
-			klog.V(1).InfoS("failed to get IP pool", "poolID", peer.IPPoolID, "error", err)
-			// Continue without pool config
-		}
-	}
-
-	// Use defaults if peer fields are empty
-	// Priority: Peer specified > IP Pool config > Settings/Global config
-	// If IP Pool is associated, use IP Pool DNS (even if empty, don't fallback to global)
-	// If IP Pool is not associated, fallback to Settings/Global config DNS
+	// Use values directly from database - they are already calculated and stored during create/update
+	// DNS and Endpoint are guaranteed to have default values (if applicable) stored in the database
 	dns := peer.DNS
-	if dns == "" && pool != nil {
-		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
-		dns = pool.DNS
-	} else if dns == "" && pool == nil {
-		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
-		if wgOpts.DNS != "" {
-			dns = wgOpts.DNS
-		}
-	}
-	// If dns is still empty, it will be omitted in GenerateClientConfig
-
-	// Build endpoint with priority: Peer.Endpoint > Pool.Endpoint > Settings.ServerIP:ListenPort
 	endpoint := peer.Endpoint
-	if endpoint == "" && pool != nil && pool.Endpoint != "" {
-		endpoint = pool.Endpoint
-	}
-	if endpoint == "" {
-		// Use Settings.ServerIP + ListenPort from server config
-		if w.configManager != nil {
-			serverConfig, err := w.configManager.ReadServerConfig()
-			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
-				serverIP := wgOpts.ServerIP
-				if serverIP == "" {
-					// Auto-detect if not set
-					detectedIP, err := network.GetServerIP(ctx, "")
-					if err == nil {
-						serverIP = detectedIP
-					}
-				}
-				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
-					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
-				}
+	allowedIPs := peer.AllowedIPs
+
+	// Only calculate AllowedIPs default if it's still empty (shouldn't happen for new peers, but handle legacy data)
+	if allowedIPs == "" {
+		// Get IP pool configuration if peer has IPPoolID
+		var pool *model.IPPool
+		if peer.IPPoolID != "" {
+			var err error
+			pool, err = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+			if err == nil && pool != nil && pool.Routes != "" {
+				allowedIPs = pool.Routes
 			}
 		}
-		// Fallback to global endpoint if still empty
-		if endpoint == "" {
-			endpoint = wgOpts.Endpoint
+		// Fallback to global default if still empty
+		if allowedIPs == "" {
+			allowedIPs = wgOpts.DefaultAllowedIPs
 		}
-	}
-
-	allowedIPs := peer.AllowedIPs
-	if allowedIPs == "" && pool != nil && pool.Routes != "" {
-		allowedIPs = pool.Routes
-	}
-	if allowedIPs == "" {
-		allowedIPs = wgOpts.DefaultAllowedIPs
 	}
 
 	// Generate client config
@@ -585,4 +670,212 @@ func (w *wgPeerSrv) updateServerConfigForPeer(peer *model.WGPeer, isNew bool) er
 		return w.configManager.AddPeer(serverPeer)
 	}
 	return w.configManager.UpdatePeer(peer.ClientPublicKey, serverPeer)
+}
+
+// CalculateEffectiveEndpoint calculates the effective endpoint for a peer.
+// Priority: peer.Endpoint > pool.Endpoint > ServerIP:ListenPort > wgOpts.Endpoint
+func CalculateEffectiveEndpoint(peer *model.WGPeer, pool *model.IPPool, wgOpts *options.WireGuardOptions, configManager *wireguard.ServerConfigManager, ctx context.Context) string {
+	endpoint := peer.Endpoint
+	if endpoint == "" && pool != nil && pool.Endpoint != "" {
+		endpoint = pool.Endpoint
+	}
+	if endpoint == "" {
+		// Use Settings.ServerIP + ListenPort from server config
+		if configManager != nil {
+			serverConfig, err := configManager.ReadServerConfig()
+			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+				serverIP := wgOpts.ServerIP
+				if serverIP == "" {
+					// Auto-detect if not set
+					detectedIP, err := network.GetServerIP(ctx, "")
+					if err == nil {
+						serverIP = detectedIP
+					}
+				}
+				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
+					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
+				}
+			}
+		}
+		// Fallback to global endpoint if still empty
+		if endpoint == "" {
+			endpoint = wgOpts.Endpoint
+		}
+	}
+	return endpoint
+}
+
+// CalculateEffectiveDNS calculates the effective DNS for a peer.
+// Priority: peer.DNS > pool.DNS (if pool exists, even if empty) > wgOpts.DNS (if pool doesn't exist)
+func CalculateEffectiveDNS(peer *model.WGPeer, pool *model.IPPool, wgOpts *options.WireGuardOptions) string {
+	dns := peer.DNS
+	if dns == "" && pool != nil {
+		// If associated with IP Pool, only use IP Pool DNS (even if empty, don't fallback)
+		dns = pool.DNS
+	} else if dns == "" && pool == nil {
+		// Only when Peer is not associated with IP Pool, use Settings/Global config DNS
+		dns = wgOpts.DNS
+	}
+	return dns
+}
+
+// CalculateIPPoolEndpoint calculates the default endpoint for an IP pool.
+// Priority: poolEndpoint > ServerIP:ListenPort > wgOpts.Endpoint
+func CalculateIPPoolEndpoint(poolEndpoint string, wgOpts *options.WireGuardOptions, configManager *wireguard.ServerConfigManager, ctx context.Context) string {
+	endpoint := poolEndpoint
+	if endpoint == "" {
+		// Use Settings.ServerIP + ListenPort from server config
+		if configManager != nil {
+			serverConfig, err := configManager.ReadServerConfig()
+			if err == nil && serverConfig != nil && serverConfig.Interface != nil {
+				serverIP := wgOpts.ServerIP
+				if serverIP == "" {
+					// Auto-detect if not set
+					detectedIP, err := network.GetServerIP(ctx, "")
+					if err == nil {
+						serverIP = detectedIP
+					}
+				}
+				if serverIP != "" && serverConfig.Interface.ListenPort > 0 {
+					endpoint = fmt.Sprintf("%s:%d", serverIP, serverConfig.Interface.ListenPort)
+				}
+			}
+		}
+		// Fallback to global endpoint if still empty
+		if endpoint == "" {
+			endpoint = wgOpts.Endpoint
+		}
+	}
+	return endpoint
+}
+
+// UpdatePeersEndpointForGlobalConfigChange updates all peers that use default endpoint
+// when global config (ServerIP, ListenPort, or Endpoint) changes.
+func (w *wgPeerSrv) UpdatePeersEndpointForGlobalConfigChange(ctx context.Context) error {
+	// Get all peers
+	peers, _, err := w.store.WGPeers().ListPeers(ctx, store.WGPeerListOptions{
+		Limit: 10000, // Get all peers
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get global config
+	cfg := config.Get()
+	if cfg == nil || cfg.WireGuard == nil {
+		return nil
+	}
+	wgOpts := cfg.WireGuard
+
+	// Get server IP
+	serverIP := wgOpts.ServerIP
+	if serverIP == "" {
+		detectedIP, err := network.GetServerIP(ctx, "")
+		if err == nil {
+			serverIP = detectedIP
+		}
+	}
+
+	// Update each peer if needed
+	for _, peer := range peers {
+		needsUpdate := false
+
+		// Check if peer uses default endpoint
+		if peer.Endpoint == "" {
+			// Empty endpoint means using default
+			needsUpdate = true
+		} else {
+			// Check if endpoint matches server IP pattern (ServerIP:Port)
+			endpointIP, err := ip.ExtractIPFromEndpoint(peer.Endpoint)
+			if err == nil && endpointIP != "" {
+				// Check if it matches current server IP
+				if serverIP != "" && endpointIP == serverIP {
+					// Endpoint uses server IP, so it's based on global config
+					needsUpdate = true
+				} else if peer.Endpoint == wgOpts.Endpoint {
+					// Endpoint equals global endpoint config
+					needsUpdate = true
+				}
+			}
+		}
+
+		if needsUpdate {
+			// Get IP pool if peer has one
+			var pool *model.IPPool
+			if peer.IPPoolID != "" {
+				pool, _ = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+			}
+
+			// Recalculate endpoint
+			oldEndpoint := peer.Endpoint
+			peer.Endpoint = CalculateEffectiveEndpoint(peer, pool, wgOpts, w.configManager, ctx)
+
+			// Only update if endpoint actually changed
+			if oldEndpoint != peer.Endpoint {
+				// Update in database
+				if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
+					klog.V(1).InfoS("failed to update peer endpoint", "peerID", peer.ID, "error", err)
+					continue
+				}
+
+				// Regenerate client config
+				if err := w.generateAndSaveClientConfig(ctx, peer); err != nil {
+					klog.V(1).InfoS("failed to regenerate client config", "peerID", peer.ID, "error", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// UpdatePeersDNSForGlobalConfigChange updates all peers that use default DNS
+// when global config DNS changes.
+func (w *wgPeerSrv) UpdatePeersDNSForGlobalConfigChange(ctx context.Context) error {
+	// Get all peers
+	peers, _, err := w.store.WGPeers().ListPeers(ctx, store.WGPeerListOptions{
+		Limit: 10000, // Get all peers
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get global config
+	cfg := config.Get()
+	if cfg == nil || cfg.WireGuard == nil {
+		return nil
+	}
+	wgOpts := cfg.WireGuard
+
+	// Update each peer if needed
+	for _, peer := range peers {
+		// Check if peer uses default DNS (empty means using default)
+		if peer.DNS == "" {
+			// Get IP pool if peer has one
+			var pool *model.IPPool
+			if peer.IPPoolID != "" {
+				pool, _ = w.store.IPPools().GetIPPool(ctx, peer.IPPoolID)
+			}
+
+			// Recalculate DNS
+			oldDNS := peer.DNS
+			peer.DNS = CalculateEffectiveDNS(peer, pool, wgOpts)
+
+			// Only update if DNS actually changed
+			if oldDNS != peer.DNS {
+				// Update in database
+				if err := w.store.WGPeers().UpdatePeer(ctx, peer); err != nil {
+					klog.V(1).InfoS("failed to update peer DNS", "peerID", peer.ID, "error", err)
+					continue
+				}
+
+				// Regenerate client config
+				if err := w.generateAndSaveClientConfig(ctx, peer); err != nil {
+					klog.V(1).InfoS("failed to regenerate client config", "peerID", peer.ID, "error", err)
+				}
+			}
+		}
+	}
+
+	return nil
 }

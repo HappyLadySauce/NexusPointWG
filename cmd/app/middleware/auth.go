@@ -84,7 +84,13 @@ func JWTAuth(s store.Factory) gin.HandlerFunc {
 		user, err := s.Users().GetUser(context.Background(), claims.UserID)
 		if err != nil {
 			klog.V(1).InfoS("failed to get user from store:", "error", err)
-			core.WriteResponse(c, err, nil)
+			// 在认证过程中，如果用户不存在，应该返回认证失败（401）而不是资源不存在（404）
+			// 这样可以确保前端能够正确识别认证失败并重定向到登录页
+			if errors.ParseCoder(err).Code() == code.ErrUserNotFound {
+				core.WriteResponse(c, errors.WithCode(code.ErrTokenInvalid, "%s", code.Message(code.ErrTokenInvalid)), nil)
+			} else {
+				core.WriteResponse(c, err, nil)
+			}
 			c.Abort()
 			return
 		}

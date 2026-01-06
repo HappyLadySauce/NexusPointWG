@@ -2,8 +2,11 @@ import { Activity, Users as UsersIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { api, WGPeerResponse } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 export function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [peers, setPeers] = useState<WGPeerResponse[]>([]);
   const [stats, setStats] = useState({
     totalPeers: 0,
@@ -20,13 +23,15 @@ export function Dashboard() {
         
         const active = peerList.filter(p => p.status === 'active').length;
         
-        // Fetch users data
+        // Fetch users data only for admin
         let totalUsers = 0;
-        try {
-          const usersResponse = await api.users.list();
-          totalUsers = usersResponse.total || 0;
-        } catch (e) {
-          console.error("Failed to fetch users:", e);
+        if (isAdmin) {
+          try {
+            const usersResponse = await api.users.list();
+            totalUsers = usersResponse.total || 0;
+          } catch (e) {
+            console.error("Failed to fetch users:", e);
+          }
         }
         
         setStats({
@@ -39,13 +44,13 @@ export function Dashboard() {
       }
     };
     loadData();
-  }, []);
+  }, [isAdmin]);
 
   return (
     <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
       <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className={`grid gap-4 ${isAdmin ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Peers</CardTitle>
@@ -70,18 +75,20 @@ export function Dashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Registered users
-            </p>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                Registered users
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card>

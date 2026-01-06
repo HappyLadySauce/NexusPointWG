@@ -10,11 +10,15 @@ import (
 
 	"github.com/HappyLadySauce/NexusPointWG/cmd/app/middleware"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/code"
+	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/core/wireguard"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/model"
 	"github.com/HappyLadySauce/NexusPointWG/internal/pkg/spec"
 	v1 "github.com/HappyLadySauce/NexusPointWG/internal/pkg/types/v1"
+	"github.com/HappyLadySauce/NexusPointWG/internal/service"
 	"github.com/HappyLadySauce/NexusPointWG/internal/store"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/config"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/core"
+	"github.com/HappyLadySauce/NexusPointWG/pkg/options"
 	"github.com/HappyLadySauce/NexusPointWG/pkg/utils/snowflake"
 	"github.com/HappyLadySauce/errors"
 )
@@ -68,6 +72,23 @@ func (w *WGController) CreateIPPool(c *gin.Context) {
 		return
 	}
 
+	// Get global config for calculating effective endpoint
+	cfg := config.Get()
+	var wgOpts *options.WireGuardOptions
+	var configManager *wireguard.ServerConfigManager
+	if cfg != nil && cfg.WireGuard != nil {
+		wgOpts = cfg.WireGuard
+		if wgOpts.ServerConfigPath() != "" {
+			configManager = wireguard.NewServerConfigManager(wgOpts.ServerConfigPath(), wgOpts.ApplyMethod)
+		}
+	}
+
+	// Calculate effective endpoint if not provided
+	endpoint := req.Endpoint
+	if endpoint == "" && wgOpts != nil {
+		endpoint = service.CalculateIPPoolEndpoint("", wgOpts, configManager, context.Background())
+	}
+
 	// Create pool model
 	pool := &model.IPPool{
 		ID:          poolID,
@@ -75,7 +96,7 @@ func (w *WGController) CreateIPPool(c *gin.Context) {
 		CIDR:        req.CIDR,
 		Routes:      req.Routes,
 		DNS:         req.DNS,
-		Endpoint:    req.Endpoint,
+		Endpoint:    endpoint,
 		Description: req.Description,
 		Status:      model.IPPoolStatusActive,
 	}
