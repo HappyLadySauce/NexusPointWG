@@ -101,6 +101,31 @@ func (w *WGController) UpdatePeer(c *gin.Context) {
 		}
 	}
 
+	// 3) Sensitive updates (username/user binding) additionally require wg_peer:update_sensitive
+	if req.Username != nil && *req.Username != "" {
+		allowed, err := spec.Enforce(requesterRole, obj, spec.ActionWGPeerUpdateSensitive)
+		if err != nil {
+			klog.V(1).InfoS("authz enforce failed for username update", "error", err)
+			core.WriteResponse(c, errors.WithCode(code.ErrUnknown, "authorization engine error"), nil)
+			return
+		}
+		if !allowed {
+			klog.V(1).InfoS("permission denied for username update", "requesterRole", requesterRole, "peerID", peerID)
+			core.WriteResponse(c, errors.WithCode(code.ErrPermissionDenied, "%s", code.Message(code.ErrPermissionDenied)), nil)
+			return
+		}
+
+		// Look up user by username
+		targetUser, err := w.srv.Users().GetUserByUsername(context.Background(), *req.Username)
+		if err != nil {
+			klog.V(1).InfoS("failed to find user by username", "username", *req.Username, "error", err)
+			core.WriteResponse(c, errors.WithCode(code.ErrUserNotFound, "user not found: %s", *req.Username), nil)
+			return
+		}
+		// Update UserID
+		existingPeer.UserID = targetUser.ID
+	}
+
 	// Update peer fields (only update provided fields)
 	if req.DeviceName != nil {
 		existingPeer.DeviceName = *req.DeviceName

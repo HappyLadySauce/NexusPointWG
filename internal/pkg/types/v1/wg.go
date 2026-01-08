@@ -48,6 +48,8 @@ type UpdateWGPeerRequest struct {
 	PersistentKeepalive *int `json:"persistent_keepalive,omitempty" binding:"omitempty,min=0,max=65535"`
 	// Status is the peer status (active/disabled)
 	Status *string `json:"status,omitempty" binding:"omitempty,oneof=active disabled"`
+	// Username is the username of the user to bind this peer to (admin-only, sensitive operation)
+	Username *string `json:"username,omitempty" binding:"omitempty"`
 }
 
 // WGPeerResponse represents a WireGuard peer response.

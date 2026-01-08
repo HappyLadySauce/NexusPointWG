@@ -111,6 +111,7 @@ const editPeerSchema = z.object({
   }, "Invalid Endpoint format (e.g., 10.10.10.10:51820)"),
   persistent_keepalive: z.number().min(0).max(65535).optional(),
   status: z.enum(["active", "disabled"]).optional(),
+  username: z.string().optional(),
 });
 
 type EditPeerFormValues = z.infer<typeof editPeerSchema>;
@@ -375,6 +376,7 @@ export function Peers() {
       endpoint: peer.endpoint || "",
       persistent_keepalive: peer.persistent_keepalive,
       status: peer.status as "active" | "disabled",
+      username: peer.username || undefined,
     });
     setIsEditOpen(true);
   };
@@ -423,6 +425,10 @@ export function Peers() {
       }
       if (data.status !== editingPeer.status) {
         request.status = data.status;
+      }
+      // Only admins can update username (user binding)
+      if (isAdmin && data.username && data.username !== editingPeer.username) {
+        request.username = data.username;
       }
 
       await api.wg.updatePeer(editingPeer.id, request);
@@ -888,6 +894,35 @@ export function Peers() {
                       <p className="text-sm text-red-500">{editErrors.ip_pool_id.message}</p>
                     )}
                   </div>
+
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_username">{t('edit.user')}</Label>
+                      <Select
+                        value={watchEdit("username") || editingPeer?.username || ""}
+                        onValueChange={(value) => {
+                          setEditValue("username", value === "" ? undefined : value);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('edit.userPlaceholder')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.username}>
+                              {user.username} {user.nickname ? `(${user.nickname})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {t('edit.userHint')}
+                      </p>
+                      {editErrors.username && (
+                        <p className="text-sm text-red-500">{editErrors.username.message}</p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="edit_client_private_key">{t('edit.clientPrivateKey')}</Label>

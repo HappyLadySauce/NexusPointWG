@@ -48,6 +48,9 @@
     "endpoint": "Endpoint",
     "endpointPlaceholder": "e.g., 10.10.10.10:51820",
     "endpointHint": "Server endpoint in format IP:Port (e.g., 10.10.10.10:51820)",
+    "user": "Bound User",
+    "userPlaceholder": "Select user (admin only)",
+    "userHint": "Change the user this peer is bound to. Only admins can modify this field.",
     "status": "Status",
     "updateButton": "Update",
     "cancelButton": "Cancel"

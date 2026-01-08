@@ -48,6 +48,9 @@
         "endpoint": "端点",
         "endpointPlaceholder": "例如：10.10.10.10:51820",
         "endpointHint": "服务器端点格式 IP:端口（例如：10.10.10.10:51820）",
+        "user": "绑定用户",
+        "userPlaceholder": "选择用户（仅管理员）",
+        "userHint": "更改此设备绑定的用户。仅管理员可以修改此字段。",
         "status": "状态",
         "updateButton": "更新",
         "cancelButton": "取消"

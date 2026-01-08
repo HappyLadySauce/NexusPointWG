@@ -91,6 +91,7 @@ export interface UpdateWGPeerRequest {
   endpoint?: string;
   persistent_keepalive?: number;
   status?: "active" | "disabled";
+  username?: string;
 }
 
 // IP Pool types
