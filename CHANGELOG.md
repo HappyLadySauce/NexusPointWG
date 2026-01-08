@@ -5,6 +5,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.2.1] - 2025-01-XX
+
+### 新增功能
+- **1Panel 应用商店支持**：支持通过 1Panel 应用商店一键安装和部署 NexusPointWG
+  - 完整的安装和卸载脚本
+  - 自动配置容器和网络设置
+  - 支持自定义监听端口
+  - 自动设置 WireGuard 目录权限
+
+### 技术改进
+- **项目结构优化**：将根目录下的 Docker 相关文件统一移动到 `docker/` 目录
+  - `Dockerfile` → `docker/Dockerfile`
+  - `docker-compose.dev.yml` → `docker/docker-compose.dev.yml`
+  - `docker-compose.release.yml` → `docker/docker-compose.release.yml`
+  - `.dockerignore` → `docker/.dockerignore`
+- **Makefile 模块化**：创建独立的 `scripts/make-rules/docker.mk` 模块
+  - 简化了主 Makefile 的结构
+  - 所有 Docker 相关命令路径已自动更新
+  - 新增 `make 1panel` 命令用于打包 1Panel 应用
+- **构建流程改进**：构建前自动清理 `_output` 目录，确保每次构建都是干净的环境
+
 ## [1.2.0] - 2025-01-XX
 
 ### 新增功能
