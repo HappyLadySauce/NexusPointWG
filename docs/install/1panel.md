@@ -19,7 +19,7 @@
    ```bash
    wget -O /tmp/nexuspointwg.tar.gz https://raw.githubusercontent.com/HappyLadySauce/NexusPointWG/refs/heads/main/docker/1panel/nexuspointwg.tar.gz
    
-   tar -zxvf /tmp/nexuspointwg.tar.gz -C /opt/1panel/apps/local
+   tar -zxvf /tmp/nexuspointwg.tar.gz -C /opt/1panel/resource/apps/local
    ```
 
    > **注意**：如果 GitHub 访问受限，可以手动下载 `docker/1panel/nexuspointwg.tar.gz` 文件并上传到服务器，然后执行解压命令。
@@ -72,7 +72,7 @@
 
    ```bash
    # 将文件上传到服务器后，解压到 1Panel 应用目录
-   tar -zxvf nexuspointwg.tar.gz -C /opt/1panel/apps/local
+   tar -zxvf nexuspointwg.tar.gz -C /opt/1panel/resource/apps/local
    ```
 
 3. **后续步骤**
@@ -155,7 +155,7 @@
 ### 方式二：手动升级
 
 1. 下载新版本的应用文件
-2. 解压到 `/opt/1panel/apps/local` 目录
+2. 解压到 `/opt/1panel/resource/apps/local` 目录
 3. 在 1Panel 中更新应用商店
 4. 在应用详情页面点击"升级"
 

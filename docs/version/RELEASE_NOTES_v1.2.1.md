@@ -157,7 +157,7 @@ NexusPointWG 现已支持通过 1Panel 应用商店一键安装和部署，大�
 3. 或使用安装脚本：
    ```bash
    wget -O /tmp/nexuspointwg.tar.gz https://raw.githubusercontent.com/HappyLadySauce/NexusPointWG/refs/heads/main/docker/1panel/nexuspointwg.tar.gz
-   tar -zxvf /tmp/nexuspointwg.tar.gz -C /opt/1panel/apps/local
+   tar -zxvf /tmp/nexuspointwg.tar.gz -C /opt/1panel/resource/apps/local
    ```
 4. 在 1Panel 中更新应用商店并安装
 
