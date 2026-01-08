@@ -78,6 +78,8 @@ func (u *UserController) ListUsers(c *gin.Context) {
 			Username:  user.Username,
 			Nickname:  user.Nickname,
 			Email:     user.Email,
+			Role:      user.Role,
+			Status:    user.Status,
 			PeerCount: peerCount,
 		})
 	}
@@ -89,4 +91,3 @@ func (u *UserController) ListUsers(c *gin.Context) {
 
 	core.WriteResponse(c, nil, resp)
 }
-

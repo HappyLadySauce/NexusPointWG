@@ -536,7 +536,9 @@ export function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">User</Badge>
+                    <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                      {user.role === "admin" ? "Admin" : "User"}
+                    </Badge>
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="text-right">
@@ -544,7 +546,15 @@ export function UsersPage() {
                     </TableCell>
                   )}
                   <TableCell className="text-right">
-                    <span className="text-emerald-600 text-sm font-medium">Active</span>
+                    <span className={`text-sm font-medium ${
+                      user.status === "active" ? "text-emerald-600" : 
+                      user.status === "inactive" ? "text-yellow-600" : 
+                      "text-red-600"
+                    }`}>
+                      {user.status === "active" ? "Active" : 
+                       user.status === "inactive" ? "Inactive" : 
+                       "Deleted"}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">

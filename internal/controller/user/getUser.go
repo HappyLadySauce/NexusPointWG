@@ -38,10 +38,20 @@ func (u *UserController) GetUserInfo(c *gin.Context) {
 		return
 	}
 
+	// Calculate peer count
+	peerCount, err := u.srv.WGPeers().CountPeersByUserID(context.Background(), user.ID)
+	if err != nil {
+		klog.V(1).InfoS("failed to count peers for user", "userID", user.ID, "error", err)
+		peerCount = 0 // Default to 0 on error
+	}
+
 	resp := v1.UserResponse{
-		Username: user.Username,
-		Nickname: user.Nickname,
-		Email:    user.Email,
+		Username:  user.Username,
+		Nickname:  user.Nickname,
+		Email:     user.Email,
+		Role:      user.Role,
+		Status:    user.Status,
+		PeerCount: peerCount,
 	}
 
 	core.WriteResponse(c, nil, resp)

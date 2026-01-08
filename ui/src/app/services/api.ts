@@ -13,6 +13,8 @@ export interface UserResponse {
   username: string;
   nickname: string;
   email: string;
+  role: string;
+  status: string;
   peer_count?: number;
 }
 
@@ -256,56 +258,56 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Helper for Auth Headers
 const getHeaders = () => {
-    const token = localStorage.getItem("token");
-    return {
-        "Content-Type": "application/json",
-        "Authorization": token ? `Bearer ${token}` : "",
-    };
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    "Authorization": token ? `Bearer ${token}` : "",
+  };
 };
 
 // Helper for handling responses
 const handleResponse = async (res: Response) => {
-    // 处理认证失败的情况：401 (Unauthorized) 和 403 (Forbidden)
-    if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/"; // Force login
-        throw new Error("Unauthorized");
-    }
-    if (!res.ok) {
-        const text = await res.text();
-        try {
-            const json = JSON.parse(text);
-            // 检查错误码，如果是认证相关错误，也重定向到登录页
-            // 认证相关错误码：
-            // - 110003: 用户不存在 (ErrUserNotFound)
-            // - 110004: 用户未激活 (ErrUserNotActive)
-            // - 1002xx: 认证相关错误 (100201-100206)
-            const errorCode = json.code;
-            if (errorCode) {
-                // 检查是否是认证相关错误码
-                const isAuthError = 
-                    errorCode === 110003 || // ErrUserNotFound
-                    errorCode === 110004 || // ErrUserNotActive
-                    (errorCode >= 100201 && errorCode <= 100206); // 认证相关错误码范围
-                
-                if (isAuthError) {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.location.href = "/"; // Force login
-                    throw new Error("Unauthorized");
-                }
-            }
-            throw new Error(json.error || json.message || res.statusText);
-        } catch (e) {
-            // 如果解析失败或已经抛出重定向错误，直接抛出
-            if (e instanceof Error && e.message === "Unauthorized") {
-                throw e;
-            }
-            throw new Error(text || res.statusText);
+  // 处理认证失败的情况：401 (Unauthorized) 和 403 (Forbidden)
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/"; // Force login
+    throw new Error("Unauthorized");
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      // 检查错误码，如果是认证相关错误，也重定向到登录页
+      // 认证相关错误码：
+      // - 110003: 用户不存在 (ErrUserNotFound)
+      // - 110004: 用户未激活 (ErrUserNotActive)
+      // - 1002xx: 认证相关错误 (100201-100206)
+      const errorCode = json.code;
+      if (errorCode) {
+        // 检查是否是认证相关错误码
+        const isAuthError =
+          errorCode === 110003 || // ErrUserNotFound
+          errorCode === 110004 || // ErrUserNotActive
+          (errorCode >= 100201 && errorCode <= 100206); // 认证相关错误码范围
+
+        if (isAuthError) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/"; // Force login
+          throw new Error("Unauthorized");
         }
+      }
+      throw new Error(json.error || json.message || res.statusText);
+    } catch (e) {
+      // 如果解析失败或已经抛出重定向错误，直接抛出
+      if (e instanceof Error && e.message === "Unauthorized") {
+        throw e;
+      }
+      throw new Error(text || res.statusText);
     }
-    return res.json();
+  }
+  return res.json();
 };
 
 // Helper to build query string from options
@@ -401,7 +403,7 @@ export const api = {
 
         if (options?.user_id) {
           filtered = filtered.filter((p) => p.user_id === options.user_id);
-      }
+        }
         if (options?.status) {
           filtered = filtered.filter((p) => p.status === options.status);
         }
@@ -498,31 +500,31 @@ export const api = {
         return;
       }
 
-       const res = await fetch(`${API_BASE}/wg/peers/${id}`, { 
-           method: "DELETE",
+      const res = await fetch(`${API_BASE}/wg/peers/${id}`, {
+        method: "DELETE",
         headers: getHeaders(),
-       });
-       if (!res.ok) throw new Error("Failed to delete peer");
+      });
+      if (!res.ok) throw new Error("Failed to delete peer");
     },
 
     downloadConfig: async (id: string): Promise<string> => {
-        if (USE_MOCK) {
-            await delay(500);
-            return `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = 10.0.0.5/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = SERVER_PUBLIC_KEY\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0`;
-        }
+      if (USE_MOCK) {
+        await delay(500);
+        return `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = 10.0.0.5/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = SERVER_PUBLIC_KEY\nEndpoint = vpn.example.com:51820\nAllowedIPs = 0.0.0.0/0`;
+      }
 
-        const res = await fetch(`${API_BASE}/wg/peers/${id}/config`, {
+      const res = await fetch(`${API_BASE}/wg/peers/${id}/config`, {
         headers: getHeaders(),
-        });
-        if (!res.ok) throw new Error("Failed to download config");
-        return res.text();
+      });
+      if (!res.ok) throw new Error("Failed to download config");
+      return res.text();
     },
 
     // ========================================================================
     // IP Pools
     // ========================================================================
     listIPPools: async (options?: IPPoolListOptions): Promise<ListResponse<IPPoolResponse>> => {
-       if (USE_MOCK) {
+      if (USE_MOCK) {
         await delay(300);
         let filtered = [...mockIPPools];
 
@@ -570,10 +572,10 @@ export const api = {
         body: JSON.stringify(data),
       });
       return handleResponse(res);
-  },
+    },
 
     updateIPPool: async (poolID: string, data: UpdateIPPoolRequest): Promise<IPPoolResponse> => {
-          if (USE_MOCK) {
+      if (USE_MOCK) {
         await delay(400);
         const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
         if (poolIndex === -1) throw new Error("IP pool not found");
@@ -590,28 +592,28 @@ export const api = {
         };
         mockIPPools[poolIndex] = updatedPool;
         return updatedPool;
-          }
+      }
 
       const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify(data),
-          });
-          return handleResponse(res);
-      },
+      });
+      return handleResponse(res);
+    },
 
     deleteIPPool: async (poolID: string): Promise<void> => {
-          if (USE_MOCK) {
+      if (USE_MOCK) {
         await delay(300);
         const poolIndex = mockIPPools.findIndex((p) => p.id === poolID);
         if (poolIndex === -1) throw new Error("IP pool not found");
         mockIPPools.splice(poolIndex, 1);
         return;
-          }
+      }
 
       const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}`, {
         method: "DELETE",
-              headers: getHeaders(),
+        headers: getHeaders(),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -671,8 +673,8 @@ export const api = {
 
       const res = await fetch(`${API_BASE}/wg/server-config`, {
         headers: getHeaders(),
-          });
-          return handleResponse(res);
+      });
+      return handleResponse(res);
     },
 
     updateServerConfig: async (data: UpdateServerConfigRequest): Promise<void> => {
@@ -703,12 +705,15 @@ export const api = {
   // ==========================================================================
   users: {
     list: async (options?: UserListOptions): Promise<ListResponse<UserResponse>> => {
-          if (USE_MOCK) {
-              await delay(300);
+      if (USE_MOCK) {
+        await delay(300);
         let filtered = mockUsers.map((u) => ({
           username: u.username,
           nickname: u.nickname || u.username,
           email: u.email || `${u.username}@example.com`,
+          role: u.role || "user",
+          status: "active",
+          peer_count: 0,
         }));
 
         if (options?.username) {
@@ -746,6 +751,9 @@ export const api = {
           username: user.username,
           nickname: user.nickname || user.username,
           email: user.email || `${user.username}@example.com`,
+          role: user.role || "user",
+          status: "active",
+          peer_count: 0,
         };
       }
 
@@ -769,7 +777,7 @@ export const api = {
         return;
       }
 
-          const res = await fetch(`${API_BASE}/users`, {
+      const res = await fetch(`${API_BASE}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -800,6 +808,9 @@ export const api = {
           username: updatedUser.username,
           nickname: updatedUser.nickname || updatedUser.username,
           email: updatedUser.email || `${updatedUser.username}@example.com`,
+          role: (updatedUser as any).role || "user",
+          status: (updatedUser as any).status || "active",
+          peer_count: 0,
         };
       }
 
@@ -807,8 +818,8 @@ export const api = {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify(data),
-          });
-          return handleResponse(res);
+      });
+      return handleResponse(res);
     },
 
     delete: async (username: string): Promise<void> => {
