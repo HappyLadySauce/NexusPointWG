@@ -88,6 +88,13 @@ run:
 
 ## ui.build: Build frontend application to _output/dist.
 
+## 1panel: Package 1panel app directory into tar.gz archive.
+.PHONY: 1panel
+1panel:
+	@echo "Packaging 1panel app..."
+	@cd docker/1panel && tar czvf nexuspointwg.tar.gz nexuspointwg/
+	@echo "Package created: docker/1panel/nexuspointwg.tar.gz"
+
 .PHONY: tidy
 tidy:
 	@$(GO) mod tidy
