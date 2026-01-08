@@ -3,8 +3,8 @@ services:
     image: nexuspointwg:${IMAGE_TAG:-1.0.0-dev}
     container_name: nexuspointwg-dev
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     restart: unless-stopped
     privileged: true
     pid: host

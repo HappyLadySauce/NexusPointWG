@@ -42,6 +42,7 @@ include scripts/make-rules/golang.mk
 include scripts/make-rules/tools.mk
 include scripts/make-rules/swagger.mk
 include scripts/make-rules/ui.mk
+include scripts/make-rules/docker.mk
 
 # ==============================================================================
 # Usage
@@ -86,115 +87,6 @@ run:
 	@$(MAKE) go.run
 
 ## ui.build: Build frontend application to _output/dist.
-
-## docker.build.dev: Build dev image (default).
-.PHONY: docker.build.dev
-docker.build.dev:
-	@echo "===========> Building dev binary and Docker image (version: $(VERSION_FROM_SRC))"
-	@$(MAKE) BUILD_VERSION= BINARY_NAME=$(BINARY_NAME) go.build ui.build
-	@echo "===========> Building Docker image with tag: $(VERSION_FROM_SRC)"
-	@docker build --build-arg BUILD_VERSION=$(VERSION_FROM_SRC) --build-arg BINARY_NAME=$(BINARY_NAME) -t nexuspointwg:$(VERSION_FROM_SRC) -f Dockerfile .
-
-## docker.build.release: Build release image.
-.PHONY: docker.build.release
-docker.build.release:
-	@echo "===========> Building release binary and Docker image"
-	@RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
-	fi; \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION="1.0.0"; \
-	fi; \
-	echo "Release version: $$RELEASE_VERSION"; \
-	RELEASE_BINARY_NAME="NexusPointWG-$$RELEASE_VERSION"; \
-	$(MAKE) BUILD_VERSION=$$RELEASE_VERSION BINARY_NAME=$$RELEASE_BINARY_NAME go.build ui.build; \
-	echo "===========> Building Docker image with tag: $$RELEASE_VERSION"; \
-	docker build --build-arg BUILD_VERSION=$$RELEASE_VERSION --build-arg BINARY_NAME=$$RELEASE_BINARY_NAME -t nexuspointwg:$$RELEASE_VERSION -f Dockerfile .
-
-## docker.build: Default to dev build.
-.PHONY: docker.build
-docker.build: docker.build.dev
-
-## docker.run.dev: Run dev environment with docker-compose.dev.yml.
-.PHONY: docker.run.dev
-docker.run.dev:
-	@echo "===========> Starting dev services with docker compose (docker-compose.dev.yml, version: $(VERSION_FROM_SRC))"
-	@if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg-dev$$'; then \
-		echo "Removing existing dev container..."; \
-		docker rm -f nexuspointwg-dev || true; \
-	fi
-	@IMAGE_TAG=$(VERSION_FROM_SRC) docker compose -f docker-compose.dev.yml up
-
-## docker.run.release: Run release environment with docker-compose.release.yml.
-.PHONY: docker.run.release
-docker.run.release:
-	@echo "===========> Starting release services with docker compose (docker-compose.release.yml)"
-	@RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
-	fi; \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION="1.0.0"; \
-	fi; \
-	echo "Release version: $$RELEASE_VERSION"; \
-	if docker ps -a --format '{{.Names}}' | grep -q '^nexuspointwg$$'; then \
-		echo "Removing existing release container..."; \
-		docker rm -f nexuspointwg || true; \
-	fi; \
-	IMAGE_TAG=$$RELEASE_VERSION docker compose -f docker-compose.release.yml up
-
-## docker.run: Default to dev run.
-.PHONY: docker.run
-docker.run: docker.run.dev
-
-## docker.up: Backward-compatible alias for docker.run.
-.PHONY: docker.up
-docker.up: docker.run
-
-## docker.down: Stop and remove services.
-.PHONY: docker.down
-docker.down:
-	@echo "===========> Stopping services"
-	@docker compose down
-
-## docker.restart: Restart services.
-.PHONY: docker.restart
-docker.restart:
-	@echo "===========> Restarting services"
-	@docker compose restart
-
-## docker.push: Push release Docker image to Docker Hub (happlelaoganma/nexuspointwg).
-.PHONY: docker.push
-docker.push:
-	@echo "===========> Pushing release Docker image to Docker Hub"
-	@set -e; \
-	RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' pkg/environment/version.go); \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION=$$(grep -E '^\s*release\s*=\s*"' pkg/environment/version.go | sed -E 's/.*release\s*=\s*"([^"]+)".*/\1/' | head -1); \
-	fi; \
-	if [ -z "$$RELEASE_VERSION" ]; then \
-		RELEASE_VERSION="1.0.0"; \
-	fi; \
-	echo "Release version: $$RELEASE_VERSION"; \
-	SOURCE_IMAGE="nexuspointwg:$$RELEASE_VERSION"; \
-	TARGET_IMAGE_VERSION="happlelaoganma/nexuspointwg:$$RELEASE_VERSION"; \
-	TARGET_IMAGE_LATEST="happlelaoganma/nexuspointwg:latest"; \
-	echo "Checking if source image exists: $$SOURCE_IMAGE"; \
-	if ! docker image inspect $$SOURCE_IMAGE >/dev/null 2>&1; then \
-		echo "Error: Source image $$SOURCE_IMAGE does not exist."; \
-		echo "Please run 'make docker.build.release' first to build the release image."; \
-		exit 1; \
-	fi; \
-	echo "Tagging image as $$TARGET_IMAGE_VERSION"; \
-	docker tag $$SOURCE_IMAGE $$TARGET_IMAGE_VERSION; \
-	echo "Tagging image as $$TARGET_IMAGE_LATEST"; \
-	docker tag $$SOURCE_IMAGE $$TARGET_IMAGE_LATEST; \
-	echo "Pushing $$TARGET_IMAGE_VERSION"; \
-	docker push $$TARGET_IMAGE_VERSION; \
-	echo "Pushing $$TARGET_IMAGE_LATEST"; \
-	docker push $$TARGET_IMAGE_LATEST; \
-	echo "===========> Successfully pushed release image to Docker Hub"
 
 .PHONY: tidy
 tidy:

@@ -1,0 +1,10 @@
+additionalProperties:
+  formFields:
+    - default: 51830
+      edit: true
+      envKey: LISTEN_PORT
+      labelEn: Listen Port
+      labelZh: 监听端口
+      required: true
+      rule: paramPort
+      type: number

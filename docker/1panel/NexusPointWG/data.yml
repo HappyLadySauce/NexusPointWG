@@ -1,0 +1,22 @@
+additionalProperties:
+  key: NexusPointWG   #应用的 key ，仅限英文，用于在 Linux 创建文件夹
+  name: NexusPointWG  #应用名称
+  tags:
+    - WebSite
+    - Tool #应用标签，可以有多个，请参照下方的标签列表
+  shortDescZh: NexusPointWG 是一个用于管理 WireGuard 网络的工具，支持多用户、多设备、多网络的统一管理。 #应用中文描述，不要超过30个字
+  shortDescEn: NexusPointWG is a tool for managing WireGuard networks, supporting multi-user, multi-device, and multi-network unified management. #应用英文描述
+  type: website #应用类型，区别于应用分类，只能有一个，请参照下方的类型列表
+  crossVersionUpdate: true  #是否可以跨大版本升级
+  limit: 0 #应用安装数量限制，0 代表无限制
+  website: https://github.com/HappyLadySauce/NexusPointWG #官网地址
+  github: https://github.com/HappyLadySauce/NexusPointWG #github 地址
+  description:
+    en: NexusPointWG is a tool for managing WireGuard networks, supporting multi-user, multi-device, and multi-network unified management.
+    zh: NexusPointWG 是一个用于管理 WireGuard 网络的工具，支持多用户、多设备、多网络的统一管理。
+    zh-Hant: NexusPointWG 是一個用於管理 WireGuard 網絡的工具，支持多用戶、多設備、多網絡的統一管理。
+    ja: NexusPointWG は WireGuard ネットワークを管理するツールで、複数ユーザー、複数デバイス、複数ネットワークの統一管理をサポートします。
+    ms: NexusPointWG 是一个用于管理 WireGuard 网络的工具，支持多用户、多设备、多网络的统一管理。
+    pt-br: NexusPointWG é uma ferramenta para gerenciar redes WireGuard, suportando gerenciamento multi-usuário, multi-dispositivo e multi-rede.
+    ru: NexusPointWG — это инструмент для управления сетями WireGuard, поддерживающий многопользовательский, многоустройственный и многосетевой режим.
+    ko: NexusPointWG는 WireGuard 네트워크를 관리하기 위한 도구로, 다중 사용자, 다중 장치, 다중 네트워크 통합 관리를 지원합니다.

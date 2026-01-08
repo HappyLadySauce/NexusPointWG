@@ -1,0 +1,30 @@
+services:
+  nexuspointwg:
+    image: nexuspointwg:${IMAGE_TAG:-1.0.0}
+    container_name: nexuspointwg
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    ports:
+      - "51830:51830"
+    volumes:
+      # 生产环境 WireGuard 配置目录（通常挂载系统的 /etc/wireguard）
+      - /etc/wireguard:/etc/wireguard:rw
+    networks:
+      - nexuspointwg-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:51830/livez"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  nexuspointwg-network:
+    driver: bridge
+    name: nexuspointwg-network
+
+
