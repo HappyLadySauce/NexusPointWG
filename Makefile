@@ -74,6 +74,8 @@ export USAGE_OPTIONS
 ## build: Build source code for host platform.
 .PHONY: build
 build:
+	@echo "===========> Cleaning _output directory"
+	@rm -rf $(OUTPUT_DIR)/*
 	@$(MAKE) go.build
 
 ## swagger: Generate swagger document.

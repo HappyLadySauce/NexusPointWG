@@ -32,6 +32,8 @@ DOCKERFILE := $(ROOT_DIR)/docker/Dockerfile
 .PHONY: docker.build.dev
 docker.build.dev:
 	@echo "===========> Building dev binary and Docker image (version: $(DOCKER_VERSION_FROM_SRC))"
+	@echo "===========> Cleaning _output directory"
+	@rm -rf $(OUTPUT_DIR)/*
 	@$(MAKE) BUILD_VERSION= BINARY_NAME=$(DOCKER_BINARY_NAME) go.build ui.build
 	@echo "===========> Building Docker image with tag: $(DOCKER_VERSION_FROM_SRC)"
 	@docker build --build-arg BUILD_VERSION=$(DOCKER_VERSION_FROM_SRC) --build-arg BINARY_NAME=$(DOCKER_BINARY_NAME) -t nexuspointwg:$(DOCKER_VERSION_FROM_SRC) -f $(DOCKERFILE) $(ROOT_DIR)
@@ -40,6 +42,8 @@ docker.build.dev:
 .PHONY: docker.build.release
 docker.build.release:
 	@echo "===========> Building release binary and Docker image"
+	@echo "===========> Cleaning _output directory"
+	@rm -rf $(OUTPUT_DIR)/*
 	@set -e; \
 	RELEASE_VERSION=$$(awk '/^[[:space:]]*release[[:space:]]*=[[:space:]]*"/ {match($$0, /"[^"]+"/); print substr($$0, RSTART+1, RLENGTH-2); exit}' $(ROOT_DIR)/pkg/environment/version.go); \
 	if [ -z "$$RELEASE_VERSION" ]; then \
