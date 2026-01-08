@@ -1,6 +1,6 @@
 services:
   nexuspointwg:
-    image: nexuspointwg:latest
+    image: happlelaoganma/nexuspointwg:1.2.1
     container_name: ${CONTAINER_NAME}
     restart: always
     ports:
