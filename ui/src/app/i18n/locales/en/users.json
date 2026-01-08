@@ -1,0 +1,64 @@
+{
+  "title": "Users",
+  "create": {
+    "title": "Create New User",
+    "description": "Add a new user to the system. The first user will automatically be assigned admin role.",
+    "username": "Username",
+    "usernamePlaceholder": "Enter username",
+    "nickname": "Nickname (optional)",
+    "nicknamePlaceholder": "Enter nickname",
+    "email": "Email",
+    "emailPlaceholder": "Enter email address",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "role": "Role",
+    "rolePlaceholder": "Select role",
+    "status": "Status",
+    "statusPlaceholder": "Select status",
+    "createButton": "Create User",
+    "cancelButton": "Cancel"
+  },
+  "edit": {
+    "title": "Edit User",
+    "username": "Username",
+    "usernamePlaceholder": "Enter username",
+    "nickname": "Nickname (optional)",
+    "nicknamePlaceholder": "Enter nickname",
+    "email": "Email",
+    "emailPlaceholder": "Enter email address",
+    "password": "Password (optional)",
+    "passwordPlaceholder": "Leave empty to keep current password",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "role": "Role",
+    "status": "Status",
+    "updateButton": "Update",
+    "cancelButton": "Cancel"
+  },
+  "table": {
+    "username": "Username",
+    "nickname": "Nickname",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "actions": "Actions",
+    "loading": "Loading users...",
+    "noUsers": "No users found.",
+    "searchPlaceholder": "Search users...",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "messages": {
+    "createSuccess": "User created successfully",
+    "createFailed": "Failed to create user",
+    "updateSuccess": "User updated successfully",
+    "updateFailed": "Failed to update user",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "deleteSuccess": "User deleted successfully",
+    "deleteFailed": "Failed to delete user",
+    "loadFailed": "Failed to fetch users"
+  }
+}
+

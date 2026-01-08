@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { User, api } from "../services/api";
 import { toast } from "sonner";
 
@@ -13,6 +14,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('common');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,9 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
-      toast.success("Welcome back, " + user.username);
+      toast.success(t('messages.welcomeBack', { username: user.username }));
     } catch (e) {
-      toast.error("Login failed. Please check your credentials.");
+      toast.error(t('messages.loginFailed'));
       throw e;
     }
   };
@@ -43,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
-    toast.info("Logged out successfully");
+    toast.info(t('messages.loggedOut'));
   };
 
   return (

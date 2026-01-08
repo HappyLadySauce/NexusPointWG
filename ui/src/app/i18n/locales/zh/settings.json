@@ -1,0 +1,51 @@
+{
+    "title": "设置",
+    "globalSettings": {
+        "title": "全局设置",
+        "description": "配置 WireGuard 接口和生成的设备配置的全局设置。更改将自动同步到所有客户端配置。",
+        "noPermission": "您没有权限访问服务器配置。需要管理员权限。"
+    },
+    "language": {
+        "title": "语言",
+        "description": "选择您的首选语言",
+        "english": "English",
+        "chinese": "中文"
+    },
+    "serverConfig": {
+        "address": "地址",
+        "addressPlaceholder": "例如：100.100.100.1/24",
+        "addressHint": "服务器隧道 IP 地址（CIDR 格式）",
+        "listenPort": "监听端口",
+        "listenPortPlaceholder": "例如：51820",
+        "listenPortHint": "WireGuard 监听端口（1-65535）",
+        "privateKey": "私钥",
+        "privateKeyPlaceholder": "服务器私钥",
+        "privateKeyHint": "服务器 WireGuard 私钥（敏感信息）",
+        "publicKey": "公钥",
+        "publicKeyHint": "服务器公钥（从私钥计算得出，只读）",
+        "mtu": "MTU",
+        "mtuPlaceholder": "例如：1420",
+        "mtuHint": "最大传输单元（68-65535）",
+        "postUp": "PostUp",
+        "postUpPlaceholder": "例如：iptables -A FORWARD -i wg0 -j ACCEPT",
+        "postUpHint": "接口启动后运行的命令（可选）",
+        "postDown": "PostDown",
+        "postDownPlaceholder": "例如：iptables -D FORWARD -i wg0 -j ACCEPT",
+        "postDownHint": "接口关闭前运行的命令（可选）",
+        "serverIP": "服务器 IP",
+        "serverIPPlaceholder": "例如：10.10.10.10",
+        "serverIPHint": "客户端端点的服务器公网 IP 地址（可选，如果为空则自动检测）",
+        "dns": "DNS",
+        "dnsPlaceholder": "例如：1.1.1.1, 8.8.8.8",
+        "dnsHint": "客户端配置的 DNS 服务器（可选，逗号分隔的 IP 地址，例如：1.1.1.1, 8.8.8.8）",
+        "resetButton": "重置",
+        "updateButton": "更新配置",
+        "updating": "更新中..."
+    },
+    "messages": {
+        "updateSuccess": "服务器配置更新成功。所有客户端配置将自动同步。",
+        "updateFailed": "更新服务器配置失败",
+        "loadFailed": "加载服务器配置失败",
+        "permissionDenied": "权限被拒绝"
+    }
+}

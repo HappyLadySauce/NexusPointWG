@@ -1,0 +1,52 @@
+{
+  "title": "Settings",
+  "globalSettings": {
+    "title": "Global Settings",
+    "description": "Configure global settings for the WireGuard interface and generated peer configs. Changes will automatically sync to all client configurations.",
+    "noPermission": "You do not have permission to access server configuration. Admin access is required."
+  },
+  "language": {
+    "title": "Language",
+    "description": "Select your preferred language",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "serverConfig": {
+    "address": "Address",
+    "addressPlaceholder": "e.g. 100.100.100.1/24",
+    "addressHint": "Server tunnel IP address in CIDR format",
+    "listenPort": "Listen Port",
+    "listenPortPlaceholder": "e.g. 51820",
+    "listenPortHint": "WireGuard listening port (1-65535)",
+    "privateKey": "Private Key",
+    "privateKeyPlaceholder": "Server private key",
+    "privateKeyHint": "Server WireGuard private key (sensitive information)",
+    "publicKey": "Public Key",
+    "publicKeyHint": "Server public key (calculated from private key, read-only)",
+    "mtu": "MTU",
+    "mtuPlaceholder": "e.g. 1420",
+    "mtuHint": "Maximum Transmission Unit (68-65535)",
+    "postUp": "PostUp",
+    "postUpPlaceholder": "e.g. iptables -A FORWARD -i wg0 -j ACCEPT",
+    "postUpHint": "Commands to run after the interface is brought up (optional)",
+    "postDown": "PostDown",
+    "postDownPlaceholder": "e.g. iptables -D FORWARD -i wg0 -j ACCEPT",
+    "postDownHint": "Commands to run before the interface is brought down (optional)",
+    "serverIP": "Server IP",
+    "serverIPPlaceholder": "e.g. 10.10.10.10",
+    "serverIPHint": "Server public IP address for client endpoint (optional, auto-detected if empty)",
+    "dns": "DNS",
+    "dnsPlaceholder": "e.g. 1.1.1.1, 8.8.8.8",
+    "dnsHint": "DNS server for client configs (optional, comma-separated IP addresses, e.g., 1.1.1.1, 8.8.8.8)",
+    "resetButton": "Reset",
+    "updateButton": "Update Configuration",
+    "updating": "Updating..."
+  },
+  "messages": {
+    "updateSuccess": "Server configuration updated successfully. All client configurations will be automatically synchronized.",
+    "updateFailed": "Failed to update server configuration",
+    "loadFailed": "Failed to load server configuration",
+    "permissionDenied": "Permission denied"
+  }
+}
+

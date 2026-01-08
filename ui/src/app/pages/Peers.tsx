@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, Download, Edit, Eye, EyeOff, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
@@ -107,6 +108,8 @@ type EditPeerFormValues = z.infer<typeof editPeerSchema>;
 
 export function Peers() {
   const { user: currentUser } = useAuth();
+  const { t } = useTranslation('peers');
+  const { t: tCommon } = useTranslation('common');
   const [peers, setPeers] = useState<WGPeerResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -143,7 +146,7 @@ export function Peers() {
       const response = await api.wg.listPeers();
       setPeers(response.items || []);
     } catch (error) {
-      toast.error("Failed to fetch peers");
+      toast.error(t('messages.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -163,7 +166,7 @@ export function Peers() {
       const response = await api.wg.listIPPools({ status: "active" });
       setPools(response.items || []);
     } catch (error) {
-      toast.error("Failed to load IP pools");
+      toast.error(t('messages.loadPoolsFailed'));
     }
   };
 
@@ -172,7 +175,7 @@ export function Peers() {
       const response = await api.users.list();
       setUsers(response.items || []);
     } catch (error) {
-      toast.error("Failed to load users");
+      toast.error(t('messages.loadUsersFailed'));
     }
   };
 
@@ -232,24 +235,24 @@ export function Peers() {
       }
 
       await api.wg.createPeer(request);
-      toast.success("Peer created successfully");
+      toast.success(t('messages.createSuccess'));
       setIsCreateOpen(false);
       reset();
       setSelectedPool("");
       fetchPeers();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create peer");
+      toast.error(error?.message || t('messages.createFailed'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this peer?")) {
+    if (confirm(t('messages.deleteConfirm'))) {
       try {
         await api.wg.deletePeer(id);
-        toast.success("Peer deleted");
+        toast.success(t('messages.deleteSuccess'));
         fetchPeers();
       } catch (error) {
-        toast.error("Failed to delete peer");
+        toast.error(t('messages.deleteFailed'));
       }
     }
   };
@@ -259,13 +262,13 @@ export function Peers() {
       const peer = peers.find(p => p.id === id);
       const peerName = peer ? peer.device_name : `Peer ${id}`;
       
-      toast.info("Loading configuration...");
+      toast.info(t('messages.loadingConfig'));
       const configText = await api.wg.downloadConfig(id);
       
       setViewingConfig({ peerId: id, peerName, config: configText });
       setIsViewConfigOpen(true);
     } catch (error) {
-      toast.error("Failed to load config");
+      toast.error(t('messages.loadConfigFailed'));
       console.error(error);
     }
   };
@@ -275,16 +278,16 @@ export function Peers() {
     
     try {
       await navigator.clipboard.writeText(viewingConfig.config);
-      toast.success("Configuration copied to clipboard");
+      toast.success(t('messages.copyConfigSuccess'));
     } catch (error) {
-      toast.error("Failed to copy configuration");
+      toast.error(t('messages.copyConfigFailed'));
       console.error(error);
     }
   };
 
   const handleDownloadConfig = async (id: string) => {
     try {
-      toast.info("Downloading configuration...");
+      toast.info(t('messages.downloadingConfig'));
       const configText = await api.wg.downloadConfig(id);
 
       // Find peer to create a good filename
@@ -305,9 +308,9 @@ export function Peers() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Config downloaded successfully");
+      toast.success(t('messages.downloadConfigSuccess'));
     } catch (error) {
-      toast.error("Failed to download config");
+      toast.error(t('messages.downloadConfigFailed'));
       console.error(error);
     }
   };
@@ -379,13 +382,13 @@ export function Peers() {
       }
 
       await api.wg.updatePeer(editingPeer.id, request);
-      toast.success("Peer updated successfully");
+      toast.success(t('messages.updateSuccess'));
       setIsEditOpen(false);
       setEditingPeer(null);
       resetEdit();
       fetchPeers();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to update peer");
+      toast.error(error?.message || t('messages.updateFailed'));
     }
   };
 
@@ -397,21 +400,21 @@ export function Peers() {
   );
 
   return (
-    <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
+    <div className="space-y-6 p-8 bg-slate-50/50">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Peers</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Create Peer
+              <Plus className="mr-2 h-4 w-4" /> {tCommon('buttons.create')} {t('title')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Create New Peer</DialogTitle>
+              <DialogTitle>{t('create.title')}</DialogTitle>
               <DialogDescription>
-                Add a new device to the WireGuard network. Select an IP Pool for auto-configuration or choose None for manual setup.
+                {t('create.description')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
@@ -419,20 +422,20 @@ export function Peers() {
                 {/* Basic Information */}
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="device_name">Device Name *</Label>
-                    <Input id="device_name" placeholder="e.g. My iPhone" {...register("device_name")} />
+                    <Label htmlFor="device_name">{t('create.deviceName')} *</Label>
+                    <Input id="device_name" placeholder={t('create.deviceNamePlaceholder')} {...register("device_name")} />
                     {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
                   </div>
 
                   {isAdmin && (
                     <div className="space-y-2">
-                      <Label htmlFor="username">User *</Label>
+                      <Label htmlFor="username">{t('create.user')} *</Label>
                       <Select
                         value={watch("username") || ""}
                         onValueChange={(value) => setValue("username", value)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select user" />
+                          <SelectValue placeholder={t('create.selectUser')} />
                         </SelectTrigger>
                         <SelectContent>
                           {users.map((user) => (
@@ -450,7 +453,7 @@ export function Peers() {
                 {/* Configuration Fields */}
                 <div className="space-y-4 border-t pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ip_pool_id">IP Pool</Label>
+                    <Label htmlFor="ip_pool_id">{t('create.ipPool')}</Label>
                     <Select
                       value={watch("ip_pool_id") || "__none__"}
                       onValueChange={(value) => {
@@ -467,10 +470,10 @@ export function Peers() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select IP Pool" />
+                        <SelectValue placeholder={t('create.selectIPPool')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="__none__">{tCommon('common.none')}</SelectItem>
                         {pools.map((pool) => (
                           <SelectItem key={pool.id} value={pool.id}>
                             {pool.name} ({pool.cidr})
@@ -482,10 +485,10 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="client_ip">Client IP (optional)</Label>
+                    <Label htmlFor="client_ip">{t('create.clientIP')}</Label>
                     <Input
                       id="client_ip"
-                      placeholder="Enter IP manually or leave empty for auto-allocation (e.g., 100.100.100.2)"
+                      placeholder={t('create.clientIPPlaceholder')}
                       {...register("client_ip")}
                     />
                     {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
@@ -493,48 +496,44 @@ export function Peers() {
 
                   <div className="space-y-2">
                     <Label htmlFor="allowed_ips">
-                      Allowed IPs {(!ipPoolId || ipPoolId === "__none__") ? "*" : "(auto-filled, can override)"}
+                      {(!ipPoolId || ipPoolId === "__none__") ? t('create.allowedIPsRequired') : t('create.allowedIPsAutoFilled')}
                     </Label>
                     <Input
                       id="allowed_ips"
-                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                      placeholder={t('create.allowedIPsPlaceholder')}
                       {...register("allowed_ips")}
                     />
                     {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="dns">
-                      DNS {ipPoolId && ipPoolId !== "__none__" ? "(auto-filled, can override)" : "(optional)"}
-                    </Label>
+                    <Label htmlFor="dns">{t('create.dns')}</Label>
                     <Input
                       id="dns"
-                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                      placeholder={t('create.dnsPlaceholder')}
                       {...register("dns")}
                     />
                     {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endpoint">
-                      Endpoint {ipPoolId && ipPoolId !== "__none__" ? "(auto-filled, can override)" : "(optional)"}
-                    </Label>
+                    <Label htmlFor="endpoint">{t('create.endpoint')}</Label>
                     <Input
                       id="endpoint"
-                      placeholder="e.g., 10.10.10.10:51820"
+                      placeholder={t('create.endpointPlaceholder')}
                       {...register("endpoint")}
                     />
                     {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="persistent_keepalive">Persistent Keepalive (seconds)</Label>
+                    <Label htmlFor="persistent_keepalive">{t('create.persistentKeepalive')}</Label>
                     <Input
                       id="persistent_keepalive"
                       type="number"
                       min="0"
                       max="65535"
-                      placeholder="25"
+                      placeholder={t('create.persistentKeepalivePlaceholder')}
                       {...register("persistent_keepalive", { valueAsNumber: true })}
                     />
                     {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
@@ -551,10 +550,10 @@ export function Peers() {
                     setSelectedPool("");
                   }}
                 >
-                  Cancel
+                  {tCommon('buttons.cancel')}
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create Peer"}
+                  {isSubmitting ? tCommon('status.loading') : t('create.createButton')}
                 </Button>
               </DialogFooter>
             </form>
@@ -567,7 +566,7 @@ export function Peers() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search peers..."
+            placeholder={t('table.searchPlaceholder')}
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -591,11 +590,11 @@ export function Peers() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">Loading peers...</TableCell>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.loading')}</TableCell>
               </TableRow>
             ) : filteredPeers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">No peers found.</TableCell>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.noPeers')}</TableCell>
               </TableRow>
             ) : (
               filteredPeers.map((peer) => (
@@ -612,18 +611,18 @@ export function Peers() {
                       <div className="text-xs text-muted-foreground">{peer.allowed_ips}</div>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{peer.endpoint || "N/A"}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{peer.dns || "N/A"}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{peer.endpoint || tCommon('common.na')}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{peer.dns || tCommon('common.na')}</TableCell>
                   {isAdmin && (
                     <TableCell>
-                      <span className="text-sm">{peer.username || "N/A"}</span>
+                      <span className="text-sm">{peer.username || tCommon('common.na')}</span>
                     </TableCell>
                   )}
                   <TableCell>
                     {peer.status === 'active' ? (
-                      <Badge variant="default">Active</Badge>
+                      <Badge variant="default">{tCommon('status.active')}</Badge>
                     ) : (
-                      <Badge variant="secondary">Inactive</Badge>
+                      <Badge variant="secondary">{tCommon('status.inactive')}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -635,20 +634,20 @@ export function Peers() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{tCommon('common.actions')}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleViewConfig(peer.id)}>
-                          <FileText className="mr-2 h-4 w-4" /> View Config
+                          <FileText className="mr-2 h-4 w-4" /> {t('table.viewConfig')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDownloadConfig(peer.id)}>
-                          <Download className="mr-2 h-4 w-4" /> Download Config
+                          <Download className="mr-2 h-4 w-4" /> {tCommon('buttons.download')} {tCommon('buttons.view')}
                         </DropdownMenuItem>
                         {isAdmin && (
                           <>
                         <DropdownMenuItem onClick={() => handleEdit(peer)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
+                          <Edit className="mr-2 h-4 w-4" /> {t('table.edit')}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          <Trash2 className="mr-2 h-4 w-4" /> {t('table.delete')}
                         </DropdownMenuItem>
                           </>
                         )}
@@ -674,9 +673,9 @@ export function Peers() {
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Edit Peer</DialogTitle>
+            <DialogTitle>{t('edit.title')}</DialogTitle>
             <DialogDescription>
-              Update the WireGuard peer configuration. Changes will automatically sync to the server and client configs.
+              {t('edit.description')}
             </DialogDescription>
           </DialogHeader>
           {editingPeer && (
@@ -685,7 +684,7 @@ export function Peers() {
                 {/* Read-only fields */}
                 <div className="space-y-4 border-b pb-4">
                   <div className="space-y-2">
-                    <Label>Client Public Key (read-only)</Label>
+                    <Label>{t('edit.clientPublicKey')}</Label>
                     <Input value={editingPeer.client_public_key} readOnly className="bg-muted font-mono text-xs" />
                   </div>
                 </div>
@@ -693,10 +692,10 @@ export function Peers() {
                 {/* Editable fields */}
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit_device_name">Device Name *</Label>
+                    <Label htmlFor="edit_device_name">{t('edit.deviceName')} *</Label>
                     <Input
                       id="edit_device_name"
-                      placeholder="e.g. My iPhone"
+                      placeholder={t('edit.deviceNamePlaceholder')}
                       {...registerEdit("device_name")}
                     />
                     {editErrors.device_name && (
@@ -705,14 +704,14 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_client_ip">Client IP</Label>
+                    <Label htmlFor="edit_client_ip">{t('edit.clientIP')}</Label>
                     <Input
                       id="edit_client_ip"
-                      placeholder="e.g., 100.100.100.2"
+                      placeholder={t('edit.clientIPPlaceholder')}
                       {...registerEdit("client_ip")}
                     />
                     <p className="text-xs text-muted-foreground">
-                      IPv4 address without CIDR (optional)
+                      {t('edit.clientIPHint')}
                     </p>
                     {editErrors.client_ip && (
                       <p className="text-sm text-red-500">{editErrors.client_ip.message}</p>
@@ -720,7 +719,7 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_ip_pool_id">IP Pool</Label>
+                    <Label htmlFor="edit_ip_pool_id">{t('edit.ipPool')}</Label>
                     <Select
                       value={ipPoolModified ? (watchEdit("ip_pool_id") || "__none__") : (editingPeer?.ip_pool_id || "__none__")}
                       onValueChange={(value) => {
@@ -729,10 +728,10 @@ export function Peers() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select IP Pool (optional)" />
+                        <SelectValue placeholder={t('edit.selectIPPool')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="__none__">{tCommon('common.none')}</SelectItem>
                         {pools.map((pool) => (
                           <SelectItem key={pool.id} value={pool.id}>
                             {pool.name} ({pool.cidr})
@@ -741,7 +740,7 @@ export function Peers() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      IP Pool for IP allocation (optional)
+                      {t('edit.ipPoolHint')}
                     </p>
                     {editErrors.ip_pool_id && (
                       <p className="text-sm text-red-500">{editErrors.ip_pool_id.message}</p>
@@ -749,12 +748,12 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_client_private_key">Client Private Key</Label>
+                    <Label htmlFor="edit_client_private_key">{t('edit.clientPrivateKey')}</Label>
                     <div className="relative">
                       <Input
                         id="edit_client_private_key"
                         type={showPrivateKey ? "text" : "password"}
-                        placeholder="Enter new private key (leave empty to keep current)"
+                        placeholder={t('edit.clientPrivateKeyPlaceholder')}
                         {...registerEdit("client_private_key")}
                         disabled={!isAdmin}
                         className={!isAdmin ? "bg-muted" : ""}
@@ -772,9 +771,7 @@ export function Peers() {
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {isAdmin
-                        ? "WireGuard private key (optional, leave empty to keep current key). Only admins can modify."
-                        : "WireGuard private key (read-only). Only admins can modify private keys."}
+                      {t('edit.clientPrivateKeyHint')}
                     </p>
                     {editErrors.client_private_key && (
                       <p className="text-sm text-red-500">{editErrors.client_private_key.message}</p>
@@ -782,14 +779,14 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_allowed_ips">Allowed IPs</Label>
+                    <Label htmlFor="edit_allowed_ips">{t('edit.allowedIPs')}</Label>
                     <Input
                       id="edit_allowed_ips"
-                      placeholder="e.g., 0.0.0.0/0, 192.168.1.0/24"
+                      placeholder={t('edit.allowedIPsPlaceholder')}
                       {...registerEdit("allowed_ips")}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Comma-separated CIDR format (optional)
+                      {t('edit.allowedIPsHint')}
                     </p>
                     {editErrors.allowed_ips && (
                       <p className="text-sm text-red-500">{editErrors.allowed_ips.message}</p>
@@ -797,14 +794,14 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_dns">DNS</Label>
+                    <Label htmlFor="edit_dns">{t('edit.dns')}</Label>
                     <Input
                       id="edit_dns"
-                      placeholder="e.g., 1.1.1.1, 8.8.8.8"
+                      placeholder={t('edit.dnsPlaceholder')}
                       {...registerEdit("dns")}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Comma-separated DNS server IPs (optional)
+                      {t('edit.dnsHint')}
                     </p>
                     {editErrors.dns && (
                       <p className="text-sm text-red-500">{editErrors.dns.message}</p>
@@ -812,14 +809,14 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_endpoint">Endpoint</Label>
+                    <Label htmlFor="edit_endpoint">{t('edit.endpoint')}</Label>
                     <Input
                       id="edit_endpoint"
-                      placeholder="e.g., 10.10.10.10:51820"
+                      placeholder={t('edit.endpointPlaceholder')}
                       {...registerEdit("endpoint")}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Server endpoint in host:port format (optional)
+                      {t('edit.endpointHint')}
                     </p>
                     {editErrors.endpoint && (
                       <p className="text-sm text-red-500">{editErrors.endpoint.message}</p>
@@ -845,21 +842,21 @@ export function Peers() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit_status">Status</Label>
+                    <Label htmlFor="edit_status">{tCommon('common.status')}</Label>
                     <Select
                       value={watchEdit("status") || editingPeer.status}
                       onValueChange={(value) => setEditValue("status", value as "active" | "disabled")}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
+                        <SelectValue placeholder={tCommon('common.status')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="disabled">Disabled</SelectItem>
+                        <SelectItem value="active">{tCommon('status.active')}</SelectItem>
+                        <SelectItem value="disabled">{tCommon('status.disabled')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Peer status (optional)
+                      {t('edit.status')}
                     </p>
                     {editErrors.status && (
                       <p className="text-sm text-red-500">{editErrors.status.message}</p>
@@ -877,10 +874,10 @@ export function Peers() {
                     resetEdit();
                   }}
                 >
-                  Cancel
+                  {tCommon('buttons.cancel')}
                 </Button>
                 <Button type="submit" disabled={isEditSubmitting}>
-                  {isEditSubmitting ? "Updating..." : "Update Peer"}
+                  {isEditSubmitting ? tCommon('status.loading') : t('edit.updateButton')}
                 </Button>
               </DialogFooter>
             </form>
@@ -897,15 +894,15 @@ export function Peers() {
       }}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>View Configuration - {viewingConfig?.peerName || "Peer"}</DialogTitle>
+            <DialogTitle>{tCommon('buttons.view')} {tCommon('common.name')} - {viewingConfig?.peerName || t('title')}</DialogTitle>
             <DialogDescription>
-              View the complete WireGuard configuration file for this peer.
+              {tCommon('buttons.view')} {t('title')} {tCommon('common.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-auto bg-muted p-4 rounded">
               <pre className="font-mono text-sm whitespace-pre-wrap break-words">
-                {viewingConfig?.config || "Loading..."}
+                {viewingConfig?.config || tCommon('status.loading')}
               </pre>
             </div>
           </div>
@@ -916,7 +913,7 @@ export function Peers() {
               onClick={handleCopyConfig}
               disabled={!viewingConfig}
             >
-              <Copy className="mr-2 h-4 w-4" /> Copy
+              <Copy className="mr-2 h-4 w-4" /> {tCommon('buttons.copy')}
             </Button>
             <Button
               type="button"
@@ -928,13 +925,13 @@ export function Peers() {
               }}
               disabled={!viewingConfig}
             >
-              <Download className="mr-2 h-4 w-4" /> Download
+              <Download className="mr-2 h-4 w-4" /> {tCommon('buttons.download')}
             </Button>
             <Button
               type="button"
               onClick={() => setIsViewConfigOpen(false)}
             >
-              Close
+              {tCommon('buttons.close')}
             </Button>
           </DialogFooter>
         </DialogContent>

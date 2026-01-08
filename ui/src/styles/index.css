@@ -1,3 +1,21 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* Fix scrollbar disappearing when dropdown menus are open */
+/* Radix UI sets body { overflow: hidden } when dropdowns open, which hides the scrollbar */
+/* Use scrollbar-gutter to reserve space for scrollbar */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Ensure scrollbar remains visible even when body has overflow: hidden */
+/* Calculate scrollbar width and add padding to compensate */
+body {
+  scrollbar-gutter: stable;
+}
+
+/* When body has overflow hidden (from Radix UI), maintain scrollbar space */
+body[style*="overflow: hidden"] {
+  padding-right: calc(100vw - 100%);
+}

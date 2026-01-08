@@ -1,0 +1,11 @@
+{
+  "title": "NexusPointWG",
+  "description": "Enter your credentials to access the admin panel.",
+  "username": "Username",
+  "password": "Password",
+  "usernamePlaceholder": "admin",
+  "passwordPlaceholder": "admin",
+  "signIn": "Sign In",
+  "signingIn": "Signing in..."
+}
+

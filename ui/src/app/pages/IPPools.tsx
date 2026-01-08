@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Database, Edit, Plus, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
@@ -52,6 +53,8 @@ type IPPoolFormValues = z.infer<typeof ipPoolSchema>;
 
 export function IPPools() {
   const { user: currentUser } = useAuth();
+  const { t } = useTranslation('ipPools');
+  const { t: tCommon } = useTranslation('common');
   const [pools, setPools] = useState<IPPoolResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -72,7 +75,7 @@ export function IPPools() {
       const response = await api.wg.listIPPools();
       setPools(response.items || []);
     } catch (e) {
-      toast.error("Failed to load IP pools");
+      toast.error(t('messages.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -107,7 +110,7 @@ export function IPPools() {
         }
 
         await api.wg.updateIPPool(editingPool.id, request);
-        toast.success("IP pool updated successfully");
+        toast.success(t('messages.updateSuccess'));
         setIsEditOpen(false);
         setEditingPool(null);
       } else {
@@ -122,13 +125,13 @@ export function IPPools() {
         };
 
         await api.wg.createIPPool(request);
-        toast.success("IP pool created successfully");
+        toast.success(t('messages.createSuccess'));
         setIsCreateOpen(false);
       }
       reset();
       fetchPools();
     } catch (error: any) {
-      const errorMessage = error?.message || (editingPool ? "Failed to update IP pool" : "Failed to create IP pool");
+      const errorMessage = error?.message || (editingPool ? t('messages.updateFailed') : t('messages.createFailed'));
       toast.error(errorMessage);
     }
   };
@@ -161,40 +164,40 @@ export function IPPools() {
 
     try {
       await api.wg.deleteIPPool(deletingPool.id);
-      toast.success("IP pool deleted successfully");
+      toast.success(t('messages.deleteSuccess'));
       setIsDeleteOpen(false);
       setDeletingPool(null);
       fetchPools();
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to delete IP pool";
+      const errorMessage = error?.message || t('messages.deleteFailed');
       toast.error(errorMessage);
     }
   };
 
   return (
-    <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
+    <div className="space-y-6 p-8 bg-slate-50/50">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">IP Address Pools</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" /> Create IP Pool
+                <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New IP Pool</DialogTitle>
+                <DialogTitle>{t('create.title')}</DialogTitle>
                 <DialogDescription>
-                  Create a new IP address pool for WireGuard peer allocation. All fields with * are required.
+                  {t('create.description')}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
+                  <Label htmlFor="name">{t('create.name')} *</Label>
                   <Input
                     id="name"
-                    placeholder="e.g. Main Pool"
+                    placeholder={t('create.namePlaceholder')}
                     {...register("name")}
                   />
                   {errors.name && (
@@ -203,14 +206,14 @@ export function IPPools() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cidr">CIDR *</Label>
+                  <Label htmlFor="cidr">{t('create.cidr')} *</Label>
                   <Input
                     id="cidr"
-                    placeholder="e.g. 100.100.100.0/24"
+                    placeholder={t('create.cidrPlaceholder')}
                     {...register("cidr")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    CIDR range for the IP pool (e.g., 100.100.100.0/24)
+                    {t('create.cidrHint')}
                   </p>
                   {errors.cidr && (
                     <p className="text-sm text-red-500">{errors.cidr.message}</p>
@@ -218,14 +221,14 @@ export function IPPools() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="routes">Routes</Label>
+                  <Label htmlFor="routes">{t('create.routes')}</Label>
                   <Input
                     id="routes"
-                    placeholder="e.g. 100.100.100.0/24, 192.168.1.0/24"
+                    placeholder={t('create.routesPlaceholder')}
                     {...register("routes")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Comma-separated CIDRs for client AllowedIPs (e.g., 100.100.100.0/24, 192.168.1.0/24)
+                    {t('create.routesHint')}
                   </p>
                   {errors.routes && (
                     <p className="text-sm text-red-500">{errors.routes.message}</p>
@@ -233,14 +236,14 @@ export function IPPools() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dns">DNS</Label>
+                  <Label htmlFor="dns">{t('create.dns')}</Label>
                   <Input
                     id="dns"
-                    placeholder="e.g. 1.1.1.1, 223.5.5.5"
+                    placeholder={t('create.dnsPlaceholder')}
                     {...register("dns")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Comma-separated DNS servers (e.g., 1.1.1.1, 223.5.5.5)
+                    {t('create.dnsHint')}
                   </p>
                   {errors.dns && (
                     <p className="text-sm text-red-500">{errors.dns.message}</p>
@@ -248,14 +251,14 @@ export function IPPools() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endpoint">Endpoint</Label>
+                  <Label htmlFor="endpoint">{t('create.endpoint')}</Label>
                   <Input
                     id="endpoint"
-                    placeholder="e.g. 10.10.10.10:51820"
+                    placeholder={t('create.endpointPlaceholder')}
                     {...register("endpoint")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Server endpoint (e.g., 10.10.10.10:51820)
+                    {t('create.endpointHint')}
                   </p>
                   {errors.endpoint && (
                     <p className="text-sm text-red-500">{errors.endpoint.message}</p>
@@ -263,10 +266,10 @@ export function IPPools() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('create.description')}</Label>
                   <Input
                     id="description"
-                    placeholder="Optional description"
+                    placeholder={t('create.descriptionPlaceholder')}
                     {...register("description")}
                   />
                   {errors.description && (
@@ -283,10 +286,10 @@ export function IPPools() {
                       reset();
                     }}
                   >
-                    Cancel
+                    {tCommon('buttons.cancel')}
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Creating..." : "Create IP Pool"}
+                    {isSubmitting ? tCommon('buttons.creating') : t('create.createButton')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -298,17 +301,17 @@ export function IPPools() {
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Edit IP Pool</DialogTitle>
+              <DialogTitle>{t('edit.title')}</DialogTitle>
               <DialogDescription>
-                Update the IP address pool configuration. CIDR can only be modified when no IPs are allocated from this pool.
+                {t('edit.editDescription')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Name *</Label>
+                <Label htmlFor="edit-name">{t('edit.name')} *</Label>
                 <Input
                   id="edit-name"
-                  placeholder="e.g. Main Pool"
+                  placeholder={t('edit.namePlaceholder')}
                   {...register("name")}
                 />
                 {errors.name && (
@@ -317,14 +320,16 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-cidr">CIDR *</Label>
+                <Label htmlFor="edit-cidr">{t('edit.cidr')} *</Label>
                 <Input
                   id="edit-cidr"
-                  placeholder="e.g. 100.100.100.0/24"
+                  placeholder={t('edit.cidrPlaceholder')}
                   {...register("cidr")}
+                  readOnly
+                  className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  CIDR can only be modified when no IPs are allocated from this pool
+                  {t('edit.cidrHint')}
                 </p>
                 {errors.cidr && (
                   <p className="text-sm text-red-500">{errors.cidr.message}</p>
@@ -332,14 +337,14 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-routes">Routes</Label>
+                <Label htmlFor="edit-routes">{t('edit.routes')}</Label>
                 <Input
                   id="edit-routes"
-                  placeholder="e.g. 100.100.100.0/24, 192.168.1.0/24"
+                  placeholder={t('edit.routesPlaceholder')}
                   {...register("routes")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Comma-separated CIDRs for client AllowedIPs (e.g., 100.100.100.0/24, 192.168.1.0/24)
+                  {t('edit.routesHint')}
                 </p>
                 {errors.routes && (
                   <p className="text-sm text-red-500">{errors.routes.message}</p>
@@ -347,14 +352,14 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-dns">DNS</Label>
+                <Label htmlFor="edit-dns">{t('edit.dns')}</Label>
                 <Input
                   id="edit-dns"
-                  placeholder="e.g. 1.1.1.1, 223.5.5.5"
+                  placeholder={t('edit.dnsPlaceholder')}
                   {...register("dns")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Comma-separated DNS servers (e.g., 1.1.1.1, 223.5.5.5)
+                  {t('edit.dnsHint')}
                 </p>
                 {errors.dns && (
                   <p className="text-sm text-red-500">{errors.dns.message}</p>
@@ -362,14 +367,14 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-endpoint">Endpoint</Label>
+                <Label htmlFor="edit-endpoint">{t('edit.endpoint')}</Label>
                 <Input
                   id="edit-endpoint"
-                  placeholder="e.g. 10.10.10.10:51820"
+                  placeholder={t('edit.endpointPlaceholder')}
                   {...register("endpoint")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Server endpoint (e.g., 10.10.10.10:51820)
+                  {t('edit.endpointHint')}
                 </p>
                 {errors.endpoint && (
                   <p className="text-sm text-red-500">{errors.endpoint.message}</p>
@@ -377,10 +382,10 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
+                <Label htmlFor="edit-description">{t('edit.description')}</Label>
                 <Input
                   id="edit-description"
-                  placeholder="Optional description"
+                  placeholder={t('edit.descriptionPlaceholder')}
                   {...register("description")}
                 />
                 {errors.description && (
@@ -389,14 +394,14 @@ export function IPPools() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
+                <Label htmlFor="edit-status">{t('edit.status')}</Label>
                 <select
                   id="edit-status"
                   {...register("status")}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
+                  <option value="active">{t('edit.statusActive')}</option>
+                  <option value="disabled">{t('edit.statusDisabled')}</option>
                 </select>
                 {errors.status && (
                   <p className="text-sm text-red-500">{errors.status.message}</p>
@@ -409,10 +414,10 @@ export function IPPools() {
                   variant="outline"
                   onClick={handleEditCancel}
                 >
-                  Cancel
+                  {tCommon('buttons.cancel')}
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Updating..." : "Update IP Pool"}
+                  {isSubmitting ? t('edit.updating') : t('edit.updateButton')}
                 </Button>
               </DialogFooter>
             </form>
@@ -423,26 +428,26 @@ export function IPPools() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>CIDR</TableHead>
-              <TableHead>Routes</TableHead>
-              <TableHead>DNS</TableHead>
-              <TableHead>Endpoint</TableHead>
-              <TableHead>Status</TableHead>
-              {isAdmin && <TableHead>Actions</TableHead>}
+              <TableHead>{t('table.name')}</TableHead>
+              <TableHead>{t('table.cidr')}</TableHead>
+              <TableHead>{t('table.routes')}</TableHead>
+              <TableHead>{t('table.dns')}</TableHead>
+              <TableHead>{t('table.endpoint')}</TableHead>
+              <TableHead>{t('table.status')}</TableHead>
+              {isAdmin && <TableHead>{t('table.actions')}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
-                  Loading...
+                  {t('table.loading')}
                 </TableCell>
               </TableRow>
             ) : pools.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
-                  No IP pools found
+                  {t('table.noPools')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -454,19 +459,19 @@ export function IPPools() {
                   </TableCell>
                   <TableCell className="font-mono text-sm">{pool.cidr}</TableCell>
                   <TableCell className="font-mono text-sm text-xs">
-                    {pool.routes || "N/A"}
+                    {pool.routes || tCommon('common.na')}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-xs">
-                    {pool.dns || "N/A"}
+                    {pool.dns || tCommon('common.na')}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-xs">
-                    {pool.endpoint || "N/A"}
+                    {pool.endpoint || tCommon('common.na')}
                   </TableCell>
                   <TableCell>
                     {pool.status === "active" ? (
-                      <Badge variant="default">Active</Badge>
+                      <Badge variant="default">{t('edit.statusActive')}</Badge>
                     ) : (
-                      <Badge variant="secondary">Disabled</Badge>
+                      <Badge variant="secondary">{t('edit.statusDisabled')}</Badge>
                     )}
                   </TableCell>
                   {isAdmin && (
@@ -498,8 +503,7 @@ export function IPPools() {
       {pools.length > 0 && (
         <div className="text-sm text-muted-foreground">
           <p>
-            Total pools: {pools.length} | Active:{" "}
-            {pools.filter((p) => p.status === "active").length}
+            {t('messages.totalPools', { total: pools.length, active: pools.filter((p) => p.status === "active").length })}
           </p>
         </div>
       )}
@@ -507,10 +511,9 @@ export function IPPools() {
         <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Delete IP Pool</DialogTitle>
+              <DialogTitle>{t('messages.deleteTitle')}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete the IP pool "{deletingPool?.name}"?
-                This action cannot be undone. The pool can only be deleted when no IPs are allocated from it.
+                {t('messages.deleteDescription', { name: deletingPool?.name || '' })}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -522,14 +525,14 @@ export function IPPools() {
                   setDeletingPool(null);
                 }}
               >
-                Cancel
+                {tCommon('buttons.cancel')}
               </Button>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={confirmDelete}
               >
-                Delete
+                {t('messages.deleteButton')}
               </Button>
             </DialogFooter>
           </DialogContent>

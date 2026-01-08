@@ -1,0 +1,16 @@
+{
+  "title": "Dashboard",
+  "stats": {
+    "totalPeers": "Total Peers",
+    "activePeers": "Active Peers",
+    "totalUsers": "Total Users",
+    "activeNow": "active now",
+    "currentlyConnected": "Currently connected",
+    "registeredUsers": "Registered users"
+  },
+  "recentPeers": {
+    "title": "Recent Peers",
+    "noPeersFound": "No peers found"
+  }
+}
+

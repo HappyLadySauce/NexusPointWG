@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as z from "zod";
 import { Button } from "../components/ui/button";
@@ -46,6 +47,8 @@ type ServerConfigFormValues = z.infer<typeof serverConfigSchema>;
 
 export function Settings() {
   const { user: currentUser } = useAuth();
+  const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<GetServerConfigResponse | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
@@ -88,7 +91,7 @@ export function Settings() {
       setInitialValues(formData);
       reset(formData);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load server configuration");
+      toast.error(error instanceof Error ? error.message : t('messages.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +119,7 @@ export function Settings() {
   // Handle form submission
   const onSubmit = async (data: ServerConfigFormValues) => {
     if (!isAdmin) {
-      toast.error("Permission denied");
+      toast.error(t('messages.permissionDenied'));
       return;
     }
 
@@ -161,31 +164,31 @@ export function Settings() {
       }
 
       await api.wg.updateServerConfig(request);
-      toast.success("Server configuration updated successfully. All client configurations will be automatically synchronized.");
+      toast.success(t('messages.updateSuccess'));
 
       // Reload configuration
       await fetchConfig();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update server configuration");
+      toast.error(error instanceof Error ? error.message : t('messages.updateFailed'));
     }
   };
 
   if (!isAdmin) {
     return (
       <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <div className="max-w-2xl">
           <Card>
             <CardHeader>
-              <CardTitle>Global Settings</CardTitle>
+              <CardTitle>{t('globalSettings.title')}</CardTitle>
               <CardDescription>
-                Configure global settings for the WireGuard interface and generated peer configs.
+                {t('globalSettings.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  You do not have permission to access server configuration. Admin access is required.
+                  {t('globalSettings.noPermission')}
                 </p>
               </div>
             </CardContent>
@@ -198,7 +201,7 @@ export function Settings() {
   if (loading) {
     return (
       <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <div className="max-w-2xl">
           <Card>
             <CardContent className="flex items-center justify-center py-12">
@@ -212,29 +215,29 @@ export function Settings() {
 
   return (
     <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
-      <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+      <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
 
-      <div className="max-w-2xl">
+      <div className="max-w-2xl space-y-6">
+        {/* Server Configuration */}
         <Card>
           <CardHeader>
-            <CardTitle>Global Settings</CardTitle>
+            <CardTitle>{t('globalSettings.title')}</CardTitle>
             <CardDescription>
-              Configure global settings for the WireGuard interface and generated peer configs.
-              Changes will automatically sync to all client configurations.
+              {t('globalSettings.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Address */}
               <div className="space-y-2">
-                <Label htmlFor="address">Address *</Label>
+                <Label htmlFor="address">{t('serverConfig.address')} *</Label>
                 <Input
                   id="address"
-                  placeholder="e.g. 100.100.100.1/24"
+                  placeholder={t('serverConfig.addressPlaceholder')}
                   {...register("address")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Server tunnel IP address in CIDR format
+                  {t('serverConfig.addressHint')}
                 </p>
                 {errors.address && (
                   <p className="text-sm text-red-500">{errors.address.message}</p>
@@ -243,15 +246,15 @@ export function Settings() {
 
               {/* Listen Port */}
               <div className="space-y-2">
-                <Label htmlFor="listen_port">Listen Port *</Label>
+                <Label htmlFor="listen_port">{t('serverConfig.listenPort')} *</Label>
                 <Input
                   id="listen_port"
                   type="number"
-                  placeholder="e.g. 51820"
+                  placeholder={t('serverConfig.listenPortPlaceholder')}
                   {...register("listen_port", { valueAsNumber: true })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  WireGuard listening port (1-65535)
+                  {t('serverConfig.listenPortHint')}
                 </p>
                 {errors.listen_port && (
                   <p className="text-sm text-red-500">{errors.listen_port.message}</p>
@@ -260,12 +263,12 @@ export function Settings() {
 
               {/* Private Key */}
               <div className="space-y-2">
-                <Label htmlFor="private_key">Private Key *</Label>
+                <Label htmlFor="private_key">{t('serverConfig.privateKey')} *</Label>
                 <div className="relative">
                   <Input
                     id="private_key"
                     type={showPrivateKey ? "text" : "password"}
-                    placeholder="Server private key"
+                    placeholder={t('serverConfig.privateKeyPlaceholder')}
                     {...register("private_key")}
                     className="pr-10"
                   />
@@ -284,7 +287,7 @@ export function Settings() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Server WireGuard private key (sensitive information)
+                  {t('serverConfig.privateKeyHint')}
                 </p>
                 {errors.private_key && (
                   <p className="text-sm text-red-500">{errors.private_key.message}</p>
@@ -294,7 +297,7 @@ export function Settings() {
               {/* Public Key (Read-only) */}
               {config && (
                 <div className="space-y-2">
-                  <Label htmlFor="public_key">Public Key</Label>
+                  <Label htmlFor="public_key">{t('serverConfig.publicKey')}</Label>
                   <Input
                     id="public_key"
                     value={config.public_key}
@@ -302,22 +305,22 @@ export function Settings() {
                     className="bg-muted"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Server public key (calculated from private key, read-only)
+                    {t('serverConfig.publicKeyHint')}
                   </p>
                 </div>
               )}
 
               {/* MTU */}
               <div className="space-y-2">
-                <Label htmlFor="mtu">MTU *</Label>
+                <Label htmlFor="mtu">{t('serverConfig.mtu')} *</Label>
                 <Input
                   id="mtu"
                   type="number"
-                  placeholder="e.g. 1420"
+                  placeholder={t('serverConfig.mtuPlaceholder')}
                   {...register("mtu", { valueAsNumber: true })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum Transmission Unit (68-65535)
+                  {t('serverConfig.mtuHint')}
                 </p>
                 {errors.mtu && (
                   <p className="text-sm text-red-500">{errors.mtu.message}</p>
@@ -326,15 +329,15 @@ export function Settings() {
 
               {/* PostUp */}
               <div className="space-y-2">
-                <Label htmlFor="post_up">PostUp</Label>
+                <Label htmlFor="post_up">{t('serverConfig.postUp')}</Label>
                 <Textarea
                   id="post_up"
-                  placeholder="e.g. iptables -A FORWARD -i wg0 -j ACCEPT"
+                  placeholder={t('serverConfig.postUpPlaceholder')}
                   rows={3}
                   {...register("post_up")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Commands to run after the interface is brought up (optional)
+                  {t('serverConfig.postUpHint')}
                 </p>
                 {errors.post_up && (
                   <p className="text-sm text-red-500">{errors.post_up.message}</p>
@@ -343,15 +346,15 @@ export function Settings() {
 
               {/* PostDown */}
               <div className="space-y-2">
-                <Label htmlFor="post_down">PostDown</Label>
+                <Label htmlFor="post_down">{t('serverConfig.postDown')}</Label>
                 <Textarea
                   id="post_down"
-                  placeholder="e.g. iptables -D FORWARD -i wg0 -j ACCEPT"
+                  placeholder={t('serverConfig.postDownPlaceholder')}
                   rows={3}
                   {...register("post_down")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Commands to run before the interface is brought down (optional)
+                  {t('serverConfig.postDownHint')}
                 </p>
                 {errors.post_down && (
                   <p className="text-sm text-red-500">{errors.post_down.message}</p>
@@ -360,14 +363,14 @@ export function Settings() {
 
               {/* Server IP */}
               <div className="space-y-2">
-                <Label htmlFor="server_ip">Server IP</Label>
+                <Label htmlFor="server_ip">{t('serverConfig.serverIP')}</Label>
                 <Input
                   id="server_ip"
-                  placeholder="e.g. 10.10.10.10"
+                  placeholder={t('serverConfig.serverIPPlaceholder')}
                   {...register("server_ip")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Server public IP address for client endpoint (optional, auto-detected if empty)
+                  {t('serverConfig.serverIPHint')}
                 </p>
                 {errors.server_ip && (
                   <p className="text-sm text-red-500">{errors.server_ip.message}</p>
@@ -376,14 +379,14 @@ export function Settings() {
 
               {/* DNS */}
               <div className="space-y-2">
-                <Label htmlFor="dns">DNS</Label>
+                <Label htmlFor="dns">{t('serverConfig.dns')}</Label>
                 <Input
                   id="dns"
-                  placeholder="e.g. 1.1.1.1, 8.8.8.8"
+                  placeholder={t('serverConfig.dnsPlaceholder')}
                   {...register("dns")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  DNS server for client configs (optional, comma-separated IP addresses, e.g., 1.1.1.1, 8.8.8.8)
+                  {t('serverConfig.dnsHint')}
                 </p>
                 {errors.dns && (
                   <p className="text-sm text-red-500">{errors.dns.message}</p>
@@ -402,16 +405,16 @@ export function Settings() {
                   }}
                   disabled={!hasChanges() || isSubmitting}
                 >
-                  Reset
+                  {t('serverConfig.resetButton')}
                 </Button>
                 <Button type="submit" disabled={!hasChanges() || isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
+                      {t('serverConfig.updating')}
                     </>
                   ) : (
-                    "Update Configuration"
+                    t('serverConfig.updateButton')
                   )}
                 </Button>
               </div>

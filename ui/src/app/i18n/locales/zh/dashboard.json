@@ -1,0 +1,15 @@
+{
+    "title": "仪表盘",
+    "stats": {
+        "totalPeers": "设备总数",
+        "activePeers": "活跃设备",
+        "totalUsers": "用户总数",
+        "activeNow": "当前活跃",
+        "currentlyConnected": "当前已连接",
+        "registeredUsers": "注册用户"
+    },
+    "recentPeers": {
+        "title": "最近设备",
+        "noPeersFound": "未找到设备"
+    }
+}

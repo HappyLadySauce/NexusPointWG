@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit, Plus, Trash2, User as UserIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
@@ -121,6 +122,8 @@ type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const { t } = useTranslation('users');
+  const { t: tCommon } = useTranslation('common');
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -148,7 +151,7 @@ export function UsersPage() {
       const response = await api.users.list();
       setUsers(response.items || []);
     } catch (e) {
-      toast.error("Failed to load users");
+      toast.error(t('messages.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -179,12 +182,12 @@ export function UsersPage() {
       }
 
       await api.users.create(request);
-      toast.success("User created successfully");
+      toast.success(t('messages.createSuccess'));
       setIsCreateOpen(false);
       reset();
       fetchUsers();
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to create user";
+      const errorMessage = error?.message || t('messages.createFailed');
       toast.error(errorMessage);
     }
   };
@@ -211,7 +214,7 @@ export function UsersPage() {
 
       setIsEditOpen(true);
     } catch (error: any) {
-      toast.error("Failed to load user details");
+      toast.error(t('messages.loadFailed'));
     }
   };
 
@@ -246,13 +249,13 @@ export function UsersPage() {
       }
 
       await api.users.update(editingUser.username, request);
-      toast.success("User updated successfully");
+      toast.success(t('messages.updateSuccess'));
       setIsEditOpen(false);
       setEditingUser(null);
       resetEdit();
       fetchUsers();
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to update user";
+      const errorMessage = error?.message || t('messages.updateFailed');
       toast.error(errorMessage);
     }
   };
@@ -267,12 +270,12 @@ export function UsersPage() {
 
     try {
       await api.users.delete(deletingUser.username);
-      toast.success("User deleted successfully");
+      toast.success(t('messages.deleteSuccess'));
       setIsDeleteOpen(false);
       setDeletingUser(null);
       fetchUsers();
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to delete user";
+      const errorMessage = error?.message || t('messages.deleteFailed');
       toast.error(errorMessage);
     }
   };
@@ -288,29 +291,29 @@ export function UsersPage() {
   };
 
   return (
-    <div className="space-y-6 p-8 bg-slate-50/50 min-h-screen">
+    <div className="space-y-6 p-8 bg-slate-50/50">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" /> Create User
+                <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
+                <DialogTitle>{t('create.title')}</DialogTitle>
                 <DialogDescription>
-                  Add a new user to the system. Fill in the required information below.
+                  {t('create.description')}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username *</Label>
+                  <Label htmlFor="username">{t('create.username')} *</Label>
                   <Input
                     id="username"
-                    placeholder="e.g. johndoe"
+                    placeholder={t('create.usernamePlaceholder')}
                     {...register("username")}
                   />
                   {errors.username && (
@@ -319,10 +322,10 @@ export function UsersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nickname">Nickname</Label>
+                  <Label htmlFor="nickname">{t('create.nickname')}</Label>
                   <Input
                     id="nickname"
-                    placeholder="e.g. John Doe"
+                    placeholder={t('create.nicknamePlaceholder')}
                     {...register("nickname")}
                   />
                   {errors.nickname && (
@@ -331,11 +334,11 @@ export function UsersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">{t('create.email')} *</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="e.g. john@example.com"
+                    placeholder={t('create.emailPlaceholder')}
                     {...register("email")}
                   />
                   {errors.email && (
@@ -344,11 +347,11 @@ export function UsersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password">{t('create.password')} *</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="At least 8 characters"
+                    placeholder={t('create.passwordPlaceholder')}
                     {...register("password")}
                   />
                   {errors.password && (
@@ -357,11 +360,11 @@ export function UsersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                  <Label htmlFor="confirmPassword">{t('create.confirmPassword')} *</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
-                    placeholder="Re-enter password"
+                    placeholder={t('create.confirmPasswordPlaceholder')}
                     {...register("confirmPassword")}
                   />
                   {errors.confirmPassword && (
@@ -372,17 +375,17 @@ export function UsersPage() {
                 {isAdmin && (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
+                      <Label htmlFor="role">{t('create.role')}</Label>
                       <Select
                         value={watch("role") || "user"}
                         onValueChange={(value) => setValue("role", value as "user" | "admin")}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
+                          <SelectValue placeholder={t('create.rolePlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user">{tCommon('common.user')}</SelectItem>
+                          <SelectItem value="admin">{tCommon('common.admin')}</SelectItem>
                         </SelectContent>
                       </Select>
                       {errors.role && (
@@ -391,17 +394,17 @@ export function UsersPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="status">{t('create.status')}</Label>
                       <Select
                         value={watch("status") || "active"}
                         onValueChange={(value) => setValue("status", value as "active" | "inactive")}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('create.statusPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="active">{tCommon('status.active')}</SelectItem>
+                          <SelectItem value="inactive">{tCommon('status.inactive')}</SelectItem>
                         </SelectContent>
                       </Select>
                       {errors.status && (
@@ -420,10 +423,10 @@ export function UsersPage() {
                       reset();
                     }}
                   >
-                    Cancel
+                    {tCommon('buttons.cancel')}
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Creating..." : "Create User"}
+                    {isSubmitting ? tCommon('buttons.creating') : t('create.createButton')}
                   </Button>
                 </DialogFooter>
               </form>

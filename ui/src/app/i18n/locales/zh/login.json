@@ -1,0 +1,10 @@
+{
+    "title": "NexusPointWG",
+    "description": "请输入您的凭据以访问管理面板。",
+    "username": "用户名",
+    "password": "密码",
+    "usernamePlaceholder": "admin",
+    "passwordPlaceholder": "admin",
+    "signIn": "登录",
+    "signingIn": "登录中..."
+}
