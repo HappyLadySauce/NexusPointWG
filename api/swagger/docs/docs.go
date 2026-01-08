@@ -137,7 +137,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a user with username, nickname, avatar, email and password",
+                "description": "Create a user with username, nickname, avatar, email and password. Supports public registration (unauthenticated) and admin creation (authenticated). Role and status fields are only available for authenticated admin users.",
                 "consumes": [
                     "application/json"
                 ],
@@ -150,7 +150,7 @@ const docTemplate = `{
                 "summary": "Create user",
                 "parameters": [
                     {
-                        "description": "User information",
+                        "description": "User information. Role and status fields are only available for authenticated admin users.",
                         "name": "user",
                         "in": "body",
                         "required": true,
@@ -173,7 +173,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - encryption error",
+                        "description": "Unauthorized - encryption error or invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied (authenticated non-admin users cannot create users)",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -514,6 +520,134 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/wg/ip-pools/{id}": {
+            "put": {
+                "description": "Update an IP pool by ID. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wireguard"
+                ],
+                "summary": "Update IP pool",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IP Pool ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "IP pool update information",
+                        "name": "pool",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.UpdateIPPoolRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "IP pool updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/v1.IPPoolResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input or validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - IP pool not found",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an IP pool by ID. Admin only. The pool can only be deleted when no IPs are allocated from it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wireguard"
+                ],
+                "summary": "Delete IP pool",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IP Pool ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "IP pool deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/core.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - IP pool is in use",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - IP pool not found",
                         "schema": {
                             "$ref": "#/definitions/core.ErrResponse"
                         }
@@ -973,6 +1107,100 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/wg/server-config": {
+            "get": {
+                "description": "Get the WireGuard server configuration. Admin only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wireguard"
+                ],
+                "summary": "Get server configuration",
+                "responses": {
+                    "200": {
+                        "description": "Server configuration",
+                        "schema": {
+                            "$ref": "#/definitions/v1.GetServerConfigResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update the WireGuard server configuration. Admin only. Updates will automatically sync to all client configurations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wireguard"
+                ],
+                "summary": "Update server configuration",
+                "parameters": [
+                    {
+                        "description": "Server configuration update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.UpdateServerConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server configuration updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/core.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or expired token",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - permission denied",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/core.ErrResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1058,8 +1286,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "cidr",
-                "name",
-                "server_ip"
+                "name"
             ],
             "properties": {
                 "cidr": {
@@ -1071,8 +1298,12 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255
                 },
-                "gateway": {
-                    "description": "Gateway is the gateway address (optional)",
+                "dns": {
+                    "description": "DNS is the DNS servers (comma-separated) for client config (optional)",
+                    "type": "string"
+                },
+                "endpoint": {
+                    "description": "Endpoint is the server endpoint (e.g., \"10.10.10.10:51820\") (optional)",
                     "type": "string"
                 },
                 "name": {
@@ -1081,8 +1312,8 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 1
                 },
-                "server_ip": {
-                    "description": "ServerIP is the server IP address in CIDR format (e.g., \"100.100.100.1/32\")",
+                "routes": {
+                    "description": "Routes is the routes (comma-separated CIDRs) for client AllowedIPs (optional)",
                     "type": "string"
                 }
             }
@@ -1116,6 +1347,23 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 8
+                },
+                "role": {
+                    "description": "Role is the user role (user/admin). Only available for authenticated admin users. If not provided, defaults to \"user\".",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "admin"
+                    ]
+                },
+                "status": {
+                    "description": "Status is the user status (active/inactive/deleted). Only available for authenticated admin users. If not provided, defaults to \"active\".",
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "inactive",
+                        "deleted"
+                    ]
                 },
                 "username": {
                     "description": "Username is the unique username for the user (3-32 characters, URL-safe, no Chinese)",
@@ -1168,7 +1416,52 @@ const docTemplate = `{
                     "minimum": 0
                 },
                 "user_id": {
-                    "description": "UserID is the ID of the user who owns this peer (admin can specify, regular user uses their own ID)",
+                    "description": "UserID is the ID of the user who owns this peer (deprecated, use Username instead)",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is the username of the user who owns this peer (admin can specify, regular user uses their own username)\nIf provided, UserID will be ignored and looked up by username",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.GetServerConfigResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "Address is the server tunnel IP (e.g., \"100.100.100.1/24\")",
+                    "type": "string"
+                },
+                "dns": {
+                    "description": "DNS is the DNS server for client configs (optional, comma-separated IP addresses)",
+                    "type": "string"
+                },
+                "listen_port": {
+                    "description": "ListenPort is the listening port (e.g., 51820)",
+                    "type": "integer"
+                },
+                "mtu": {
+                    "description": "MTU is the Maximum Transmission Unit (e.g., 1420)",
+                    "type": "integer"
+                },
+                "post_down": {
+                    "description": "PostDown is the PostDown command",
+                    "type": "string"
+                },
+                "post_up": {
+                    "description": "PostUp is the PostUp command",
+                    "type": "string"
+                },
+                "private_key": {
+                    "description": "PrivateKey is the server private key (sensitive information)",
+                    "type": "string"
+                },
+                "public_key": {
+                    "description": "PublicKey is the server public key (calculated from private key)",
+                    "type": "string"
+                },
+                "server_ip": {
+                    "description": "ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)",
                     "type": "string"
                 }
             }
@@ -1199,7 +1492,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "gateway": {
+                "dns": {
+                    "type": "string"
+                },
+                "endpoint": {
                     "type": "string"
                 },
                 "id": {
@@ -1208,7 +1504,7 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "server_ip": {
+                "routes": {
                     "type": "string"
                 },
                 "status": {
@@ -1241,6 +1537,89 @@ const docTemplate = `{
             "properties": {
                 "token": {
                     "description": "Token is the JWT token for authentication",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.UpdateIPPoolRequest": {
+            "type": "object",
+            "properties": {
+                "cidr": {
+                    "description": "CIDR is the CIDR range for the IP pool (e.g., \"100.100.100.0/24\")\nCan only be modified when no IPs are allocated from this pool",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description is a description of the IP pool",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "dns": {
+                    "description": "DNS is the DNS servers (comma-separated) for client config",
+                    "type": "string"
+                },
+                "endpoint": {
+                    "description": "Endpoint is the server endpoint (e.g., \"10.10.10.10:51820\")",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name is the name of the IP pool",
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 1
+                },
+                "routes": {
+                    "description": "Routes is the routes (comma-separated CIDRs) for client AllowedIPs",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is the pool status (active/disabled)",
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "disabled"
+                    ]
+                }
+            }
+        },
+        "v1.UpdateServerConfigRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "Address is the server tunnel IP (e.g., \"100.100.100.1/24\")",
+                    "type": "string"
+                },
+                "dns": {
+                    "description": "DNS is the DNS server for client configs (optional, comma-separated IP addresses)",
+                    "type": "string"
+                },
+                "listen_port": {
+                    "description": "ListenPort is the listening port",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 1
+                },
+                "mtu": {
+                    "description": "MTU is the Maximum Transmission Unit",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 68
+                },
+                "post_down": {
+                    "description": "PostDown is the PostDown command",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "post_up": {
+                    "description": "PostUp is the PostUp command",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "private_key": {
+                    "description": "PrivateKey is the server private key",
+                    "type": "string"
+                },
+                "server_ip": {
+                    "description": "ServerIP is the server public IP for client endpoint (optional, auto-detected if empty)",
                     "type": "string"
                 }
             }
@@ -1302,6 +1681,14 @@ const docTemplate = `{
                     "description": "AllowedIPs is the allowed IPs for the peer (comma-separated CIDRs)",
                     "type": "string"
                 },
+                "client_ip": {
+                    "description": "ClientIP is the IP address to assign to the client (IPv4 address without CIDR, e.g., \"100.100.100.2\")",
+                    "type": "string"
+                },
+                "client_private_key": {
+                    "description": "ClientPrivateKey is the WireGuard private key",
+                    "type": "string"
+                },
                 "device_name": {
                     "description": "DeviceName is the name of the device",
                     "type": "string",
@@ -1314,6 +1701,10 @@ const docTemplate = `{
                 },
                 "endpoint": {
                     "description": "Endpoint is the server endpoint",
+                    "type": "string"
+                },
+                "ip_pool_id": {
+                    "description": "IPPoolID is the ID of the IP pool to allocate from",
                     "type": "string"
                 },
                 "persistent_keepalive": {
@@ -1355,6 +1746,9 @@ const docTemplate = `{
                 "nickname": {
                     "type": "string"
                 },
+                "peer_count": {
+                    "type": "integer"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -1381,6 +1775,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "client_ip": {
+                    "type": "string"
+                },
+                "client_private_key": {
+                    "description": "Optional, sensitive information",
                     "type": "string"
                 },
                 "client_public_key": {
