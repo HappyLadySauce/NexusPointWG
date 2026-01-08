@@ -19,6 +19,15 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -132,6 +141,11 @@ export function UsersPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserResponse | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const { register, handleSubmit, reset, formState: { errors, isSubmitting }, watch, setValue } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -147,9 +161,15 @@ export function UsersPage() {
   const isAdmin = currentUser?.role === "admin";
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      const response = await api.users.list();
+      const offset = (currentPage - 1) * pageSize;
+      const response = await api.users.list({
+        offset,
+        limit: pageSize,
+      });
       setUsers(response.items || []);
+      setTotal(response.total || 0);
     } catch (e) {
       toast.error(t('messages.loadFailed'));
     } finally {
@@ -159,7 +179,7 @@ export function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage]);
 
   const onSubmit = async (data: CreateUserFormValues) => {
     try {
@@ -185,6 +205,7 @@ export function UsersPage() {
       toast.success(t('messages.createSuccess'));
       setIsCreateOpen(false);
       reset();
+      // Refresh current page
       fetchUsers();
     } catch (error: any) {
       const errorMessage = error?.message || t('messages.createFailed');
@@ -253,6 +274,7 @@ export function UsersPage() {
       setIsEditOpen(false);
       setEditingUser(null);
       resetEdit();
+      // Refresh current page
       fetchUsers();
     } catch (error: any) {
       const errorMessage = error?.message || t('messages.updateFailed');
@@ -273,11 +295,60 @@ export function UsersPage() {
       toast.success(t('messages.deleteSuccess'));
       setIsDeleteOpen(false);
       setDeletingUser(null);
-      fetchUsers();
+
+      // If we deleted the last item on the current page and it's not the first page, go to previous page
+      if (users.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      } else {
+        fetchUsers();
+      }
     } catch (error: any) {
       const errorMessage = error?.message || t('messages.deleteFailed');
       toast.error(errorMessage);
     }
+  };
+
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPages = 7;
+
+    if (totalPages <= maxPages) {
+      // Show all pages if total pages is less than max
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page, ellipsis, current page range, ellipsis, last page
+      if (currentPage <= 3) {
+        // Near the beginning
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In the middle
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
   };
 
   const canEditUser = (user: UserResponse) => {
@@ -503,6 +574,65 @@ export function UsersPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {tCommon('pagination.total')} {total} {tCommon('pagination.items')}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                      setCurrentPage(currentPage - 1);
+                    }
+                  }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.previous')}
+                </PaginationPrevious>
+              </PaginationItem>
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page as number);
+                      }}
+                      isActive={currentPage === page}
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) {
+                      setCurrentPage(currentPage + 1);
+                    }
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.next')}
+                </PaginationNext>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Edit User Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

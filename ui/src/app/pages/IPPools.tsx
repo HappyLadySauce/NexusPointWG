@@ -26,6 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../components/ui/pagination";
 import { useAuth } from "../context/AuthContext";
 import { api, CreateIPPoolRequest, IPPoolResponse, UpdateIPPoolRequest } from "../services/api";
 
@@ -62,6 +71,11 @@ export function IPPools() {
   const [editingPool, setEditingPool] = useState<IPPoolResponse | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingPool, setDeletingPool] = useState<IPPoolResponse | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<IPPoolFormValues>({
     resolver: zodResolver(ipPoolSchema),
@@ -72,8 +86,13 @@ export function IPPools() {
   const fetchPools = async () => {
     setLoading(true);
     try {
-      const response = await api.wg.listIPPools();
+      const offset = (currentPage - 1) * pageSize;
+      const response = await api.wg.listIPPools({
+        offset,
+        limit: pageSize,
+      });
       setPools(response.items || []);
+      setTotal(response.total || 0);
     } catch (e) {
       toast.error(t('messages.loadFailed'));
     } finally {
@@ -83,7 +102,7 @@ export function IPPools() {
 
   useEffect(() => {
     fetchPools();
-  }, []);
+  }, [currentPage]);
 
   const onSubmit = async (data: IPPoolFormValues) => {
     try {
@@ -129,6 +148,7 @@ export function IPPools() {
         setIsCreateOpen(false);
       }
       reset();
+      // Refresh current page
       fetchPools();
     } catch (error: any) {
       const errorMessage = error?.message || (editingPool ? t('messages.updateFailed') : t('messages.createFailed'));
@@ -167,11 +187,60 @@ export function IPPools() {
       toast.success(t('messages.deleteSuccess'));
       setIsDeleteOpen(false);
       setDeletingPool(null);
-      fetchPools();
+      
+      // If we deleted the last item on the current page and it's not the first page, go to previous page
+      if (pools.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      } else {
+        fetchPools();
+      }
     } catch (error: any) {
       const errorMessage = error?.message || t('messages.deleteFailed');
       toast.error(errorMessage);
     }
+  };
+
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPages = 7;
+    
+    if (totalPages <= maxPages) {
+      // Show all pages if total pages is less than max
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page, ellipsis, current page range, ellipsis, last page
+      if (currentPage <= 3) {
+        // Near the beginning
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In the middle
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
   };
 
   return (
@@ -500,11 +569,62 @@ export function IPPools() {
           </TableBody>
         </Table>
       </div>
-      {pools.length > 0 && (
-        <div className="text-sm text-muted-foreground">
-          <p>
-            {t('messages.totalPools', { total: pools.length, active: pools.filter((p) => p.status === "active").length })}
-          </p>
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {tCommon('pagination.total')} {total} {tCommon('pagination.items')}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                      setCurrentPage(currentPage - 1);
+                    }
+                  }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.previous')}
+                </PaginationPrevious>
+              </PaginationItem>
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page as number);
+                      }}
+                      isActive={currentPage === page}
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) {
+                      setCurrentPage(currentPage + 1);
+                    }
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.next')}
+                </PaginationNext>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
       {isAdmin && (

@@ -40,6 +40,15 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../components/ui/pagination";
 import { useAuth } from "../context/AuthContext";
 import { api, CreateWGPeerRequest, IPPoolResponse, UserResponse, WGPeerResponse } from "../services/api";
 
@@ -120,6 +129,11 @@ export function Peers() {
   const [viewingConfig, setViewingConfig] = useState<{ peerId: string; peerName: string; config: string } | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [ipPoolModified, setIpPoolModified] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   // Enhanced state management
   const [pools, setPools] = useState<IPPoolResponse[]>([]);
@@ -142,9 +156,22 @@ export function Peers() {
   const ipPoolId = watch("ip_pool_id");
 
   const fetchPeers = async () => {
+    setLoading(true);
     try {
-      const response = await api.wg.listPeers();
+      const offset = (currentPage - 1) * pageSize;
+      const options: any = {
+        offset,
+        limit: pageSize,
+      };
+      
+      // Use backend search if search term is provided
+      if (search.trim()) {
+        options.device_name = search.trim();
+      }
+      
+      const response = await api.wg.listPeers(options);
       setPeers(response.items || []);
+      setTotal(response.total || 0);
     } catch (error) {
       toast.error(t('messages.loadFailed'));
     } finally {
@@ -154,12 +181,22 @@ export function Peers() {
 
   useEffect(() => {
     fetchPeers();
+  }, [currentPage, search, isAdmin]);
+
+  useEffect(() => {
     // Only admins need to fetch IP pools (for creating peers with pool selection)
     if (isAdmin) {
       fetchPools();
       fetchUsers();
     }
   }, [isAdmin]);
+  
+  // Reset to first page when search changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [search]);
 
   const fetchPools = async () => {
     try {
@@ -239,6 +276,7 @@ export function Peers() {
       setIsCreateOpen(false);
       reset();
       setSelectedPool("");
+      // Refresh current page
       fetchPeers();
     } catch (error: any) {
       toast.error(error?.message || t('messages.createFailed'));
@@ -250,7 +288,13 @@ export function Peers() {
       try {
         await api.wg.deletePeer(id);
         toast.success(t('messages.deleteSuccess'));
-        fetchPeers();
+        
+        // If we deleted the last item on the current page and it's not the first page, go to previous page
+        if (peers.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else {
+          fetchPeers();
+        }
       } catch (error) {
         toast.error(t('messages.deleteFailed'));
       }
@@ -385,19 +429,58 @@ export function Peers() {
       toast.success(t('messages.updateSuccess'));
       setIsEditOpen(false);
       setEditingPeer(null);
+      setShowPrivateKey(false);
+      setIpPoolModified(false);
       resetEdit();
+      // Refresh current page
       fetchPeers();
     } catch (error: any) {
       toast.error(error?.message || t('messages.updateFailed'));
     }
   };
 
-  const filteredPeers = peers.filter(p =>
-    p.device_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.client_public_key.includes(search) ||
-    p.client_ip.includes(search) ||
-    p.allowed_ips.includes(search)
-  );
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPages = 7;
+    
+    if (totalPages <= maxPages) {
+      // Show all pages if total pages is less than max
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page, ellipsis, current page range, ellipsis, last page
+      if (currentPage <= 3) {
+        // Near the beginning
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In the middle
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   return (
     <div className="space-y-6 p-8 bg-slate-50/50">
@@ -592,12 +675,12 @@ export function Peers() {
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.loading')}</TableCell>
               </TableRow>
-            ) : filteredPeers.length === 0 ? (
+            ) : peers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.noPeers')}</TableCell>
               </TableRow>
             ) : (
-              filteredPeers.map((peer) => (
+              peers.map((peer) => (
                 <TableRow key={peer.id}>
                   <TableCell className="font-medium">
                     <div className="flex flex-col">
@@ -660,6 +743,65 @@ export function Peers() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {tCommon('pagination.total')} {total} {tCommon('pagination.items')}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                      setCurrentPage(currentPage - 1);
+                    }
+                  }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.previous')}
+                </PaginationPrevious>
+              </PaginationItem>
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page as number);
+                      }}
+                      isActive={currentPage === page}
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) {
+                      setCurrentPage(currentPage + 1);
+                    }
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                >
+                  {tCommon('pagination.next')}
+                </PaginationNext>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Edit Peer Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(open) => {

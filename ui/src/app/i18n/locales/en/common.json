@@ -83,5 +83,13 @@
         "editProfile": "Edit Profile",
         "logout": "Logout",
         "userMenu": "User Menu"
+    },
+    "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page",
+        "of": "of",
+        "total": "Total",
+        "items": "items"
     }
 }
