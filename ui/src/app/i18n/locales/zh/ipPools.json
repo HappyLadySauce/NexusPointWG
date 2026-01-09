@@ -70,6 +70,34 @@
         "deleteFailed": "删除 IP 地址池失败",
         "deleteButton": "删除",
         "totalPools": "总地址池数：{{total}} | 活跃：{{active}}",
-        "loadFailed": "加载 IP 地址池失败"
+        "loadFailed": "加载 IP 地址池失败",
+        "batchCreateSuccess": "成功创建 {{count}} 个 IP 地址池",
+        "batchCreateFailed": "批量创建 IP 地址池失败",
+        "batchUpdateSuccess": "成功更新 {{count}} 个 IP 地址池",
+        "batchUpdateFailed": "批量更新 IP 地址池失败",
+        "batchDeleteSuccess": "成功删除 {{count}} 个 IP 地址池",
+        "batchDeleteFailed": "批量删除 IP 地址池失败",
+        "batchMaxItems": "最多允许 {{max}} 项",
+        "batchEmpty": "没有要处理的项目",
+        "batchInvalidItem": "索引 {{index}} 处的项目无效"
+    },
+    "batch": {
+        "createButton": "批量创建",
+        "createTitle": "批量创建 IP 地址池",
+        "createDescription": "一次创建多个 IP 地址池（最多 {{max}} 项）",
+        "editButton": "批量编辑",
+        "editTitle": "批量编辑（{{count}} 个 IP 地址池）",
+        "editDescription": "将更改应用到 {{count}} 个选中的 IP 地址池",
+        "deleteButton": "批量删除",
+        "deleteTitle": "批量删除 IP 地址池",
+        "deleteDescription": "您确定要删除 {{count}} 个 IP 地址池吗？此操作无法撤销。",
+        "selected": "已选择 {{count}} 个 IP 地址池",
+        "clearSelection": "清除选择",
+        "addItem": "添加项目",
+        "item": "IP 地址池 {{index}}",
+        "itemsCount": "{{current}} / {{max}} 项",
+        "selectStatus": "选择状态（可选）",
+        "saveButton": "保存更改",
+        "updating": "更新中..."
     }
 }

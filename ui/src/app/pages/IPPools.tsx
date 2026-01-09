@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Database, Edit, Plus, Trash2 } from "lucide-react";
+import { Database, Edit, Plus, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,14 @@ import {
   PaginationPrevious,
 } from "../components/ui/pagination";
 import { useAuth } from "../context/AuthContext";
-import { api, CreateIPPoolRequest, IPPoolResponse, UpdateIPPoolRequest } from "../services/api";
+import { api, BatchCreateIPPoolsRequest, BatchDeleteIPPoolsRequest, BatchUpdateIPPoolsRequest, CreateIPPoolRequest, IPPoolResponse, UpdateIPPoolRequest } from "../services/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 // Form schema for creating/editing IP pool
 const ipPoolSchema = z.object({
@@ -71,13 +79,20 @@ export function IPPools() {
   const [editingPool, setEditingPool] = useState<IPPoolResponse | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingPool, setDeletingPool] = useState<IPPoolResponse | null>(null);
+
+  // Batch operation states
+  const [selectedPools, setSelectedPools] = useState<Set<string>>(new Set());
+  const [isBatchCreateOpen, setIsBatchCreateOpen] = useState(false);
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
+  const [batchItems, setBatchItems] = useState<CreateIPPoolRequest[]>([]);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<IPPoolFormValues>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue, watch } = useForm<IPPoolFormValues>({
     resolver: zodResolver(ipPoolSchema),
   });
 
@@ -243,17 +258,148 @@ export function IPPools() {
     return pages;
   };
 
+  // Batch operation handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(pools.map(p => p.id));
+      setSelectedPools(allIds);
+    } else {
+      setSelectedPools(new Set());
+    }
+  };
+
+  const handleSelectPool = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedPools);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedPools(newSelected);
+  };
+
+  const isAllSelected = pools.length > 0 && pools.every(p => selectedPools.has(p.id));
+  const isIndeterminate = selectedPools.size > 0 && selectedPools.size < pools.length;
+
+  const handleBatchDelete = () => {
+    if (selectedPools.size === 0) return;
+    setIsBatchDeleteOpen(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedPools.size === 0) return;
+
+    try {
+      const ids = Array.from(selectedPools);
+      await api.wg.batchDeleteIPPools({ ids });
+      toast.success(t('messages.batchDeleteSuccess', { count: ids.length }));
+      setIsBatchDeleteOpen(false);
+      setSelectedPools(new Set());
+      fetchPools();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchDeleteFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEdit = () => {
+    if (selectedPools.size === 0) return;
+    setIsBatchEditOpen(true);
+  };
+
+  const handleBatchCreate = () => {
+    setBatchItems([{
+      name: '',
+      cidr: '',
+    }]);
+    setIsBatchCreateOpen(true);
+  };
+
+  const addBatchItem = () => {
+    if (batchItems.length >= 50) {
+      toast.error(t('messages.batchMaxItems', { max: 50 }));
+      return;
+    }
+    setBatchItems([...batchItems, {
+      name: '',
+      cidr: '',
+    }]);
+  };
+
+  const removeBatchItem = (index: number) => {
+    setBatchItems(batchItems.filter((_, i) => i !== index));
+  };
+
+  const updateBatchItem = (index: number, field: keyof CreateIPPoolRequest, value: string) => {
+    const newItems = [...batchItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setBatchItems(newItems);
+  };
+
+  const handleBatchCreateSubmit = async () => {
+    if (batchItems.length === 0) {
+      toast.error(t('messages.batchEmpty'));
+      return;
+    }
+
+    // Validate all items
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      if (!item.name || !item.cidr) {
+        toast.error(t('messages.batchInvalidItem', { index: i + 1 }));
+        return;
+      }
+    }
+
+    try {
+      const request: BatchCreateIPPoolsRequest = { items: batchItems };
+      await api.wg.batchCreateIPPools(request);
+      toast.success(t('messages.batchCreateSuccess', { count: batchItems.length }));
+      setIsBatchCreateOpen(false);
+      setBatchItems([]);
+      fetchPools();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchCreateFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEditSubmit = async (data: { status?: string }) => {
+    if (selectedPools.size === 0) return;
+
+    try {
+      const items = Array.from(selectedPools).map(id => ({
+        id,
+        ...(data.status && { status: data.status as "active" | "disabled" }),
+      }));
+
+      const request: BatchUpdateIPPoolsRequest = { items };
+      await api.wg.batchUpdateIPPools(request);
+      toast.success(t('messages.batchUpdateSuccess', { count: items.length }));
+      setIsBatchEditOpen(false);
+      setSelectedPools(new Set());
+      fetchPools();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchUpdateFailed');
+      toast.error(errorMessage);
+    }
+  };
+
   return (
     <div className="space-y-6 p-8 bg-slate-50/50">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleBatchCreate}>
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.createButton')}
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{t('create.title')}</DialogTitle>
@@ -364,8 +510,50 @@ export function IPPools() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
+
+      {/* Batch operation toolbar */}
+      {selectedPools.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">
+              {t('batch.selected', { count: selectedPools.size })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPools(new Set())}
+            >
+              <X className="mr-2 h-4 w-4" /> {t('batch.clearSelection')}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBatchEdit}
+                  disabled={selectedPools.size > 50}
+                >
+                  {t('batch.editButton')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={selectedPools.size > 50}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> {t('batch.deleteButton')}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {isAdmin && (
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="max-w-md">
@@ -497,6 +685,17 @@ export function IPPools() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = isIndeterminate;
+                    }
+                  }}
+                />
+              </TableHead>
               <TableHead>{t('table.name')}</TableHead>
               <TableHead>{t('table.cidr')}</TableHead>
               <TableHead>{t('table.routes')}</TableHead>
@@ -509,19 +708,25 @@ export function IPPools() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
+                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">
                   {t('table.loading')}
                 </TableCell>
               </TableRow>
             ) : pools.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
+                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">
                   {t('table.noPools')}
                 </TableCell>
               </TableRow>
             ) : (
               pools.map((pool) => (
                 <TableRow key={pool.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedPools.has(pool.id)}
+                      onCheckedChange={(checked) => handleSelectPool(pool.id, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
                     <Database className="h-4 w-4 text-blue-500" />
                     {pool.name}
@@ -658,6 +863,186 @@ export function IPPools() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Batch Create Dialog */}
+      <Dialog open={isBatchCreateOpen} onOpenChange={setIsBatchCreateOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('batch.createTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.createDescription', { max: 50 })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {batchItems.map((item, index) => (
+              <div key={index} className="p-4 border rounded-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">{t('batch.item', { index: index + 1 })}</h4>
+                  {batchItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeBatchItem(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>{t('create.name')} *</Label>
+                    <Input
+                      value={item.name}
+                      onChange={(e) => updateBatchItem(index, 'name', e.target.value)}
+                      placeholder={t('create.namePlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.cidr')} *</Label>
+                    <Input
+                      value={item.cidr}
+                      onChange={(e) => updateBatchItem(index, 'cidr', e.target.value)}
+                      placeholder={t('create.cidrPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.routes')}</Label>
+                    <Input
+                      value={item.routes || ''}
+                      onChange={(e) => updateBatchItem(index, 'routes', e.target.value)}
+                      placeholder={t('create.routesPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.dns')}</Label>
+                    <Input
+                      value={item.dns || ''}
+                      onChange={(e) => updateBatchItem(index, 'dns', e.target.value)}
+                      placeholder={t('create.dnsPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.endpoint')}</Label>
+                    <Input
+                      value={item.endpoint || ''}
+                      onChange={(e) => updateBatchItem(index, 'endpoint', e.target.value)}
+                      placeholder={t('create.endpointPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.description')}</Label>
+                    <Input
+                      value={item.description || ''}
+                      onChange={(e) => updateBatchItem(index, 'description', e.target.value)}
+                      placeholder={t('create.descriptionPlaceholder')}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addBatchItem}
+              disabled={batchItems.length >= 50}
+            >
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.addItem')}
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {t('batch.itemsCount', { current: batchItems.length, max: 50 })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchCreateOpen(false);
+                setBatchItems([]);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button type="button" onClick={handleBatchCreateSubmit}>
+              {t('batch.createButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Edit Dialog */}
+      <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.editTitle', { count: selectedPools.size })}</DialogTitle>
+            <DialogDescription>
+              {t('batch.editDescription', { count: selectedPools.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit((data) => handleBatchEditSubmit(data))} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="batch-status">{t('edit.status')}</Label>
+              <Select
+                value={watch("status") || ""}
+                onValueChange={(value) => setValue("status", value as "active" | "disabled")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('batch.selectStatus')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">{t('edit.statusActive')}</SelectItem>
+                  <SelectItem value="disabled">{t('edit.statusDisabled')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsBatchEditOpen(false);
+                }}
+              >
+                {tCommon('buttons.cancel')}
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? t('batch.updating') : t('batch.saveButton')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Delete Dialog */}
+      <Dialog open={isBatchDeleteOpen} onOpenChange={setIsBatchDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.deleteTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.deleteDescription', { count: selectedPools.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchDeleteOpen(false);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmBatchDelete}
+            >
+              {t('batch.deleteButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

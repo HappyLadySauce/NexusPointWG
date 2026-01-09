@@ -199,3 +199,62 @@ func (u *users) ListUsers(ctx context.Context, opt store.UserListOptions) ([]*mo
 	}
 	return users, total, nil
 }
+
+// BatchCreateUsers creates multiple users in a transaction.
+// Returns error if any user creation fails, causing a rollback of all operations.
+func (u *users) BatchCreateUsers(ctx context.Context, users []*model.User) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, user := range users {
+			if err := tx.Create(user).Error; err != nil {
+				// Check if it's a unique constraint violation
+				if isUniqueConstraintError(err) {
+					field := parseUniqueConstraintField(err)
+					if field == "email" {
+						return errors.WithCode(code.ErrEmailAlreadyExist, "%s", code.Message(code.ErrEmailAlreadyExist))
+					}
+					return errors.WithCode(code.ErrUserAlreadyExist, "%s", code.Message(code.ErrUserAlreadyExist))
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}
+
+// BatchUpdateUsers updates multiple users in a transaction.
+// Returns error if any user update fails, causing a rollback of all operations.
+func (u *users) BatchUpdateUsers(ctx context.Context, users []*model.User) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, user := range users {
+			if err := tx.Save(user).Error; err != nil {
+				// Check if it's a unique constraint violation
+				if isUniqueConstraintError(err) {
+					field := parseUniqueConstraintField(err)
+					if field == "email" {
+						return errors.WithCode(code.ErrEmailAlreadyExist, "%s", code.Message(code.ErrEmailAlreadyExist))
+					}
+					return errors.WithCode(code.ErrUserAlreadyExist, "%s", code.Message(code.ErrUserAlreadyExist))
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}
+
+// BatchDeleteUsers deletes multiple users by IDs in a transaction.
+// Returns error if any user deletion fails, causing a rollback of all operations.
+func (u *users) BatchDeleteUsers(ctx context.Context, ids []string) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, id := range ids {
+			if err := tx.Where("id = ?", id).Delete(&model.User{}).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// Continue if record not found (idempotent delete)
+					continue
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}

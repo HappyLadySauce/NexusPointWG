@@ -58,7 +58,36 @@
     "deleteConfirm": "Are you sure you want to delete this user?",
     "deleteSuccess": "User deleted successfully",
     "deleteFailed": "Failed to delete user",
-    "loadFailed": "Failed to fetch users"
+    "loadFailed": "Failed to fetch users",
+    "batchCreateSuccess": "Successfully created {{count}} users",
+    "batchCreateFailed": "Failed to create users",
+    "batchUpdateSuccess": "Successfully updated {{count}} users",
+    "batchUpdateFailed": "Failed to update users",
+    "batchDeleteSuccess": "Successfully deleted {{count}} users",
+    "batchDeleteFailed": "Failed to delete users",
+    "batchMaxItems": "Maximum {{max}} items allowed",
+    "batchEmpty": "No items to process",
+    "batchInvalidItem": "Invalid item at index {{index}}"
+  },
+  "batch": {
+    "createButton": "Batch Create",
+    "createTitle": "Batch Create Users",
+    "createDescription": "Create multiple users at once (max {{max}} items)",
+    "editButton": "Batch Edit",
+    "editTitle": "Batch Edit ({{count}} users)",
+    "editDescription": "Apply changes to {{count}} selected users",
+    "deleteButton": "Batch Delete",
+    "deleteTitle": "Batch Delete Users",
+    "deleteDescription": "Are you sure you want to delete {{count}} users? This action cannot be undone.",
+    "selected": "Selected {{count}} users",
+    "clearSelection": "Clear Selection",
+    "addItem": "Add Item",
+    "item": "User {{index}}",
+    "itemsCount": "{{current}} / {{max}} items",
+    "selectRole": "Select role (optional)",
+    "selectStatus": "Select status (optional)",
+    "saveButton": "Save Changes",
+    "updating": "Updating..."
   }
 }
 

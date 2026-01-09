@@ -25,6 +25,12 @@ type IPPoolStore interface {
 
 	// ListIPPools lists IP pools with optional filters and pagination.
 	ListIPPools(ctx context.Context, opt IPPoolListOptions) ([]*model.IPPool, int64, error)
+	// BatchCreateIPPools creates multiple IP pools in a transaction. Returns error if any pool creation fails.
+	BatchCreateIPPools(ctx context.Context, pools []*model.IPPool) error
+	// BatchUpdateIPPools updates multiple IP pools in a transaction. Returns error if any pool update fails.
+	BatchUpdateIPPools(ctx context.Context, pools []*model.IPPool) error
+	// BatchDeleteIPPools deletes multiple IP pools by IDs in a transaction. Returns error if any pool deletion fails.
+	BatchDeleteIPPools(ctx context.Context, ids []string) error
 }
 
 // IPPoolListOptions defines options for listing IP pools.

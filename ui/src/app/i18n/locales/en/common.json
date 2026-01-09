@@ -91,5 +91,11 @@
         "of": "of",
         "total": "Total",
         "items": "items"
+    },
+    "batch": {
+        "selected": "Selected {{count}} items",
+        "clearSelection": "Clear Selection",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All"
     }
 }

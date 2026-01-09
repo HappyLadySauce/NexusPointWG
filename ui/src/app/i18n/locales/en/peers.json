@@ -88,7 +88,35 @@
     "downloadConfigSuccess": "Config downloaded successfully",
     "downloadConfigFailed": "Failed to download config",
     "loadingConfig": "Loading configuration...",
-    "downloadingConfig": "Downloading configuration..."
+    "downloadingConfig": "Downloading configuration...",
+    "batchCreateSuccess": "Successfully created {{count}} peers",
+    "batchCreateFailed": "Failed to create peers",
+    "batchUpdateSuccess": "Successfully updated {{count}} peers",
+    "batchUpdateFailed": "Failed to update peers",
+    "batchDeleteSuccess": "Successfully deleted {{count}} peers",
+    "batchDeleteFailed": "Failed to delete peers",
+    "batchMaxItems": "Maximum {{max}} items allowed",
+    "batchEmpty": "No items to process",
+    "batchInvalidItem": "Invalid item at index {{index}}"
+  },
+  "batch": {
+    "createButton": "Batch Create",
+    "createTitle": "Batch Create Peers",
+    "createDescription": "Create multiple peers at once (max {{max}} items)",
+    "editButton": "Batch Edit",
+    "editTitle": "Batch Edit ({{count}} peers)",
+    "editDescription": "Apply changes to {{count}} selected peers",
+    "deleteButton": "Batch Delete",
+    "deleteTitle": "Batch Delete Peers",
+    "deleteDescription": "Are you sure you want to delete {{count}} peers? This action cannot be undone.",
+    "selected": "Selected {{count}} peers",
+    "clearSelection": "Clear Selection",
+    "addItem": "Add Item",
+    "item": "Peer {{index}}",
+    "itemsCount": "{{current}} / {{max}} items",
+    "selectStatus": "Select status (optional)",
+    "saveButton": "Save Changes",
+    "updating": "Updating..."
   }
 }
 

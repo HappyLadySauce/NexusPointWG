@@ -63,8 +63,59 @@ type UserResponse struct {
 }
 
 // UserListResponse represents a paginated list of users.
-// swagger:model“
+// swagger:model"
 type UserListResponse struct {
 	Total int64          `json:"total"`
 	Items []UserResponse `json:"items"`
+}
+
+// BatchCreateUsersRequest represents a batch user creation request.
+// swagger:model
+type BatchCreateUsersRequest struct {
+	// Items is the list of users to create (max 50 items)
+	Items []CreateUserRequest `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchCreateUsersResponse represents a batch user creation response.
+// swagger:model
+type BatchCreateUsersResponse struct {
+	// Count is the number of users created successfully
+	Count int64 `json:"count"`
+}
+
+// BatchUpdateUserItem represents a single user update item in batch operation.
+// swagger:model
+type BatchUpdateUserItem struct {
+	// Username is the username of the user to update
+	Username string `json:"username" binding:"required,min=3,max=32,urlsafe,nochinese"`
+	// UpdateUserRequest contains the fields to update
+	UpdateUserRequest
+}
+
+// BatchUpdateUsersRequest represents a batch user update request.
+// swagger:model
+type BatchUpdateUsersRequest struct {
+	// Items is the list of users to update (max 50 items)
+	Items []BatchUpdateUserItem `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchUpdateUsersResponse represents a batch user update response.
+// swagger:model
+type BatchUpdateUsersResponse struct {
+	// Count is the number of users updated successfully
+	Count int64 `json:"count"`
+}
+
+// BatchDeleteUsersRequest represents a batch user deletion request.
+// swagger:model
+type BatchDeleteUsersRequest struct {
+	// Usernames is the list of usernames to delete (max 50 items)
+	Usernames []string `json:"usernames" binding:"required,min=1,max=50,dive,required,min=3,max=32,urlsafe,nochinese"`
+}
+
+// BatchDeleteUsersResponse represents a batch user deletion response.
+// swagger:model
+type BatchDeleteUsersResponse struct {
+	// Count is the number of users deleted successfully
+	Count int64 `json:"count"`
 }

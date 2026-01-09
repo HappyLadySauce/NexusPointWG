@@ -31,4 +31,12 @@ func RegisterRoutes() {
 	// Server configuration management routes (admin only, enforced in controller)
 	authed.GET("/wg/server-config", wgController.GetServerConfig)
 	authed.PUT("/wg/server-config", wgController.UpdateServerConfig)
+
+	// Batch operations routes
+	authed.POST("/wg/ip-pools/batch", wgController.BatchCreateIPPools)
+	authed.PUT("/wg/ip-pools/batch", wgController.BatchUpdateIPPools)
+	authed.DELETE("/wg/ip-pools/batch", wgController.BatchDeleteIPPools)
+	authed.POST("/wg/peers/batch", wgController.BatchCreateWGPeers)
+	authed.PUT("/wg/peers/batch", wgController.BatchUpdateWGPeers)
+	authed.DELETE("/wg/peers/batch", wgController.BatchDeleteWGPeers)
 }

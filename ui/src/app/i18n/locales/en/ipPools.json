@@ -70,7 +70,35 @@
     "deleteFailed": "Failed to delete IP pool",
     "deleteButton": "Delete",
     "totalPools": "Total pools: {{total}} | Active: {{active}}",
-    "loadFailed": "Failed to load IP pools"
+    "loadFailed": "Failed to load IP pools",
+    "batchCreateSuccess": "Successfully created {{count}} IP pools",
+    "batchCreateFailed": "Failed to create IP pools",
+    "batchUpdateSuccess": "Successfully updated {{count}} IP pools",
+    "batchUpdateFailed": "Failed to update IP pools",
+    "batchDeleteSuccess": "Successfully deleted {{count}} IP pools",
+    "batchDeleteFailed": "Failed to delete IP pools",
+    "batchMaxItems": "Maximum {{max}} items allowed",
+    "batchEmpty": "No items to process",
+    "batchInvalidItem": "Invalid item at index {{index}}"
+  },
+  "batch": {
+    "createButton": "Batch Create",
+    "createTitle": "Batch Create IP Pools",
+    "createDescription": "Create multiple IP pools at once (max {{max}} items)",
+    "editButton": "Batch Edit",
+    "editTitle": "Batch Edit ({{count}} IP pools)",
+    "editDescription": "Apply changes to {{count}} selected IP pools",
+    "deleteButton": "Batch Delete",
+    "deleteTitle": "Batch Delete IP Pools",
+    "deleteDescription": "Are you sure you want to delete {{count}} IP pools? This action cannot be undone.",
+    "selected": "Selected {{count}} IP pools",
+    "clearSelection": "Clear Selection",
+    "addItem": "Add Item",
+    "item": "IP Pool {{index}}",
+    "itemsCount": "{{current}} / {{max}} items",
+    "selectStatus": "Select status (optional)",
+    "saveButton": "Save Changes",
+    "updating": "Updating..."
   }
 }
 

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Download, Edit, Eye, EyeOff, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, Download, Edit, Eye, EyeOff, FileText, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,15 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -40,17 +50,8 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "../components/ui/pagination";
 import { useAuth } from "../context/AuthContext";
-import { api, CreateWGPeerRequest, IPPoolResponse, UserResponse, WGPeerResponse } from "../services/api";
+import { api, BatchCreateWGPeersRequest, BatchUpdateWGPeersRequest, CreateWGPeerRequest, IPPoolResponse, UserResponse, WGPeerResponse } from "../services/api";
 
 // Enhanced form schema
 const peerSchema = z.object({
@@ -130,7 +131,14 @@ export function Peers() {
   const [viewingConfig, setViewingConfig] = useState<{ peerId: string; peerName: string; config: string } | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [ipPoolModified, setIpPoolModified] = useState(false);
-  
+
+  // Batch operation states
+  const [selectedPeers, setSelectedPeers] = useState<Set<string>>(new Set());
+  const [isBatchCreateOpen, setIsBatchCreateOpen] = useState(false);
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
+  const [batchItems, setBatchItems] = useState<CreateWGPeerRequest[]>([]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
@@ -164,12 +172,12 @@ export function Peers() {
         offset,
         limit: pageSize,
       };
-      
+
       // Use backend search if search term is provided
       if (search.trim()) {
         options.device_name = search.trim();
       }
-      
+
       const response = await api.wg.listPeers(options);
       setPeers(response.items || []);
       setTotal(response.total || 0);
@@ -191,7 +199,7 @@ export function Peers() {
       fetchUsers();
     }
   }, [isAdmin]);
-  
+
   // Reset to first page when search changes
   useEffect(() => {
     if (currentPage !== 1) {
@@ -289,7 +297,7 @@ export function Peers() {
       try {
         await api.wg.deletePeer(id);
         toast.success(t('messages.deleteSuccess'));
-        
+
         // If we deleted the last item on the current page and it's not the first page, go to previous page
         if (peers.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
@@ -306,10 +314,10 @@ export function Peers() {
     try {
       const peer = peers.find(p => p.id === id);
       const peerName = peer ? peer.device_name : `Peer ${id}`;
-      
+
       toast.info(t('messages.loadingConfig'));
       const configText = await api.wg.downloadConfig(id);
-      
+
       setViewingConfig({ peerId: id, peerName, config: configText });
       setIsViewConfigOpen(true);
     } catch (error) {
@@ -320,7 +328,7 @@ export function Peers() {
 
   const handleCopyConfig = async () => {
     if (!viewingConfig) return;
-    
+
     try {
       await navigator.clipboard.writeText(viewingConfig.config);
       toast.success(t('messages.copyConfigSuccess'));
@@ -451,7 +459,7 @@ export function Peers() {
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
     const maxPages = 7;
-    
+
     if (totalPages <= maxPages) {
       // Show all pages if total pages is less than max
       for (let i = 1; i <= totalPages; i++) {
@@ -484,8 +492,137 @@ export function Peers() {
         pages.push(totalPages);
       }
     }
-    
+
     return pages;
+  };
+
+  // Batch operation handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(peers.map(p => p.id));
+      setSelectedPeers(allIds);
+    } else {
+      setSelectedPeers(new Set());
+    }
+  };
+
+  const handleSelectPeer = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedPeers);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedPeers(newSelected);
+  };
+
+  const isAllSelected = peers.length > 0 && peers.every(p => selectedPeers.has(p.id));
+  const isIndeterminate = selectedPeers.size > 0 && selectedPeers.size < peers.length;
+
+  const handleBatchDelete = () => {
+    if (selectedPeers.size === 0) return;
+    setIsBatchDeleteOpen(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedPeers.size === 0) return;
+
+    try {
+      const ids = Array.from(selectedPeers);
+      await api.wg.batchDeletePeers({ ids });
+      toast.success(t('messages.batchDeleteSuccess', { count: ids.length }));
+      setIsBatchDeleteOpen(false);
+      setSelectedPeers(new Set());
+      fetchPeers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchDeleteFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEdit = () => {
+    if (selectedPeers.size === 0) return;
+    setIsBatchEditOpen(true);
+  };
+
+  const handleBatchCreate = () => {
+    setBatchItems([{
+      device_name: '',
+    }]);
+    setIsBatchCreateOpen(true);
+  };
+
+  const addBatchItem = () => {
+    if (batchItems.length >= 50) {
+      toast.error(t('messages.batchMaxItems', { max: 50 }));
+      return;
+    }
+    setBatchItems([...batchItems, {
+      device_name: '',
+    }]);
+  };
+
+  const removeBatchItem = (index: number) => {
+    setBatchItems(batchItems.filter((_, i) => i !== index));
+  };
+
+  const updateBatchItem = (index: number, field: keyof CreateWGPeerRequest, value: string | undefined) => {
+    const newItems = [...batchItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setBatchItems(newItems);
+  };
+
+  const handleBatchCreateSubmit = async () => {
+    if (batchItems.length === 0) {
+      toast.error(t('messages.batchEmpty'));
+      return;
+    }
+
+    // Validate all items
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      if (!item.device_name) {
+        toast.error(t('messages.batchInvalidItem', { index: i + 1 }));
+        return;
+      }
+      if (isAdmin && !item.username) {
+        toast.error(t('messages.batchInvalidItem', { index: i + 1 }));
+        return;
+      }
+    }
+
+    try {
+      const request: BatchCreateWGPeersRequest = { items: batchItems };
+      await api.wg.batchCreatePeers(request);
+      toast.success(t('messages.batchCreateSuccess', { count: batchItems.length }));
+      setIsBatchCreateOpen(false);
+      setBatchItems([]);
+      fetchPeers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchCreateFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEditSubmit = async (data: { status?: string }) => {
+    if (selectedPeers.size === 0) return;
+
+    try {
+      const items = Array.from(selectedPeers).map(id => ({
+        id,
+        ...(data.status && { status: data.status as "active" | "disabled" }),
+      }));
+
+      const request: BatchUpdateWGPeersRequest = { items };
+      await api.wg.batchUpdatePeers(request);
+      toast.success(t('messages.batchUpdateSuccess', { count: items.length }));
+      setIsBatchEditOpen(false);
+      setSelectedPeers(new Set());
+      fetchPeers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchUpdateFailed');
+      toast.error(errorMessage);
+    }
   };
 
   return (
@@ -493,163 +630,208 @@ export function Peers() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> {tCommon('buttons.create')} {t('title')}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleBatchCreate}>
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.createButton')}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>{t('create.title')}</DialogTitle>
-              <DialogDescription>
-                {t('create.description')}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto space-y-4">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="device_name">{t('create.deviceName')} *</Label>
-                    <Input id="device_name" placeholder={t('create.deviceNamePlaceholder')} {...register("device_name")} />
-                    {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
-                  </div>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> {tCommon('buttons.create')} {t('title')}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
+                  <DialogTitle>{t('create.title')}</DialogTitle>
+                  <DialogDescription>
+                    {t('create.description')}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto space-y-4">
+                    {/* Basic Information */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="device_name">{t('create.deviceName')} *</Label>
+                        <Input id="device_name" placeholder={t('create.deviceNamePlaceholder')} {...register("device_name")} />
+                        {errors.device_name && <p className="text-sm text-red-500">{errors.device_name.message}</p>}
+                      </div>
 
-                  {isAdmin && (
-                    <div className="space-y-2">
-                      <Label htmlFor="username">{t('create.user')} *</Label>
-                      <Select
-                        value={watch("username") || ""}
-                        onValueChange={(value) => setValue("username", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('create.selectUser')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.username} value={user.username}>
-                              {user.username} {user.nickname && `(${user.nickname})`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+                      {isAdmin && (
+                        <div className="space-y-2">
+                          <Label htmlFor="username">{t('create.user')} *</Label>
+                          <Select
+                            value={watch("username") || ""}
+                            onValueChange={(value) => setValue("username", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t('create.selectUser')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {users.map((user) => (
+                                <SelectItem key={user.username} value={user.username}>
+                                  {user.username} {user.nickname && `(${user.nickname})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Configuration Fields */}
-                <div className="space-y-4 border-t pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ip_pool_id">{t('create.ipPool')}</Label>
-                    <Select
-                      value={watch("ip_pool_id") || "__none__"}
-                      onValueChange={(value) => {
-                        const poolId = value === "__none__" ? undefined : value;
-                        setValue("ip_pool_id", poolId);
-                        if (poolId) {
-                          handlePoolChange(poolId);
-                        } else {
-                          // Clear auto-filled fields when selecting None
-                          setValue("allowed_ips", "");
-                          setValue("dns", "");
-                          setValue("endpoint", "");
-                        }
+                    {/* Configuration Fields */}
+                    <div className="space-y-4 border-t pt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ip_pool_id">{t('create.ipPool')}</Label>
+                        <Select
+                          value={watch("ip_pool_id") || "__none__"}
+                          onValueChange={(value) => {
+                            const poolId = value === "__none__" ? undefined : value;
+                            setValue("ip_pool_id", poolId);
+                            if (poolId) {
+                              handlePoolChange(poolId);
+                            } else {
+                              // Clear auto-filled fields when selecting None
+                              setValue("allowed_ips", "");
+                              setValue("dns", "");
+                              setValue("endpoint", "");
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('create.selectIPPool')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">{tCommon('common.none')}</SelectItem>
+                            {pools.map((pool) => (
+                              <SelectItem key={pool.id} value={pool.id}>
+                                {pool.name} ({pool.cidr})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.ip_pool_id && <p className="text-sm text-red-500">{errors.ip_pool_id.message}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="client_ip">{t('create.clientIP')}</Label>
+                        <Input
+                          id="client_ip"
+                          placeholder={t('create.clientIPPlaceholder')}
+                          {...register("client_ip")}
+                        />
+                        {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="allowed_ips">
+                          {(!ipPoolId || ipPoolId === "__none__") ? t('create.allowedIPsRequired') : t('create.allowedIPsAutoFilled')}
+                        </Label>
+                        <Input
+                          id="allowed_ips"
+                          placeholder={t('create.allowedIPsPlaceholder')}
+                          {...register("allowed_ips")}
+                        />
+                        {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="dns">{t('create.dns')}</Label>
+                        <Input
+                          id="dns"
+                          placeholder={t('create.dnsPlaceholder')}
+                          {...register("dns")}
+                        />
+                        {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="endpoint">{t('create.endpoint')}</Label>
+                        <Input
+                          id="endpoint"
+                          placeholder={t('create.endpointPlaceholder')}
+                          {...register("endpoint")}
+                        />
+                        {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="persistent_keepalive">{t('create.persistentKeepalive')}</Label>
+                        <Input
+                          id="persistent_keepalive"
+                          type="number"
+                          min="0"
+                          max="65535"
+                          placeholder={t('create.persistentKeepalivePlaceholder')}
+                          {...register("persistent_keepalive", { valueAsNumber: true })}
+                        />
+                        {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter className="flex-shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreateOpen(false);
+                        reset();
+                        setSelectedPool("");
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('create.selectIPPool')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">{tCommon('common.none')}</SelectItem>
-                        {pools.map((pool) => (
-                          <SelectItem key={pool.id} value={pool.id}>
-                            {pool.name} ({pool.cidr})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.ip_pool_id && <p className="text-sm text-red-500">{errors.ip_pool_id.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="client_ip">{t('create.clientIP')}</Label>
-                    <Input
-                      id="client_ip"
-                      placeholder={t('create.clientIPPlaceholder')}
-                      {...register("client_ip")}
-                    />
-                    {errors.client_ip && <p className="text-sm text-red-500">{errors.client_ip.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="allowed_ips">
-                      {(!ipPoolId || ipPoolId === "__none__") ? t('create.allowedIPsRequired') : t('create.allowedIPsAutoFilled')}
-                    </Label>
-                    <Input
-                      id="allowed_ips"
-                      placeholder={t('create.allowedIPsPlaceholder')}
-                      {...register("allowed_ips")}
-                    />
-                    {errors.allowed_ips && <p className="text-sm text-red-500">{errors.allowed_ips.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="dns">{t('create.dns')}</Label>
-                    <Input
-                      id="dns"
-                      placeholder={t('create.dnsPlaceholder')}
-                      {...register("dns")}
-                    />
-                    {errors.dns && <p className="text-sm text-red-500">{errors.dns.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="endpoint">{t('create.endpoint')}</Label>
-                    <Input
-                      id="endpoint"
-                      placeholder={t('create.endpointPlaceholder')}
-                      {...register("endpoint")}
-                    />
-                    {errors.endpoint && <p className="text-sm text-red-500">{errors.endpoint.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="persistent_keepalive">{t('create.persistentKeepalive')}</Label>
-                    <Input
-                      id="persistent_keepalive"
-                      type="number"
-                      min="0"
-                      max="65535"
-                      placeholder={t('create.persistentKeepalivePlaceholder')}
-                      {...register("persistent_keepalive", { valueAsNumber: true })}
-                    />
-                    {errors.persistent_keepalive && <p className="text-sm text-red-500">{errors.persistent_keepalive.message}</p>}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="flex-shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreateOpen(false);
-                    reset();
-                    setSelectedPool("");
-                  }}
-                >
-                  {tCommon('buttons.cancel')}
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? tCommon('status.loading') : t('create.createButton')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                      {tCommon('buttons.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? tCommon('status.loading') : t('create.createButton')}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       </div>
+
+      {/* Batch operation toolbar */}
+      {selectedPeers.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">
+              {t('batch.selected', { count: selectedPeers.size })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPeers(new Set())}
+            >
+              <X className="mr-2 h-4 w-4" /> {t('batch.clearSelection')}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBatchEdit}
+                  disabled={selectedPeers.size > 50}
+                >
+                  {t('batch.editButton')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={selectedPeers.size > 50}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> {t('batch.deleteButton')}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         <div className="relative flex-1 max-w-sm">
@@ -667,6 +849,17 @@ export function Peers() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = isIndeterminate;
+                    }
+                  }}
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>IP Address</TableHead>
               <TableHead>Endpoint</TableHead>
@@ -679,15 +872,21 @@ export function Peers() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.loading')}</TableCell>
+                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">{t('table.loading')}</TableCell>
               </TableRow>
             ) : peers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">{t('table.noPeers')}</TableCell>
+                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">{t('table.noPeers')}</TableCell>
               </TableRow>
             ) : (
               peers.map((peer) => (
                 <TableRow key={peer.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedPeers.has(peer.id)}
+                      onCheckedChange={(checked) => handleSelectPeer(peer.id, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex flex-col">
                       <span>{peer.device_name}</span>
@@ -732,12 +931,12 @@ export function Peers() {
                         </DropdownMenuItem>
                         {isAdmin && (
                           <>
-                        <DropdownMenuItem onClick={() => handleEdit(peer)}>
-                          <Edit className="mr-2 h-4 w-4" /> {t('table.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> {t('table.delete')}
-                        </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(peer)}>
+                              <Edit className="mr-2 h-4 w-4" /> {t('table.edit')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(peer.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> {t('table.delete')}
+                            </DropdownMenuItem>
                           </>
                         )}
                       </DropdownMenuContent>
@@ -1109,6 +1308,193 @@ export function Peers() {
               onClick={() => setIsViewConfigOpen(false)}
             >
               {tCommon('buttons.close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Create Dialog */}
+      <Dialog open={isBatchCreateOpen} onOpenChange={setIsBatchCreateOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('batch.createTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.createDescription', { max: 50 })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {batchItems.map((item, index) => (
+              <div key={index} className="p-4 border rounded-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">{t('batch.item', { index: index + 1 })}</h4>
+                  {batchItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeBatchItem(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>{t('create.deviceName')} *</Label>
+                    <Input
+                      value={item.device_name || ''}
+                      onChange={(e) => updateBatchItem(index, 'device_name', e.target.value)}
+                      placeholder={t('create.deviceNamePlaceholder')}
+                    />
+                  </div>
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label>{t('create.user')} *</Label>
+                      <Select
+                        value={item.username || ''}
+                        onValueChange={(value) => updateBatchItem(index, 'username', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('create.selectUser')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.username} value={user.username}>
+                              {user.username} {user.nickname && `(${user.nickname})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>{t('create.ipPool')}</Label>
+                    <Select
+                      value={item.ip_pool_id || '__none__'}
+                      onValueChange={(value) => updateBatchItem(index, 'ip_pool_id', value === '__none__' ? undefined : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('create.selectIPPool')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{tCommon('common.none')}</SelectItem>
+                        {pools.map((pool) => (
+                          <SelectItem key={pool.id} value={pool.id}>
+                            {pool.name} ({pool.cidr})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.clientIP')}</Label>
+                    <Input
+                      value={item.client_ip || ''}
+                      onChange={(e) => updateBatchItem(index, 'client_ip', e.target.value)}
+                      placeholder={t('create.clientIPPlaceholder')}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addBatchItem}
+              disabled={batchItems.length >= 50}
+            >
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.addItem')}
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {t('batch.itemsCount', { current: batchItems.length, max: 50 })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchCreateOpen(false);
+                setBatchItems([]);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button type="button" onClick={handleBatchCreateSubmit}>
+              {t('batch.createButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Edit Dialog */}
+      <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.editTitle', { count: selectedPeers.size })}</DialogTitle>
+            <DialogDescription>
+              {t('batch.editDescription', { count: selectedPeers.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit((data) => handleBatchEditSubmit(data))} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="batch-status">{t('edit.status')}</Label>
+              <Select
+                value={watchEdit("status") || ""}
+                onValueChange={(value) => setEditValue("status", value as "active" | "disabled")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('batch.selectStatus')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">{tCommon('status.active')}</SelectItem>
+                  <SelectItem value="disabled">{tCommon('status.disabled')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsBatchEditOpen(false);
+                }}
+              >
+                {tCommon('buttons.cancel')}
+              </Button>
+              <Button type="submit" disabled={isEditSubmitting}>
+                {isEditSubmitting ? t('batch.updating') : t('batch.saveButton')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Delete Dialog */}
+      <Dialog open={isBatchDeleteOpen} onOpenChange={setIsBatchDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.deleteTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.deleteDescription', { count: selectedPeers.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchDeleteOpen(false);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmBatchDelete}
+            >
+              {t('batch.deleteButton')}
             </Button>
           </DialogFooter>
         </DialogContent>

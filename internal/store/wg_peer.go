@@ -28,6 +28,12 @@ type WGPeerStore interface {
 
 	// CountPeersByUserID counts the number of peers for a specific user.
 	CountPeersByUserID(ctx context.Context, userID string) (int64, error)
+	// BatchCreatePeers creates multiple WireGuard peers in a transaction. Returns error if any peer creation fails.
+	BatchCreatePeers(ctx context.Context, peers []*model.WGPeer) error
+	// BatchUpdatePeers updates multiple WireGuard peers in a transaction. Returns error if any peer update fails.
+	BatchUpdatePeers(ctx context.Context, peers []*model.WGPeer) error
+	// BatchDeletePeers deletes multiple WireGuard peers by IDs in a transaction. Returns error if any peer deletion fails.
+	BatchDeletePeers(ctx context.Context, ids []string) error
 }
 
 // WGPeerListOptions defines options for listing WireGuard peers.

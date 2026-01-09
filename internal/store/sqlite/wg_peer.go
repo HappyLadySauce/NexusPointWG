@@ -127,3 +127,52 @@ func (w *wgPeers) CountPeersByUserID(ctx context.Context, userID string) (int64,
 	}
 	return count, nil
 }
+
+// BatchCreatePeers creates multiple WireGuard peers in a transaction.
+// Returns error if any peer creation fails, causing a rollback of all operations.
+func (w *wgPeers) BatchCreatePeers(ctx context.Context, peers []*model.WGPeer) error {
+	return w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, peer := range peers {
+			if err := tx.Create(peer).Error; err != nil {
+				if isUniqueConstraintError(err) {
+					return errors.WithCode(code.ErrIPAlreadyInUse, "peer with this public key already exists")
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}
+
+// BatchUpdatePeers updates multiple WireGuard peers in a transaction.
+// Returns error if any peer update fails, causing a rollback of all operations.
+func (w *wgPeers) BatchUpdatePeers(ctx context.Context, peers []*model.WGPeer) error {
+	return w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, peer := range peers {
+			if err := tx.Save(peer).Error; err != nil {
+				if isUniqueConstraintError(err) {
+					return errors.WithCode(code.ErrIPAlreadyInUse, "peer with this public key already exists")
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}
+
+// BatchDeletePeers deletes multiple WireGuard peers by IDs in a transaction.
+// Returns error if any peer deletion fails, causing a rollback of all operations.
+func (w *wgPeers) BatchDeletePeers(ctx context.Context, ids []string) error {
+	return w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, id := range ids {
+			if err := tx.Where("id = ?", id).Delete(&model.WGPeer{}).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// Continue if record not found (idempotent delete)
+					continue
+				}
+				return errors.WithCode(code.ErrDatabase, "%s", err.Error())
+			}
+		}
+		return nil
+	})
+}

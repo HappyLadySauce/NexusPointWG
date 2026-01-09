@@ -128,6 +128,113 @@ export interface UpdateIPPoolRequest {
   status?: "active" | "disabled";
 }
 
+// Batch operation types
+export interface BatchCreateUsersRequest {
+  items: CreateUserRequest[];
+}
+
+export interface BatchCreateUsersResponse {
+  count: number;
+}
+
+export interface BatchUpdateUserItem {
+  username: string;
+  nickname?: string;
+  avatar?: string;
+  email?: string;
+  password?: string;
+  status?: "active" | "inactive" | "deleted";
+  role?: "user" | "admin";
+}
+
+export interface BatchUpdateUsersRequest {
+  items: BatchUpdateUserItem[];
+}
+
+export interface BatchUpdateUsersResponse {
+  count: number;
+}
+
+export interface BatchDeleteUsersRequest {
+  usernames: string[];
+}
+
+export interface BatchDeleteUsersResponse {
+  count: number;
+}
+
+export interface BatchCreateIPPoolsRequest {
+  items: CreateIPPoolRequest[];
+}
+
+export interface BatchCreateIPPoolsResponse {
+  count: number;
+}
+
+export interface BatchUpdateIPPoolItem {
+  id: string;
+  name?: string;
+  routes?: string;
+  dns?: string;
+  endpoint?: string;
+  description?: string;
+  status?: "active" | "disabled";
+}
+
+export interface BatchUpdateIPPoolsRequest {
+  items: BatchUpdateIPPoolItem[];
+}
+
+export interface BatchUpdateIPPoolsResponse {
+  count: number;
+}
+
+export interface BatchDeleteIPPoolsRequest {
+  ids: string[];
+}
+
+export interface BatchDeleteIPPoolsResponse {
+  count: number;
+}
+
+export interface BatchCreateWGPeersRequest {
+  items: CreateWGPeerRequest[];
+}
+
+export interface BatchCreateWGPeersResponse {
+  count: number;
+}
+
+export interface BatchUpdateWGPeerItem {
+  id: string;
+  device_name?: string;
+  client_ip?: string;
+  ip_pool_id?: string;
+  client_private_key?: string;
+  allowed_ips?: string;
+  dns?: string;
+  endpoint?: string;
+  persistent_keepalive?: number;
+  status?: "active" | "disabled";
+  username?: string;
+}
+
+export interface BatchUpdateWGPeersRequest {
+  items: BatchUpdateWGPeerItem[];
+}
+
+export interface BatchUpdateWGPeersResponse {
+  count: number;
+}
+
+export interface BatchDeleteWGPeersRequest {
+  ids: string[];
+}
+
+export interface BatchDeleteWGPeersResponse {
+  count: number;
+}
+
 export interface AvailableIPsResponse {
   ip_pool_id: string;
   cidr: string;
@@ -520,6 +627,49 @@ export const api = {
       return res.text();
     },
 
+    // Batch operations
+    batchCreatePeers: async (data: BatchCreateWGPeersRequest): Promise<BatchCreateWGPeersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/peers/batch`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchUpdatePeers: async (data: BatchUpdateWGPeersRequest): Promise<BatchUpdateWGPeersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/peers/batch`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchDeletePeers: async (data: BatchDeleteWGPeersRequest): Promise<BatchDeleteWGPeersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.ids.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/peers/batch`, {
+        method: "DELETE",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
     // ========================================================================
     // IP Pools
     // ========================================================================
@@ -650,6 +800,49 @@ export const api = {
       const query = limit ? `?limit=${limit}` : "";
       const res = await fetch(`${API_BASE}/wg/ip-pools/${poolID}/available-ips${query}`, {
         headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    // Batch operations
+    batchCreateIPPools: async (data: BatchCreateIPPoolsRequest): Promise<BatchCreateIPPoolsResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/ip-pools/batch`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchUpdateIPPools: async (data: BatchUpdateIPPoolsRequest): Promise<BatchUpdateIPPoolsResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/ip-pools/batch`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchDeleteIPPools: async (data: BatchDeleteIPPoolsRequest): Promise<BatchDeleteIPPoolsResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.ids.length };
+      }
+
+      const res = await fetch(`${API_BASE}/wg/ip-pools/batch`, {
+        method: "DELETE",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
       });
       return handleResponse(res);
     },
@@ -856,6 +1049,49 @@ export const api = {
           throw new Error(text || res.statusText);
         }
       }
+    },
+
+    // Batch operations
+    batchCreate: async (data: BatchCreateUsersRequest): Promise<BatchCreateUsersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/users/batch`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchUpdate: async (data: BatchUpdateUsersRequest): Promise<BatchUpdateUsersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.items.length };
+      }
+
+      const res = await fetch(`${API_BASE}/users/batch`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+
+    batchDelete: async (data: BatchDeleteUsersRequest): Promise<BatchDeleteUsersResponse> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { count: data.usernames.length };
+      }
+
+      const res = await fetch(`${API_BASE}/users/batch`, {
+        method: "DELETE",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
     },
   },
 };

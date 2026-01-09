@@ -1,5 +1,5 @@
-import React from "react";
 import { Shield } from "lucide-react";
+import React from "react";
 import { LanguageSwitcherCompact } from "./LanguageSwitcherCompact";
 import { UserMenu } from "./UserMenu";
 

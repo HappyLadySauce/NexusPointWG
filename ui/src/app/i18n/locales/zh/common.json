@@ -91,5 +91,11 @@
         "of": "页，共",
         "total": "共",
         "items": "条"
+    },
+    "batch": {
+        "selected": "已选择 {{count}} 项",
+        "clearSelection": "清除选择",
+        "selectAll": "全选",
+        "deselectAll": "取消全选"
     }
 }

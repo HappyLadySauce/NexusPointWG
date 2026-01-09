@@ -34,6 +34,14 @@ type WGPeerSrv interface {
 	UpdatePeersForIPPoolChange(ctx context.Context, poolID string, newPool *model.IPPool) error
 	UpdatePeersEndpointForGlobalConfigChange(ctx context.Context) error
 	UpdatePeersDNSForGlobalConfigChange(ctx context.Context) error
+	// BatchCreatePeers creates multiple WireGuard peers in a transaction.
+	// Note: This method creates peers with minimal validation. Full validation and WireGuard config updates
+	// should be handled separately after batch creation succeeds.
+	BatchCreatePeers(ctx context.Context, peers []*model.WGPeer) error
+	// BatchUpdatePeers updates multiple WireGuard peers in a transaction.
+	BatchUpdatePeers(ctx context.Context, peers []*model.WGPeer) error
+	// BatchDeletePeers deletes multiple WireGuard peers by IDs in a transaction.
+	BatchDeletePeers(ctx context.Context, ids []string) error
 }
 
 type wgPeerSrv struct {

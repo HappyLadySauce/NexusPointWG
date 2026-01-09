@@ -190,3 +190,105 @@ type UpdateServerConfigRequest struct {
 	// DNS is the DNS server for client configs (optional, comma-separated IP addresses)
 	DNS *string `json:"dns,omitempty" binding:"omitempty,dnslist"`
 }
+
+// BatchCreateIPPoolsRequest represents a batch IP pool creation request.
+// swagger:model
+type BatchCreateIPPoolsRequest struct {
+	// Items is the list of IP pools to create (max 50 items)
+	Items []CreateIPPoolRequest `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchCreateIPPoolsResponse represents a batch IP pool creation response.
+// swagger:model
+type BatchCreateIPPoolsResponse struct {
+	// Count is the number of IP pools created successfully
+	Count int64 `json:"count"`
+}
+
+// BatchUpdateIPPoolItem represents a single IP pool update item in batch operation.
+// swagger:model
+type BatchUpdateIPPoolItem struct {
+	// ID is the ID of the IP pool to update
+	ID string `json:"id" binding:"required"`
+	// UpdateIPPoolRequest contains the fields to update
+	UpdateIPPoolRequest
+}
+
+// BatchUpdateIPPoolsRequest represents a batch IP pool update request.
+// swagger:model
+type BatchUpdateIPPoolsRequest struct {
+	// Items is the list of IP pools to update (max 50 items)
+	Items []BatchUpdateIPPoolItem `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchUpdateIPPoolsResponse represents a batch IP pool update response.
+// swagger:model
+type BatchUpdateIPPoolsResponse struct {
+	// Count is the number of IP pools updated successfully
+	Count int64 `json:"count"`
+}
+
+// BatchDeleteIPPoolsRequest represents a batch IP pool deletion request.
+// swagger:model
+type BatchDeleteIPPoolsRequest struct {
+	// IDs is the list of IP pool IDs to delete (max 50 items)
+	IDs []string `json:"ids" binding:"required,min=1,max=50,dive,required"`
+}
+
+// BatchDeleteIPPoolsResponse represents a batch IP pool deletion response.
+// swagger:model
+type BatchDeleteIPPoolsResponse struct {
+	// Count is the number of IP pools deleted successfully
+	Count int64 `json:"count"`
+}
+
+// BatchCreateWGPeersRequest represents a batch WireGuard peer creation request.
+// swagger:model
+type BatchCreateWGPeersRequest struct {
+	// Items is the list of WireGuard peers to create (max 50 items)
+	Items []CreateWGPeerRequest `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchCreateWGPeersResponse represents a batch WireGuard peer creation response.
+// swagger:model
+type BatchCreateWGPeersResponse struct {
+	// Count is the number of WireGuard peers created successfully
+	Count int64 `json:"count"`
+}
+
+// BatchUpdateWGPeerItem represents a single WireGuard peer update item in batch operation.
+// swagger:model
+type BatchUpdateWGPeerItem struct {
+	// ID is the ID of the WireGuard peer to update
+	ID string `json:"id" binding:"required"`
+	// UpdateWGPeerRequest contains the fields to update
+	UpdateWGPeerRequest
+}
+
+// BatchUpdateWGPeersRequest represents a batch WireGuard peer update request.
+// swagger:model
+type BatchUpdateWGPeersRequest struct {
+	// Items is the list of WireGuard peers to update (max 50 items)
+	Items []BatchUpdateWGPeerItem `json:"items" binding:"required,min=1,max=50,dive"`
+}
+
+// BatchUpdateWGPeersResponse represents a batch WireGuard peer update response.
+// swagger:model
+type BatchUpdateWGPeersResponse struct {
+	// Count is the number of WireGuard peers updated successfully
+	Count int64 `json:"count"`
+}
+
+// BatchDeleteWGPeersRequest represents a batch WireGuard peer deletion request.
+// swagger:model
+type BatchDeleteWGPeersRequest struct {
+	// IDs is the list of WireGuard peer IDs to delete (max 50 items)
+	IDs []string `json:"ids" binding:"required,min=1,max=50,dive,required"`
+}
+
+// BatchDeleteWGPeersResponse represents a batch WireGuard peer deletion response.
+// swagger:model
+type BatchDeleteWGPeersResponse struct {
+	// Count is the number of WireGuard peers deleted successfully
+	Count int64 `json:"count"`
+}

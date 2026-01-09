@@ -24,6 +24,12 @@ type IPPoolSrv interface {
 	HasAllocatedIPs(ctx context.Context, poolID string) (bool, error)
 	UpdateIPPoolsEndpointForGlobalConfigChange(ctx context.Context) error
 	UpdateIPPoolsDNSForGlobalConfigChange(ctx context.Context) error
+	// BatchCreateIPPools creates multiple IP pools in a transaction.
+	BatchCreateIPPools(ctx context.Context, pools []*model.IPPool) error
+	// BatchUpdateIPPools updates multiple IP pools in a transaction.
+	BatchUpdateIPPools(ctx context.Context, pools []*model.IPPool) error
+	// BatchDeleteIPPools deletes multiple IP pools by IDs in a transaction.
+	BatchDeleteIPPools(ctx context.Context, ids []string) error
 }
 
 type ipPoolSrv struct {
@@ -193,4 +199,19 @@ func (i *ipPoolSrv) UpdateIPPoolsDNSForGlobalConfigChange(ctx context.Context) e
 	}
 
 	return nil
+}
+
+// BatchCreateIPPools creates multiple IP pools in a transaction.
+func (i *ipPoolSrv) BatchCreateIPPools(ctx context.Context, pools []*model.IPPool) error {
+	return i.store.IPPools().BatchCreateIPPools(ctx, pools)
+}
+
+// BatchUpdateIPPools updates multiple IP pools in a transaction.
+func (i *ipPoolSrv) BatchUpdateIPPools(ctx context.Context, pools []*model.IPPool) error {
+	return i.store.IPPools().BatchUpdateIPPools(ctx, pools)
+}
+
+// BatchDeleteIPPools deletes multiple IP pools by IDs in a transaction.
+func (i *ipPoolSrv) BatchDeleteIPPools(ctx context.Context, ids []string) error {
+	return i.store.IPPools().BatchDeleteIPPools(ctx, ids)
 }

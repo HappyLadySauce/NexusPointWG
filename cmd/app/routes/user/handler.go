@@ -19,4 +19,9 @@ func RegisterRoutes() {
 	authed.PUT("/users/:username", userController.UpdateUserInfo)
 	authed.DELETE("/users/:username", userController.DeleteUser)
 	authed.POST("/users/:username/password", userController.ChangePassword)
+
+	// 批量操作路由
+	authed.POST("/users/batch", userController.BatchCreateUsers)
+	authed.PUT("/users/batch", userController.BatchUpdateUsers)
+	authed.DELETE("/users/batch", userController.BatchDeleteUsers)
 }

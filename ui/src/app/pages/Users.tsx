@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Edit, Plus, Trash2, User as UserIcon } from "lucide-react";
+import { Edit, Plus, Trash2, User as UserIcon, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +44,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { useAuth } from "../context/AuthContext";
-import { api, CreateUserRequest, UpdateUserRequest, UserResponse } from "../services/api";
+import { api, BatchCreateUsersRequest, BatchDeleteUsersRequest, BatchUpdateUsersRequest, CreateUserRequest, UpdateUserRequest, UserResponse } from "../services/api";
 
 // Form schema for creating user
 const createUserSchema = z.object({
@@ -140,6 +141,13 @@ export function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserResponse | null>(null);
+
+  // Batch operation states
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isBatchCreateOpen, setIsBatchCreateOpen] = useState(false);
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
+  const [batchItems, setBatchItems] = useState<CreateUserRequest[]>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -361,17 +369,151 @@ export function UsersPage() {
     return isAdmin || currentUser?.username === user.username;
   };
 
+  // Batch operation handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allUsernames = new Set(users.map(u => u.username));
+      setSelectedUsers(allUsernames);
+    } else {
+      setSelectedUsers(new Set());
+    }
+  };
+
+  const handleSelectUser = (username: string, checked: boolean) => {
+    const newSelected = new Set(selectedUsers);
+    if (checked) {
+      newSelected.add(username);
+    } else {
+      newSelected.delete(username);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  const isAllSelected = users.length > 0 && users.every(u => selectedUsers.has(u.username));
+  const isIndeterminate = selectedUsers.size > 0 && selectedUsers.size < users.length;
+
+  const handleBatchDelete = () => {
+    if (selectedUsers.size === 0) return;
+    setIsBatchDeleteOpen(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedUsers.size === 0) return;
+
+    try {
+      const usernames = Array.from(selectedUsers);
+      await api.users.batchDelete({ usernames });
+      toast.success(t('messages.batchDeleteSuccess', { count: usernames.length }));
+      setIsBatchDeleteOpen(false);
+      setSelectedUsers(new Set());
+      fetchUsers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchDeleteFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEdit = () => {
+    if (selectedUsers.size === 0) return;
+    setIsBatchEditOpen(true);
+  };
+
+  const handleBatchCreate = () => {
+    setBatchItems([{
+      username: '',
+      email: '',
+      password: '',
+    }]);
+    setIsBatchCreateOpen(true);
+  };
+
+  const addBatchItem = () => {
+    if (batchItems.length >= 50) {
+      toast.error(t('messages.batchMaxItems', { max: 50 }));
+      return;
+    }
+    setBatchItems([...batchItems, {
+      username: '',
+      email: '',
+      password: '',
+    }]);
+  };
+
+  const removeBatchItem = (index: number) => {
+    setBatchItems(batchItems.filter((_, i) => i !== index));
+  };
+
+  const updateBatchItem = (index: number, field: keyof CreateUserRequest, value: string) => {
+    const newItems = [...batchItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setBatchItems(newItems);
+  };
+
+  const handleBatchCreateSubmit = async () => {
+    if (batchItems.length === 0) {
+      toast.error(t('messages.batchEmpty'));
+      return;
+    }
+
+    // Validate all items
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      if (!item.username || !item.email || !item.password) {
+        toast.error(t('messages.batchInvalidItem', { index: i + 1 }));
+        return;
+      }
+    }
+
+    try {
+      const request: BatchCreateUsersRequest = { items: batchItems };
+      await api.users.batchCreate(request);
+      toast.success(t('messages.batchCreateSuccess', { count: batchItems.length }));
+      setIsBatchCreateOpen(false);
+      setBatchItems([]);
+      fetchUsers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchCreateFailed');
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBatchEditSubmit = async (data: { role?: string; status?: string }) => {
+    if (selectedUsers.size === 0) return;
+
+    try {
+      const items = Array.from(selectedUsers).map(username => ({
+        username,
+        ...(data.role && { role: data.role as "user" | "admin" }),
+        ...(data.status && { status: data.status as "active" | "inactive" | "deleted" }),
+      }));
+
+      const request: BatchUpdateUsersRequest = { items };
+      await api.users.batchUpdate(request);
+      toast.success(t('messages.batchUpdateSuccess', { count: items.length }));
+      setIsBatchEditOpen(false);
+      setSelectedUsers(new Set());
+      fetchUsers();
+    } catch (error: any) {
+      const errorMessage = error?.message || t('messages.batchUpdateFailed');
+      toast.error(errorMessage);
+    }
+  };
+
   return (
     <div className="space-y-6 p-8 bg-slate-50/50">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {isAdmin && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleBatchCreate}>
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.createButton')}
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> {t('create.createButton')}
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{t('create.title')}</DialogTitle>
@@ -503,12 +645,65 @@ export function UsersPage() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
+
+      {/* Batch operation toolbar */}
+      {selectedUsers.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">
+              {t('batch.selected', { count: selectedUsers.size })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedUsers(new Set())}
+            >
+              <X className="mr-2 h-4 w-4" /> {t('batch.clearSelection')}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBatchEdit}
+                  disabled={selectedUsers.size > 50}
+                >
+                  {t('batch.editButton')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={selectedUsers.size > 50}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> {t('batch.deleteButton')}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border bg-white">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = isIndeterminate;
+                    }
+                  }}
+                />
+              </TableHead>
               <TableHead>Username</TableHead>
               <TableHead>Role</TableHead>
               {isAdmin && <TableHead className="text-right">Peers</TableHead>}
@@ -519,11 +714,17 @@ export function UsersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8">Loading...</TableCell>
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">Loading...</TableCell>
               </TableRow>
             ) : (
               users.map((user, index) => (
                 <TableRow key={user.username || index}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedUsers.has(user.username)}
+                      onCheckedChange={(checked) => handleSelectUser(user.username, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
                     <div className="bg-slate-100 p-2 rounded-full">
                       <UserIcon className="h-4 w-4 text-slate-500" />
@@ -818,6 +1019,193 @@ export function UsersPage() {
               onClick={confirmDelete}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Create Dialog */}
+      <Dialog open={isBatchCreateOpen} onOpenChange={setIsBatchCreateOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('batch.createTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.createDescription', { max: 50 })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {batchItems.map((item, index) => (
+              <div key={index} className="p-4 border rounded-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">{t('batch.item', { index: index + 1 })}</h4>
+                  {batchItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeBatchItem(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>{t('create.username')} *</Label>
+                    <Input
+                      value={item.username}
+                      onChange={(e) => updateBatchItem(index, 'username', e.target.value)}
+                      placeholder={t('create.usernamePlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.email')} *</Label>
+                    <Input
+                      type="email"
+                      value={item.email}
+                      onChange={(e) => updateBatchItem(index, 'email', e.target.value)}
+                      placeholder={t('create.emailPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.password')} *</Label>
+                    <Input
+                      type="password"
+                      value={item.password}
+                      onChange={(e) => updateBatchItem(index, 'password', e.target.value)}
+                      placeholder={t('create.passwordPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('create.nickname')}</Label>
+                    <Input
+                      value={item.nickname || ''}
+                      onChange={(e) => updateBatchItem(index, 'nickname', e.target.value)}
+                      placeholder={t('create.nicknamePlaceholder')}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addBatchItem}
+              disabled={batchItems.length >= 50}
+            >
+              <Plus className="mr-2 h-4 w-4" /> {t('batch.addItem')}
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {t('batch.itemsCount', { current: batchItems.length, max: 50 })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchCreateOpen(false);
+                setBatchItems([]);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button type="button" onClick={handleBatchCreateSubmit}>
+              {t('batch.createButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Edit Dialog */}
+      <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.editTitle', { count: selectedUsers.size })}</DialogTitle>
+            <DialogDescription>
+              {t('batch.editDescription', { count: selectedUsers.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit((data) => handleBatchEditSubmit(data))} className="space-y-4">
+            {isAdmin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="batch-role">{t('create.role')}</Label>
+                  <Select
+                    value={watchEdit("role") || ""}
+                    onValueChange={(value) => setEditValue("role", value as "user" | "admin")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('batch.selectRole')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">{tCommon('common.user')}</SelectItem>
+                      <SelectItem value="admin">{tCommon('common.admin')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="batch-status">{t('create.status')}</Label>
+                  <Select
+                    value={watchEdit("status") || ""}
+                    onValueChange={(value) => setEditValue("status", value as "active" | "inactive" | "deleted")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('batch.selectStatus')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">{tCommon('status.active')}</SelectItem>
+                      <SelectItem value="inactive">{tCommon('status.inactive')}</SelectItem>
+                      <SelectItem value="deleted">{tCommon('status.deleted')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsBatchEditOpen(false);
+                }}
+              >
+                {tCommon('buttons.cancel')}
+              </Button>
+              <Button type="submit" disabled={isEditSubmitting}>
+                {isEditSubmitting ? t('batch.updating') : t('batch.saveButton')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Delete Dialog */}
+      <Dialog open={isBatchDeleteOpen} onOpenChange={setIsBatchDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('batch.deleteTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('batch.deleteDescription', { count: selectedUsers.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBatchDeleteOpen(false);
+              }}
+            >
+              {tCommon('buttons.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmBatchDelete}
+            >
+              {t('batch.deleteButton')}
             </Button>
           </DialogFooter>
         </DialogContent>
