@@ -2,8 +2,8 @@ package environment
 
 const (
 	userAgent = "NexusPointWG"
-	release   = "1.2.1"
-	dev       = "1.2.1-dev"
+	release   = "1.2.2"
+	dev       = "1.2.2-dev"
 )
 
 var (
