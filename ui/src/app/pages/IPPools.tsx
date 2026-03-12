@@ -98,6 +98,22 @@ export function IPPools() {
 
   const isAdmin = currentUser?.role === "admin";
 
+  // 非管理员禁止访问 IP 池管理页面
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6 p-8 bg-slate-50/50">
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+        <div className="max-w-2xl">
+          <div className="rounded-lg border bg-white p-6">
+            <p className="text-sm text-muted-foreground">
+              {tCommon('messages.noPermission')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const fetchPools = async () => {
     setLoading(true);
     try {

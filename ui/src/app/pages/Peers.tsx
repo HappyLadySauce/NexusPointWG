@@ -330,7 +330,25 @@ export function Peers() {
     if (!viewingConfig) return;
 
     try {
-      await navigator.clipboard.writeText(viewingConfig.config);
+      const text = viewingConfig.config;
+
+      // 优先使用 Clipboard API（仅在安全上下文中可用）
+      if (typeof navigator !== "undefined" && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
+        await (navigator as any).clipboard.writeText(text);
+      } else {
+        // 兼容不支持 navigator.clipboard 的环境（例如 http 下的 Firefox）
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
       toast.success(t('messages.copyConfigSuccess'));
     } catch (error) {
       toast.error(t('messages.copyConfigFailed'));

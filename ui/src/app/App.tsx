@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { I18nProvider } from './context/I18nContext';
 import { Login } from './pages/Login';
@@ -17,6 +17,14 @@ function MainApp() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useTranslation('common');
   const [currentTab, setCurrentTab] = useState("dashboard");
+
+  // 当用户角色变化（例如从管理员切换为普通用户）时，确保当前 Tab 不停留在仅管理员可见的页面
+  useEffect(() => {
+    const adminOnlyTabs = ['ip-pools', 'users', 'settings'];
+    if (user?.role !== 'admin' && adminOnlyTabs.includes(currentTab)) {
+      setCurrentTab('dashboard');
+    }
+  }, [user, currentTab]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">{t('status.loading')}</div>;
